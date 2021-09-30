@@ -15,6 +15,7 @@ import net.sourceforge.kolmafia.session.InventoryManager;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.junit.After;
+import org.junit.Ignore;
 import org.junit.Test;
 
 public class MaximizerTest {
@@ -173,6 +174,23 @@ public class MaximizerTest {
     assertEquals(25, modFor("Buffed Muscle"), 0.01);
     // Actually equipped the buddy bjorn
     assertEquals(25, modFor("Meat Drop"), 0.01);
+  }
+
+  @Test
+  @Ignore("Failing...")
+  public void keepsEmptyBjornEquipped() {
+    equip(EquipmentManager.CONTAINER, "Buddy Bjorn");
+
+    assertTrue(maximize("mus +current"));
+    // Crown should still be equipped.
+    Optional<AdventureResult> back =
+        Maximizer.boosts.stream()
+            .filter(Boost::isEquipment)
+            .filter(b -> b.getSlot() == EquipmentManager.CONTAINER)
+            .map(Boost::getItem)
+            .findAny();
+    assertTrue(back.isPresent());
+    assertEquals(back.get().getName(), "Buddy Bjorn");
   }
 
   private void equip(int slot, String item) {

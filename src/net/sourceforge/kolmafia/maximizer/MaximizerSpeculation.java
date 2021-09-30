@@ -384,22 +384,20 @@ public class MaximizerSpeculation extends Speculation
         if (count <= 0) continue;
         this.equipment[EquipmentManager.CONTAINER] = item;
         if (item.getItemId() == ItemPool.BUDDY_BJORN) {
+          any = true;
           if (useBjornFamiliar != FamiliarData.NO_FAMILIAR) {
             this.setBjorned(useBjornFamiliar);
             this.tryAccessories(enthronedFamiliars, possibles, 0, bestCard, useCrownFamiliar);
-            any = true;
             this.restore(mark);
           } else {
             for (FamiliarData f : enthronedFamiliars) {
               this.setBjorned(f);
               this.tryAccessories(enthronedFamiliars, possibles, 0, bestCard, useCrownFamiliar);
-              any = true;
               this.restore(mark);
             }
           }
         } else {
           this.tryAccessories(enthronedFamiliars, possibles, 0, bestCard, useCrownFamiliar);
-          any = true;
           this.restore(mark);
         }
       }
@@ -522,10 +520,10 @@ public class MaximizerSpeculation extends Speculation
         if (count <= 0) continue;
         this.equipment[EquipmentManager.HAT] = item;
         if (item.getItemId() == ItemPool.HATSEAT) {
+          any = true;
           if (useCrownFamiliar != FamiliarData.NO_FAMILIAR) {
             this.setEnthroned(useCrownFamiliar);
             this.tryShirts(possibles, bestCard);
-            any = true;
             this.restore(mark);
           } else {
             for (FamiliarData f : enthronedFamiliars) {
@@ -533,14 +531,12 @@ public class MaximizerSpeculation extends Speculation
               if (f != this.getBjorned()) {
                 this.setEnthroned(f);
                 this.tryShirts(possibles, bestCard);
-                any = true;
                 this.restore(mark);
               }
             }
           }
         } else {
           this.tryShirts(possibles, bestCard);
-          any = true;
           this.restore(mark);
         }
       }
