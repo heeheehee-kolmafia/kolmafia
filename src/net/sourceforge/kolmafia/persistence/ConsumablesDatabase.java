@@ -361,19 +361,17 @@ public class ConsumablesDatabase {
 
   public static final String qualityValue(String value) {
     // Reduce string allocations...
-    return value == null
-        ? ConsumablesDatabase.NONE
-        : value.equals("crappy")
-            ? ConsumablesDatabase.CRAPPY
-            : value.equals("decent")
-                ? ConsumablesDatabase.DECENT
-                : value.equals("good")
-                    ? ConsumablesDatabase.GOOD
-                    : value.equals("awesome")
-                        ? ConsumablesDatabase.AWESOME
-                        : value.equals("EPIC")
-                            ? ConsumablesDatabase.EPIC
-                            : ConsumablesDatabase.NONE;
+    if (value == null) {
+      return ConsumablesDatabase.NONE;
+    }
+    return switch (value) {
+      case "crappy" -> ConsumablesDatabase.CRAPPY;
+      case "decent" -> ConsumablesDatabase.DECENT;
+      case "good" -> ConsumablesDatabase.GOOD;
+      case "awesome" -> ConsumablesDatabase.AWESOME;
+      case "EPIC" -> ConsumablesDatabase.EPIC;
+      default -> ConsumablesDatabase.NONE;
+    };
   }
 
   private static void saveAdventureRange(final String name, final int unitCost, String range) {
@@ -1202,17 +1200,15 @@ public class ConsumablesDatabase {
   // Support for dusty bottles of wine
 
   public static final String dustyBottleType(final int itemId) {
-    return (itemId == ItemPool.DUSTY_BOTTLE_OF_MERLOT)
-        ? "average"
-        : (itemId == ItemPool.DUSTY_BOTTLE_OF_PORT)
-            ? "vinegar"
-            : (itemId == ItemPool.DUSTY_BOTTLE_OF_PINOT_NOIR)
-                ? "spooky"
-                : (itemId == ItemPool.DUSTY_BOTTLE_OF_ZINFANDEL)
-                    ? "great"
-                    : (itemId == ItemPool.DUSTY_BOTTLE_OF_MARSALA)
-                        ? "glassy"
-                        : (itemId == ItemPool.DUSTY_BOTTLE_OF_MUSCAT) ? "bad" : "dusty";
+    return switch (itemId) {
+      case ItemPool.DUSTY_BOTTLE_OF_MERLOT -> "average";
+      case ItemPool.DUSTY_BOTTLE_OF_PORT -> "vinegar";
+      case ItemPool.DUSTY_BOTTLE_OF_PINOT_NOIR -> "spooky";
+      case ItemPool.DUSTY_BOTTLE_OF_ZINFANDEL -> "great";
+      case ItemPool.DUSTY_BOTTLE_OF_MARSALA -> "glassy";
+      case ItemPool.DUSTY_BOTTLE_OF_MUSCAT -> "bad";
+      default -> "dusty";
+    };
   }
 
   public static final String dustyBottleName(final int itemId) {

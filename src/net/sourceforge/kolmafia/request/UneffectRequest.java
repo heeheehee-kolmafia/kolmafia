@@ -227,16 +227,15 @@ public class UneffectRequest extends GenericRequest {
 
     switch (skillId) {
       case SkillPool.SPIRIT_BOON:
-        {
-          String blessing = KoLCharacter.getBlessingType();
-          return blessing == KoLCharacter.SHE_WHO_WAS_BLESSING
-              ? EffectDatabase.getEffectName(EffectPool.BOON_OF_SHE_WHO_WAS)
-              : blessing == KoLCharacter.STORM_BLESSING
-                  ? EffectDatabase.getEffectName(EffectPool.BOON_OF_THE_STORM_TORTOISE)
-                  : blessing == KoLCharacter.WAR_BLESSING
-                      ? EffectDatabase.getEffectName(EffectPool.BOON_OF_THE_WAR_SNAPPER)
-                      : "none";
-        }
+        return switch (KoLCharacter.getBlessingType()) {
+          case KoLCharacter.SHE_WHO_WAS_BLESSING -> EffectDatabase.getEffectName(
+              EffectPool.BOON_OF_SHE_WHO_WAS);
+          case KoLCharacter.STORM_BLESSING -> EffectDatabase.getEffectName(
+              EffectPool.BOON_OF_THE_STORM_TORTOISE);
+          case KoLCharacter.WAR_BLESSING -> EffectDatabase.getEffectName(
+              EffectPool.BOON_OF_THE_WAR_SNAPPER);
+          default -> "none";
+        };
       case SkillPool.SHE_WHO_WAS_BLESSING:
         return EffectDatabase.getEffectName(
             KoLCharacter.getClassType() == KoLCharacter.TURTLE_TAMER
@@ -253,16 +252,15 @@ public class UneffectRequest extends GenericRequest {
                 ? EffectPool.BLESSING_OF_THE_WAR_SNAPPER
                 : EffectPool.DISDAIN_OF_THE_WAR_SNAPPER);
       case SkillPool.TURTLE_POWER:
-        {
-          String blessing = KoLCharacter.getBlessingType();
-          return blessing == KoLCharacter.SHE_WHO_WAS_BLESSING
-              ? EffectDatabase.getEffectName(EffectPool.AVATAR_OF_SHE_WHO_WAS)
-              : blessing == KoLCharacter.STORM_BLESSING
-                  ? EffectDatabase.getEffectName(EffectPool.AVATAR_OF_THE_STORM_TORTOISE)
-                  : blessing == KoLCharacter.WAR_BLESSING
-                      ? EffectDatabase.getEffectName(EffectPool.AVATAR_OF_THE_WAR_SNAPPER)
-                      : "none";
-        }
+        return switch (KoLCharacter.getBlessingType()) {
+          case KoLCharacter.SHE_WHO_WAS_BLESSING -> EffectDatabase.getEffectName(
+              EffectPool.AVATAR_OF_SHE_WHO_WAS);
+          case KoLCharacter.STORM_BLESSING -> EffectDatabase.getEffectName(
+              EffectPool.AVATAR_OF_THE_STORM_TORTOISE);
+          case KoLCharacter.WAR_BLESSING -> EffectDatabase.getEffectName(
+              EffectPool.AVATAR_OF_THE_WAR_SNAPPER);
+          default -> "none";
+        };
       case SkillPool.SHIELD_OF_THE_PASTALORD:
         return EffectDatabase.getEffectName(
             KoLCharacter.getClassType() == KoLCharacter.PASTAMANCER

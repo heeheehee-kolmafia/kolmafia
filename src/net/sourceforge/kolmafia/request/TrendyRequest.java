@@ -39,17 +39,15 @@ public class TrendyRequest extends GenericRequest {
   }
 
   private static Map<String, Boolean> typeToMap(final String type) {
-    return type.equals("Items")
-        ? TrendyRequest.itemMap
-        : type.equals("Campground")
-            ? TrendyRequest.campgroundMap
-            : type.equals("Bookshelf")
-                ? TrendyRequest.bookshelfMap
-                : type.equals("Familiars")
-                    ? TrendyRequest.familiarMap
-                    : type.equals("Skills")
-                        ? TrendyRequest.skillMap
-                        : type.equals("Clan Item") ? TrendyRequest.clanMap : null;
+    return switch (type) {
+      case "Items" -> TrendyRequest.itemMap;
+      case "Campground" -> campgroundMap;
+      case "Bookshelf" -> TrendyRequest.bookshelfMap;
+      case "Familiars" -> TrendyRequest.familiarMap;
+      case "Skills" -> TrendyRequest.skillMap;
+      case "Clan Item" -> TrendyRequest.clanMap;
+      default -> null;
+    };
   }
 
   private static boolean isTrendy(final Map<String, Boolean> map, final String key) {

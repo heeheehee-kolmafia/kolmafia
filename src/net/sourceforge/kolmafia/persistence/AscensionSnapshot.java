@@ -873,139 +873,48 @@ public class AscensionSnapshot {
                 ? "Normal "
                 : typeFilter == AscensionSnapshot.HARDCORE ? "Hardcore " : "Casual ");
         strbuf.append(
-            pathFilter == AscensionSnapshot.NO_FILTER
-                ? ""
-                : pathFilter == AscensionSnapshot.NOPATH
-                    ? "No-Path "
-                    : pathFilter == AscensionSnapshot.TEETOTALER
-                        ? "Teetotaler "
-                        : pathFilter == AscensionSnapshot.BOOZETAFARIAN
-                            ? "Boozetafarian "
-                            : pathFilter == AscensionSnapshot.OXYGENARIAN
-                                ? "Oxygenarian "
-                                : pathFilter == AscensionSnapshot.BAD_MOON
-                                    ? "Bad Moon "
-                                    : pathFilter == AscensionSnapshot.BEES_HATE_YOU
-                                        ? "Bees Hate You "
-                                        : pathFilter == AscensionSnapshot.SURPRISING_FIST
-                                            ? "Way of the Surprising Fist "
-                                            : pathFilter == AscensionSnapshot.TRENDY
-                                                ? "Trendy "
-                                                : pathFilter == AscensionSnapshot.AVATAR_OF_BORIS
-                                                    ? "Avatar of Boris "
-                                                    : pathFilter
-                                                            == AscensionSnapshot.BUGBEAR_INVASION
-                                                        ? "Bugbear Invasion "
-                                                        : pathFilter
-                                                                == AscensionSnapshot.ZOMBIE_SLAYER
-                                                            ? "Zombie Slayer "
-                                                            : pathFilter
-                                                                    == AscensionSnapshot.CLASS_ACT
-                                                                ? "Class Act "
-                                                                : pathFilter
-                                                                        == AscensionSnapshot
-                                                                            .AVATAR_OF_JARLSBERG
-                                                                    ? "Avatar of Jarlsberg "
-                                                                    : pathFilter
-                                                                            == AscensionSnapshot.BIG
-                                                                        ? "BIG! "
-                                                                        : pathFilter
-                                                                                == AscensionSnapshot
-                                                                                    .KOLHS
-                                                                            ? "KOLHS "
-                                                                            : pathFilter
-                                                                                    == AscensionSnapshot
-                                                                                        .CLASS_ACT_II
-                                                                                ? "Class Act II: A Class For Pigs "
-                                                                                : pathFilter
-                                                                                        == AscensionSnapshot
-                                                                                            .AVATAR_OF_SNEAKY_PETE
-                                                                                    ? "Avatar of Sneaky Pete "
-                                                                                    : pathFilter
-                                                                                            == AscensionSnapshot
-                                                                                                .SLOW_AND_STEADY
-                                                                                        ? "Slow and Steady "
-                                                                                        : pathFilter
-                                                                                                == AscensionSnapshot
-                                                                                                    .HEAVY_RAINS
-                                                                                            ? "Heavy Rains "
-                                                                                            : pathFilter
-                                                                                                    == AscensionSnapshot
-                                                                                                        .PICKY
-                                                                                                ? "Picky "
-                                                                                                : pathFilter
-                                                                                                        == AscensionSnapshot
-                                                                                                            .STANDARD
-                                                                                                    ? "Standard "
-                                                                                                    : pathFilter
-                                                                                                            == AscensionSnapshot
-                                                                                                                .ACTUALLY_ED_THE_UNDYING
-                                                                                                        ? "Actually Ed the Undying "
-                                                                                                        : pathFilter
-                                                                                                                == AscensionSnapshot
-                                                                                                                    .CRAZY_RANDOM_SUMMER
-                                                                                                            ? "One Crazy Random Summer "
-                                                                                                            : pathFilter
-                                                                                                                    == AscensionSnapshot
-                                                                                                                        .COMMUNITY_SERVICE
-                                                                                                                ? "Community Service "
-                                                                                                                : pathFilter
-                                                                                                                        == AscensionSnapshot
-                                                                                                                            .AVATAR_OF_WEST_OF_LOATHING
-                                                                                                                    ? "Avatar of West of Loathing "
-                                                                                                                    : pathFilter
-                                                                                                                            == AscensionSnapshot
-                                                                                                                                .THE_SOURCE
-                                                                                                                        ? "The Source "
-                                                                                                                        : pathFilter
-                                                                                                                                == AscensionSnapshot
-                                                                                                                                    .NUCLEAR_AUTUMN
-                                                                                                                            ? "Nuclear Autumn "
-                                                                                                                            : pathFilter
-                                                                                                                                    == AscensionSnapshot
-                                                                                                                                        .GELATINOUS_NOOB
-                                                                                                                                ? "Gelatinous Noob "
-                                                                                                                                : pathFilter
-                                                                                                                                        == AscensionSnapshot
-                                                                                                                                            .LICENSE
-                                                                                                                                    ? "License to Adventure "
-                                                                                                                                    : pathFilter
-                                                                                                                                            == AscensionSnapshot
-                                                                                                                                                .REPEAT
-                                                                                                                                        ? "Live. Ascend. Repeat. "
-                                                                                                                                        : pathFilter
-                                                                                                                                                == AscensionSnapshot
-                                                                                                                                                    .POKEFAM
-                                                                                                                                            ? "Pocket Familiars "
-                                                                                                                                            : pathFilter
-                                                                                                                                                    == AscensionSnapshot
-                                                                                                                                                        .GLOVER
-                                                                                                                                                ? "G-Lover "
-                                                                                                                                                : pathFilter
-                                                                                                                                                        == AscensionSnapshot
-                                                                                                                                                            .DISGUISES_DELIMIT
-                                                                                                                                                    ? "Disguises Delimit "
-                                                                                                                                                    : pathFilter
-                                                                                                                                                            == AscensionSnapshot
-                                                                                                                                                                .DARK_GYFFTE
-                                                                                                                                                        ? "Dark Gyffte "
-                                                                                                                                                        : pathFilter
-                                                                                                                                                                == AscensionSnapshot
-                                                                                                                                                                    .CRAZY_RANDOM_SUMMER_TWO
-                                                                                                                                                            ? "Two Crazy Random Summer "
-                                                                                                                                                            : pathFilter
-                                                                                                                                                                    == AscensionSnapshot
-                                                                                                                                                                        .KINGDOM_OF_EXPLOATHING
-                                                                                                                                                                ? "Kingdom of Exploathing "
-                                                                                                                                                                : pathFilter
-                                                                                                                                                                        == AscensionSnapshot
-                                                                                                                                                                            .PATH_OF_THE_PLUMBER
-                                                                                                                                                                    ? "Path of the Plumber "
-                                                                                                                                                                    : pathFilter
-                                                                                                                                                                            == AscensionSnapshot
-                                                                                                                                                                                .LOWKEY
-                                                                                                                                                                        ? "Low Key Summer"
-                                                                                                                                                                        : "");
+            switch (pathFilter) {
+              case AscensionSnapshot.NO_FILTER -> "";
+              case AscensionSnapshot.NOPATH -> "No-Path ";
+              case AscensionSnapshot.TEETOTALER -> "Teetotaler ";
+              case AscensionSnapshot.BOOZETAFARIAN -> "Boozetafarian ";
+              case AscensionSnapshot.OXYGENARIAN -> "Oxygenarian ";
+              case AscensionSnapshot.BAD_MOON -> "Bad Moon ";
+              case AscensionSnapshot.BEES_HATE_YOU -> "Bees Hate You ";
+              case AscensionSnapshot.SURPRISING_FIST -> "Way of the Surprising Fist ";
+              case AscensionSnapshot.TRENDY -> "Trendy ";
+              case AscensionSnapshot.AVATAR_OF_BORIS -> "Avatar of Boris ";
+              case AscensionSnapshot.BUGBEAR_INVASION -> "Bugbear Invasion ";
+              case AscensionSnapshot.ZOMBIE_SLAYER -> "Zombie Slayer ";
+              case AscensionSnapshot.CLASS_ACT -> "Class Act ";
+              case AscensionSnapshot.AVATAR_OF_JARLSBERG -> "Avatar of Jarlsberg ";
+              case AscensionSnapshot.BIG -> "BIG! ";
+              case AscensionSnapshot.KOLHS -> "KOLHS ";
+              case AscensionSnapshot.CLASS_ACT_II -> "Class Act II: A Class For Pigs ";
+              case AscensionSnapshot.AVATAR_OF_SNEAKY_PETE -> "Avatar of Sneaky Pete ";
+              case AscensionSnapshot.SLOW_AND_STEADY -> "Slow and Steady ";
+              case AscensionSnapshot.HEAVY_RAINS -> "Heavy Rains ";
+              case AscensionSnapshot.PICKY -> "Picky ";
+              case AscensionSnapshot.STANDARD -> "Standard ";
+              case AscensionSnapshot.ACTUALLY_ED_THE_UNDYING -> "Actually Ed the Undying ";
+              case AscensionSnapshot.CRAZY_RANDOM_SUMMER -> "One Crazy Random Summer ";
+              case AscensionSnapshot.COMMUNITY_SERVICE -> "Community Service ";
+              case AscensionSnapshot.AVATAR_OF_WEST_OF_LOATHING -> "Avatar of West of Loathing ";
+              case AscensionSnapshot.THE_SOURCE -> "The Source ";
+              case AscensionSnapshot.NUCLEAR_AUTUMN -> "Nuclear Autumn ";
+              case AscensionSnapshot.GELATINOUS_NOOB -> "Gelatinous Noob ";
+              case AscensionSnapshot.LICENSE -> "License to Adventure ";
+              case AscensionSnapshot.REPEAT -> "Live. Ascend. Repeat. ";
+              case AscensionSnapshot.POKEFAM -> "Pocket Familiars ";
+              case AscensionSnapshot.GLOVER -> "G-Lover ";
+              case AscensionSnapshot.DISGUISES_DELIMIT -> "Disguises Delimit ";
+              case AscensionSnapshot.DARK_GYFFTE -> "Dark Gyffte ";
+              case AscensionSnapshot.CRAZY_RANDOM_SUMMER_TWO -> "Two Crazy Random Summer ";
+              case AscensionSnapshot.KINGDOM_OF_EXPLOATHING -> "Kingdom of Exploathing ";
+              case AscensionSnapshot.PATH_OF_THE_PLUMBER -> "Path of the Plumber ";
+              case AscensionSnapshot.LOWKEY -> "Low Key Summer";
+              default -> "";
+            });
 
         strbuf.append("Ascensions (Out of ");
         strbuf.append(resultsList.size());

@@ -118,17 +118,14 @@ public class ApiRequest extends GenericRequest {
     String message =
         this.silent
             ? null
-            : this.what.equals("status")
-                ? "Loading character status..."
-                : this.what.equals("inventory")
-                    ? "Updating inventory..."
-                    : this.what.equals("closet")
-                        ? "Updating closet..."
-                        : this.what.equals("storage")
-                            ? "Updating storage..."
-                            : this.what.equals("item")
-                                ? "Looking at item #" + this.id + "..."
-                                : null;
+            : switch (this.what) {
+              case "status" -> "Loading character status...";
+              case "inventory" -> "Updating inventory...";
+              case "closet" -> "Updating closet...";
+              case "storage" -> "Updating storage...";
+              case "item" -> "Looking at item #" + this.id + "...";
+              default -> null;
+            };
 
     if (message != null) {
       KoLmafia.updateDisplay(message);

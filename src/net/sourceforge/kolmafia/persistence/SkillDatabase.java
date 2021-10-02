@@ -42,6 +42,41 @@ public class SkillDatabase {
   private static final Map<Integer, String> skillCategoryById = new HashMap<>();
   // Per-user data. Needs to be reset when log in as a new user.
   private static final Map<Integer, Integer> castsById = new HashMap<>();
+
+  public static final String skillTypeToTypeName(final int type) {
+    return switch (type) {
+      case PASSIVE -> "passive";
+      case SUMMON -> "summon";
+      case REMEDY -> "remedy";
+      case SELF_ONLY -> "self-only";
+      case BUFF -> "buff";
+      case COMBAT -> "combat";
+      case SONG -> "song";
+      case COMBAT_NONCOMBAT_REMEDY -> "combat/noncombat remedy";
+      case COMBAT_PASSIVE -> "combat/passive";
+      case EXPRESSION -> "expression";
+      case WALK -> "walk";
+      default -> "unknown";
+    };
+  }
+
+  public static final int skillTypeNameToType(final String typeName) {
+    return switch (typeName) {
+      case "passive" -> SkillDatabase.PASSIVE;
+      case "summon" -> SkillDatabase.SUMMON;
+      case "remedy" -> SkillDatabase.REMEDY;
+      case "self-only" -> SkillDatabase.SELF_ONLY;
+      case "buff" -> SkillDatabase.BUFF;
+      case "combat" -> SkillDatabase.COMBAT;
+      case "song" -> SkillDatabase.SONG;
+      case "combat/noncombat remedy" -> SkillDatabase.COMBAT_NONCOMBAT_REMEDY;
+      case "combat/passive" -> SkillDatabase.COMBAT_PASSIVE;
+      case "expression" -> SkillDatabase.EXPRESSION;
+      case "walk" -> SkillDatabase.WALK;
+      default -> -1;
+    };
+  }
+
   private static final String UNCATEGORIZED = "uncategorized";
   private static final String CONDITIONAL = "conditional";
   private static final String MR_SKILLS = "mr. skills";
@@ -100,54 +135,6 @@ public class SkillDatabase {
 
   static {
     SkillDatabase.reset();
-  }
-
-  public static final String skillTypeToTypeName(final int type) {
-    return type == PASSIVE
-        ? "passive"
-        : type == SUMMON
-            ? "summon"
-            : type == REMEDY
-                ? "remedy"
-                : type == SELF_ONLY
-                    ? "self-only"
-                    : type == BUFF
-                        ? "buff"
-                        : type == COMBAT
-                            ? "combat"
-                            : type == SONG
-                                ? "song"
-                                : type == COMBAT_NONCOMBAT_REMEDY
-                                    ? "combat/noncombat remedy"
-                                    : type == COMBAT_PASSIVE
-                                        ? "combat/passive"
-                                        : type == EXPRESSION
-                                            ? "expression"
-                                            : type == WALK ? "walk" : "unknown";
-  }
-
-  public static final int skillTypeNameToType(final String typeName) {
-    return typeName.equals("passive")
-        ? SkillDatabase.PASSIVE
-        : typeName.equals("summon")
-            ? SkillDatabase.SUMMON
-            : typeName.equals("remedy")
-                ? SkillDatabase.REMEDY
-                : typeName.equals("self-only")
-                    ? SkillDatabase.SELF_ONLY
-                    : typeName.equals("buff")
-                        ? SkillDatabase.BUFF
-                        : typeName.equals("combat")
-                            ? SkillDatabase.COMBAT
-                            : typeName.equals("song")
-                                ? SkillDatabase.SONG
-                                : typeName.equals("combat/noncombat remedy")
-                                    ? SkillDatabase.COMBAT_NONCOMBAT_REMEDY
-                                    : typeName.equals("combat/passive")
-                                        ? SkillDatabase.COMBAT_PASSIVE
-                                        : typeName.equals("expression")
-                                            ? SkillDatabase.EXPRESSION
-                                            : typeName.equals("walk") ? SkillDatabase.WALK : -1;
   }
 
   public static void reset() {

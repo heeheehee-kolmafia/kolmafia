@@ -16,7 +16,6 @@ import net.sourceforge.kolmafia.AreaCombatData;
 import net.sourceforge.kolmafia.KoLAdventure;
 import net.sourceforge.kolmafia.KoLConstants;
 import net.sourceforge.kolmafia.KoLConstants.MafiaState;
-import net.sourceforge.kolmafia.KoLConstants.Stat;
 import net.sourceforge.kolmafia.KoLmafia;
 import net.sourceforge.kolmafia.MonsterData;
 import net.sourceforge.kolmafia.RequestLogger;
@@ -24,7 +23,6 @@ import net.sourceforge.kolmafia.StaticEntity;
 import net.sourceforge.kolmafia.objectpool.AdventurePool;
 import net.sourceforge.kolmafia.objectpool.IntegerPool;
 import net.sourceforge.kolmafia.objectpool.ItemPool;
-import net.sourceforge.kolmafia.persistence.MonsterDatabase.Element;
 import net.sourceforge.kolmafia.preferences.Preferences;
 import net.sourceforge.kolmafia.request.ClanRumpusRequest;
 import net.sourceforge.kolmafia.request.GenericRequest;
@@ -382,29 +380,25 @@ public class AdventureDatabase {
         if (adventureURL.contains("action=ns_01_crowd2")) {
           String stat = Preferences.getString("nsChallenge1");
           String adventure =
-              stat.equals(Stat.MUSCLE.toString())
-                  ? "Strongest Adventurer Contest"
-                  : stat.equals(Stat.MYSTICALITY.toString())
-                      ? "Smartest Adventurer Contest"
-                      : stat.equals(Stat.MOXIE.toString())
-                          ? "Smoothest Adventurer Contest"
-                          : "A Crowd of (Stat) Adventurers";
+              switch (stat) {
+                case "Muscle" -> "Strongest Adventurer Contest";
+                case "Mysticality" -> "Smartest Adventurer Contest";
+                case "Moxie" -> "Smoothest Adventurer Contest";
+                default -> "A Crowd of (Stat) Adventurers";
+              };
           return AdventureDatabase.getAdventureByName(adventure);
         }
         if (adventureURL.contains("action=ns_01_crowd3")) {
           String element = Preferences.getString("nsChallenge2");
           String adventure =
-              element.equals(Element.HOT.toString())
-                  ? "Hottest Adventurer Contest"
-                  : element.equals(Element.COLD.toString())
-                      ? "Coldest Adventurer Contest"
-                      : element.equals(Element.SPOOKY.toString())
-                          ? "Spookiest Adventurer Contest"
-                          : element.equals(Element.STENCH.toString())
-                              ? "Stinkiest Adventurer Contest"
-                              : element.equals(Element.SLEAZE.toString())
-                                  ? "Sleaziest Adventurer Contest"
-                                  : "A Crowd of (Element) Adventurers";
+              switch (element) {
+                case "hot" -> "Hottest Adventurer Contest";
+                case "cold" -> "Coldest Adventurer Contest";
+                case "spooky" -> "Spookiest Adventurer Contest";
+                case "stench" -> "Stinkiest Adventurer Contest";
+                case "sleaze" -> "Sleaziest Adventurer Contest";
+                default -> "A Crowd of (Element) Adventurers";
+              };
           return AdventureDatabase.getAdventure(adventure);
         }
       }

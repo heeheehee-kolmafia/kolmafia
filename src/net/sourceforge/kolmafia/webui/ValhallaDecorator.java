@@ -443,21 +443,17 @@ public class ValhallaDecorator {
     CropType cropType = CampgroundRequest.getCropType();
     if (cropType != null) {
       String cropString =
-          (cropType == CropType.PUMPKIN)
-              ? "Pumpkin"
-              : (cropType == CropType.PEPPERMINT)
-                  ? "Peppermint"
-                  : (cropType == CropType.SKELETON)
-                      ? "Skeleton"
-                      : (cropType == CropType.BEER)
-                          ? "Beer Garden"
-                          : (cropType == CropType.WINTER)
-                              ? "Winter Garden"
-                              : (cropType == CropType.THANKSGARDEN)
-                                  ? "Thanksgarden"
-                                  : (cropType == CropType.GRASS)
-                                      ? "Grass"
-                                      : (cropType == CropType.MUSHROOM) ? "Mushroom" : "Unknown";
+          switch (cropType) {
+            case PUMPKIN -> "Pumpkin";
+            case PEPPERMINT -> "Peppermint";
+            case SKELETON -> "Skeleton";
+            case BEER -> "Beer Garden";
+            case WINTER -> "Winter Garden";
+            case THANKSGARDEN -> "Thanksgarden";
+            case GRASS -> "Grass";
+            case MUSHROOM -> "Mushroom";
+            default -> "Unknown";
+          };
       buffer.append("</nobr><br><nobr>");
       buffer.append(" (currently ").append(cropString).append(")");
     }

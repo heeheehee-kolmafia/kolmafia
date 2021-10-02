@@ -3168,33 +3168,22 @@ public class Modifiers {
               : "Combat Rate (Underwater)";
       String level = matcher.group(1);
       String rate =
-          level.equals("<i>way</i> more")
-              ? "+20"
-              : level.equals("significantly more")
-                  ? "+15"
-                  : level.equals("much more")
-                      ? "+10"
-                      : level.equals("more")
-                          ? "+5"
-                          : level.equals("slightly less")
-                              ? "-3"
-                              : level.equals("less")
-                                  ? "-5"
-                                  : level.equals("more than a little less")
-                                      ? "-7"
-                                      : level.equals("quite a bit less")
-                                          ? "-9"
-                                          : level.equals("much less")
-                                              ? "-10"
-                                              : level.equals("very much less")
-                                                  ? "-11"
-                                                  : level.equals("significantly less")
-                                                      ? "-15"
-                                                      : level.equals("very very very much less")
-                                                          ? "-20"
-                                                          : level.equals("<i>way</i> less")
-                                                              ? "-20"
-                                                              : "+0";
+          switch (level) {
+            case "<i>way</i> more" -> "+20";
+            case "significantly more" -> "+15";
+            case "much more" -> "+10";
+            case "more" -> "+5";
+            case "slightly less" -> "-3";
+            case "less" -> "-5";
+            case "more than a little less" -> "-7";
+            case "quite a bit less" -> "-9";
+            case "much less" -> "-10";
+            case "very much less" -> "-11";
+            case "significantly less" -> "-15";
+            case "very very very much less" -> "-20";
+            case "<i>way</i> less" -> "-20";
+            default -> "+0";
+          };
 
       return tag + ": " + rate;
     }

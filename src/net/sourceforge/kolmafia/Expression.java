@@ -252,21 +252,16 @@ public class Expression {
         case 'b':
           String elem = (String) this.literals.get((int) s[--sp]);
           int element =
-              elem.equalsIgnoreCase("cold")
-                  ? Modifiers.COLD_RESISTANCE
-                  : elem.equalsIgnoreCase("hot")
-                      ? Modifiers.HOT_RESISTANCE
-                      : elem.equalsIgnoreCase("sleaze")
-                          ? Modifiers.SLEAZE_RESISTANCE
-                          : elem.equalsIgnoreCase("spooky")
-                              ? Modifiers.SPOOKY_RESISTANCE
-                              : elem.equalsIgnoreCase("stench")
-                                  ? Modifiers.STENCH_RESISTANCE
-                                  : elem.equalsIgnoreCase("slime")
-                                      ? Modifiers.SLIME_RESISTANCE
-                                      : elem.equalsIgnoreCase("supercold")
-                                          ? Modifiers.SUPERCOLD_RESISTANCE
-                                          : -1;
+              switch (elem.toLowerCase()) {
+                case "cold" -> Modifiers.COLD_RESISTANCE;
+                case "hot" -> Modifiers.HOT_RESISTANCE;
+                case "sleaze" -> Modifiers.SLEAZE_RESISTANCE;
+                case "spooky" -> Modifiers.SPOOKY_RESISTANCE;
+                case "stench" -> Modifiers.STENCH_RESISTANCE;
+                case "slime" -> Modifiers.SLIME_RESISTANCE;
+                case "supercold" -> Modifiers.SUPERCOLD_RESISTANCE;
+                default -> -1;
+              };
           v = KoLCharacter.currentNumericModifier(element);
           break;
         case 'd':

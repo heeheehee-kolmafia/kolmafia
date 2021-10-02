@@ -1063,51 +1063,35 @@ public abstract class KoLCharacter {
   }
 
   public static final String getClassStun() {
-    return KoLCharacter.classtype == null
-        ? "none"
-        : KoLCharacter.classtype == KoLCharacter.SEAL_CLUBBER
-            ? "Club Foot"
-            : KoLCharacter.classtype == KoLCharacter.TURTLE_TAMER
-                ? "Shell Up"
-                : KoLCharacter.classtype == KoLCharacter.PASTAMANCER
-                    ? "Entangling Noodles"
-                    : KoLCharacter.classtype == KoLCharacter.SAUCEROR
-                        ? "Soul Bubble"
-                        : KoLCharacter.classtype == KoLCharacter.ACCORDION_THIEF
-                            ? "Accordion Bash"
-                            : KoLCharacter.classtype == KoLCharacter.AVATAR_OF_BORIS
-                                ? "Broadside"
-                                : KoLCharacter.classtype == KoLCharacter.ZOMBIE_MASTER
-                                    ? "Corpse Pile"
-                                    : KoLCharacter.classtype == KoLCharacter.AVATAR_OF_JARLSBERG
-                                        ? "Blend"
-                                        : KoLCharacter.classtype
-                                                == KoLCharacter.AVATAR_OF_SNEAKY_PETE
-                                            ? "Snap Fingers"
-                                            : KoLCharacter.classtype == KoLCharacter.ED
-                                                ? "Curse of Indecision"
-                                                : KoLCharacter.classtype == KoLCharacter.VAMPYRE
-                                                    ? "Chill of the Tomb"
-                                                    : Preferences.getBoolean(
-                                                            "considerShadowNoodles")
-                                                        ? "Shadow Noodles"
-                                                        : "none";
+    if (KoLCharacter.classtype == null) {
+      return "none";
+    }
+    return switch (KoLCharacter.classtype) {
+      case KoLCharacter.SEAL_CLUBBER -> "Club Foot";
+      case KoLCharacter.TURTLE_TAMER -> "Shell Up";
+      case KoLCharacter.PASTAMANCER -> "Entangling Noodles";
+      case KoLCharacter.SAUCEROR -> "Soul Bubble";
+      case KoLCharacter.ACCORDION_THIEF -> "Accordion Bash";
+      case KoLCharacter.AVATAR_OF_BORIS -> "Broadside";
+      case KoLCharacter.ZOMBIE_MASTER -> "Corpse Pile";
+      case KoLCharacter.AVATAR_OF_JARLSBERG -> "Blend";
+      case KoLCharacter.AVATAR_OF_SNEAKY_PETE -> "Snap Fingers";
+      case KoLCharacter.ED -> "Curse of Indecision";
+      case KoLCharacter.VAMPYRE -> "Chill of the Tomb";
+      default -> Preferences.getBoolean("considerShadowNoodles") ? "Shadow Noodles" : "none";
+    };
   }
 
   public static int getClassStarterWeapon() {
-    return KoLCharacter.classtype == KoLCharacter.SEAL_CLUBBER
-        ? ItemPool.SEAL_CLUB
-        : KoLCharacter.classtype == KoLCharacter.TURTLE_TAMER
-            ? ItemPool.TURTLE_TOTEM
-            : KoLCharacter.classtype == KoLCharacter.PASTAMANCER
-                ? ItemPool.PASTA_SPOON
-                : KoLCharacter.classtype == KoLCharacter.SAUCEROR
-                    ? ItemPool.SAUCEPAN
-                    : KoLCharacter.classtype == KoLCharacter.DISCO_BANDIT
-                        ? ItemPool.DISCO_BALL
-                        : KoLCharacter.classtype == KoLCharacter.ACCORDION_THIEF
-                            ? ItemPool.STOLEN_ACCORDION
-                            : -1;
+    return switch (KoLCharacter.classtype) {
+      case KoLCharacter.SEAL_CLUBBER -> ItemPool.SEAL_CLUB;
+      case KoLCharacter.TURTLE_TAMER -> ItemPool.TURTLE_TOTEM;
+      case KoLCharacter.PASTAMANCER -> ItemPool.PASTA_SPOON;
+      case KoLCharacter.SAUCEROR -> ItemPool.SAUCEPAN;
+      case KoLCharacter.DISCO_BANDIT -> ItemPool.DISCO_BALL;
+      case KoLCharacter.ACCORDION_THIEF -> ItemPool.STOLEN_ACCORDION;
+      default -> -1;
+    };
   }
 
   /**
@@ -1407,41 +1391,26 @@ public abstract class KoLCharacter {
    */
   public static final void setClassType(final int classtype) {
     String classname =
-        classtype == 1
-            ? KoLCharacter.SEAL_CLUBBER
-            : classtype == 2
-                ? KoLCharacter.TURTLE_TAMER
-                : classtype == 3
-                    ? KoLCharacter.PASTAMANCER
-                    : classtype == 4
-                        ? KoLCharacter.SAUCEROR
-                        : classtype == 5
-                            ? KoLCharacter.DISCO_BANDIT
-                            : classtype == 6
-                                ? KoLCharacter.ACCORDION_THIEF
-                                : classtype == 11
-                                    ? KoLCharacter.AVATAR_OF_BORIS
-                                    : classtype == 12
-                                        ? KoLCharacter.ZOMBIE_MASTER
-                                        : classtype == 14
-                                            ? KoLCharacter.AVATAR_OF_JARLSBERG
-                                            : classtype == 15
-                                                ? KoLCharacter.AVATAR_OF_SNEAKY_PETE
-                                                : classtype == 17
-                                                    ? KoLCharacter.ED
-                                                    : classtype == 18
-                                                        ? KoLCharacter.COWPUNCHER
-                                                        : classtype == 19
-                                                            ? KoLCharacter.BEANSLINGER
-                                                            : classtype == 20
-                                                                ? KoLCharacter.SNAKE_OILER
-                                                                : classtype == 23
-                                                                    ? KoLCharacter.GELATINOUS_NOOB
-                                                                    : classtype == 24
-                                                                        ? KoLCharacter.VAMPYRE
-                                                                        : classtype == 25
-                                                                            ? KoLCharacter.PLUMBER
-                                                                            : "Unknown";
+        switch (classtype) {
+          case 1 -> KoLCharacter.SEAL_CLUBBER;
+          case 2 -> KoLCharacter.TURTLE_TAMER;
+          case 3 -> KoLCharacter.PASTAMANCER;
+          case 4 -> KoLCharacter.SAUCEROR;
+          case 5 -> KoLCharacter.DISCO_BANDIT;
+          case 6 -> KoLCharacter.ACCORDION_THIEF;
+          case 11 -> KoLCharacter.AVATAR_OF_BORIS;
+          case 12 -> KoLCharacter.ZOMBIE_MASTER;
+          case 14 -> KoLCharacter.AVATAR_OF_JARLSBERG;
+          case 15 -> KoLCharacter.AVATAR_OF_SNEAKY_PETE;
+          case 17 -> KoLCharacter.ED;
+          case 18 -> KoLCharacter.COWPUNCHER;
+          case 19 -> KoLCharacter.BEANSLINGER;
+          case 20 -> KoLCharacter.SNAKE_OILER;
+          case 23 -> KoLCharacter.GELATINOUS_NOOB;
+          case 24 -> KoLCharacter.VAMPYRE;
+          case 25 -> KoLCharacter.PLUMBER;
+          default -> "Unknown";
+        };
 
     KoLCharacter.classtype = classname;
     KoLCharacter.classname = classname;
@@ -1498,50 +1467,32 @@ public abstract class KoLCharacter {
    * @return The type of the character's class
    */
   public static final String getClassType(final String classname) {
-    return classname.equals(KoLCharacter.AVATAR_OF_BORIS)
-        ? KoLCharacter.AVATAR_OF_BORIS
-        : classname.equals(KoLCharacter.ZOMBIE_MASTER)
-            ? KoLCharacter.ZOMBIE_MASTER
-            : classname.equals(KoLCharacter.AVATAR_OF_JARLSBERG)
-                ? KoLCharacter.AVATAR_OF_JARLSBERG
-                : classname.equals(KoLCharacter.AVATAR_OF_SNEAKY_PETE)
-                    ? KoLCharacter.AVATAR_OF_SNEAKY_PETE
-                    : classname.equals(KoLCharacter.ED)
-                        ? KoLCharacter.ED
-                        : classname.equals(KoLCharacter.COWPUNCHER)
-                            ? KoLCharacter.COWPUNCHER
-                            : classname.equals(KoLCharacter.BEANSLINGER)
-                                ? KoLCharacter.BEANSLINGER
-                                : classname.equals(KoLCharacter.SNAKE_OILER)
-                                    ? KoLCharacter.SNAKE_OILER
-                                    : classname.equals(KoLCharacter.GELATINOUS_NOOB)
-                                        ? KoLCharacter.GELATINOUS_NOOB
-                                        : classname.equals(KoLCharacter.VAMPYRE)
-                                            ? KoLCharacter.VAMPYRE
-                                            : classname.equals(KoLCharacter.PLUMBER)
-                                                ? KoLCharacter.PLUMBER
-                                                : KoLCharacter.SEAL_CLUBBER_RANKS.contains(
-                                                        classname)
-                                                    ? KoLCharacter.SEAL_CLUBBER
-                                                    : KoLCharacter.TURTLE_TAMER_RANKS.contains(
-                                                            classname)
-                                                        ? KoLCharacter.TURTLE_TAMER
-                                                        : KoLCharacter.PASTAMANCER_RANKS.contains(
-                                                                classname)
-                                                            ? KoLCharacter.PASTAMANCER
-                                                            : KoLCharacter.SAUCEROR_RANKS.contains(
-                                                                    classname)
-                                                                ? KoLCharacter.SAUCEROR
-                                                                : KoLCharacter.DISCO_BANDIT_RANKS
-                                                                        .contains(classname)
-                                                                    ? KoLCharacter.DISCO_BANDIT
-                                                                    : KoLCharacter
-                                                                            .ACCORDION_THIEF_RANKS
-                                                                            .contains(classname)
-                                                                        ? KoLCharacter
-                                                                            .ACCORDION_THIEF
-                                                                        : KoLCharacter
-                                                                            .ASTRAL_SPIRIT;
+    return switch (classname) {
+      case KoLCharacter.AVATAR_OF_BORIS -> KoLCharacter.AVATAR_OF_BORIS;
+      case KoLCharacter.ZOMBIE_MASTER -> KoLCharacter.ZOMBIE_MASTER;
+      case KoLCharacter.AVATAR_OF_JARLSBERG -> KoLCharacter.AVATAR_OF_JARLSBERG;
+      case KoLCharacter.AVATAR_OF_SNEAKY_PETE -> KoLCharacter.AVATAR_OF_SNEAKY_PETE;
+      case KoLCharacter.ED -> KoLCharacter.ED;
+      case KoLCharacter.COWPUNCHER -> KoLCharacter.COWPUNCHER;
+      case KoLCharacter.BEANSLINGER -> KoLCharacter.BEANSLINGER;
+      case KoLCharacter.SNAKE_OILER -> KoLCharacter.SNAKE_OILER;
+      case KoLCharacter.GELATINOUS_NOOB -> KoLCharacter.GELATINOUS_NOOB;
+      case KoLCharacter.VAMPYRE -> KoLCharacter.VAMPYRE;
+      case KoLCharacter.PLUMBER -> KoLCharacter.PLUMBER;
+      default -> KoLCharacter.SEAL_CLUBBER_RANKS.contains(classname)
+          ? KoLCharacter.SEAL_CLUBBER
+          : KoLCharacter.TURTLE_TAMER_RANKS.contains(classname)
+              ? KoLCharacter.TURTLE_TAMER
+              : KoLCharacter.PASTAMANCER_RANKS.contains(classname)
+                  ? KoLCharacter.PASTAMANCER
+                  : KoLCharacter.SAUCEROR_RANKS.contains(classname)
+                      ? KoLCharacter.SAUCEROR
+                      : KoLCharacter.DISCO_BANDIT_RANKS.contains(classname)
+                          ? KoLCharacter.DISCO_BANDIT
+                          : KoLCharacter.ACCORDION_THIEF_RANKS.contains(classname)
+                              ? KoLCharacter.ACCORDION_THIEF
+                              : KoLCharacter.ASTRAL_SPIRIT;
+    };
   }
 
   public static final boolean isMuscleClass() {
@@ -3703,11 +3654,12 @@ public abstract class KoLCharacter {
   public static final void setPath(final Path path) {
     KoLCharacter.ascensionPath = path;
     int restriction =
-        path == Path.OXYGENARIAN
-            ? AscensionSnapshot.OXYGENARIAN
-            : path == Path.BOOZETAFARIAN
-                ? AscensionSnapshot.BOOZETAFARIAN
-                : path == Path.TEETOTALER ? AscensionSnapshot.TEETOTALER : AscensionSnapshot.NOPATH;
+        switch (path) {
+          case OXYGENARIAN -> AscensionSnapshot.OXYGENARIAN;
+          case BOOZETAFARIAN -> AscensionSnapshot.BOOZETAFARIAN;
+          case TEETOTALER -> AscensionSnapshot.TEETOTALER;
+          default -> AscensionSnapshot.NOPATH;
+        };
     KoLCharacter.consumptionRestriction = restriction;
   }
 

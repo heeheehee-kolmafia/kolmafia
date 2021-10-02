@@ -7064,31 +7064,21 @@ public class FightRequest extends GenericRequest {
     int cleanliness = StringUtilities.parseInt(matcher.group(1));
 
     String setting =
-        status.location.equals("Your Bung Chakra")
-            ? "crimbo16BungChakraCleanliness"
-            : status.location.equals("Your Guts Chakra")
-                ? "crimbo16GutsChakraCleanliness"
-                : status.location.equals("Your Liver Chakra")
-                    ? "crimbo16LiverChakraCleanliness"
-                    : status.location.equals("Your Nipple Chakra")
-                        ? "crimbo16NippleChakraCleanliness"
-                        : status.location.equals("Your Nose Chakra")
-                            ? "crimbo16NoseChakraCleanliness"
-                            : status.location.equals("Your Hat Chakra")
-                                ? "crimbo16HatChakraCleanliness"
-                                : status.location.equals("Crimbo's Sack")
-                                    ? "crimbo16SackChakraCleanliness"
-                                    : status.location.equals("Crimbo's Boots")
-                                        ? "crimbo16BootsChakraCleanliness"
-                                        : status.location.equals("Crimbo's Jelly")
-                                            ? "crimbo16JellyChakraCleanliness"
-                                            : status.location.equals("Crimbo's Reindeer")
-                                                ? "crimbo16ReindeerChakraCleanliness"
-                                                : status.location.equals("Crimbo's Beard")
-                                                    ? "crimbo16BeardChakraCleanliness"
-                                                    : status.location.equals("Crimbo's Hat")
-                                                        ? "crimbo16CrimboHatChakraCleanliness"
-                                                        : null;
+        switch (status.location) {
+          case "Your Bung Chakra" -> "crimbo16BungChakraCleanliness";
+          case "Your Guts Chakra" -> "crimbo16GutsChakraCleanliness";
+          case "Your Liver Chakra" -> "crimbo16LiverChakraCleanliness";
+          case "Your Nipple Chakra" -> "crimbo16NippleChakraCleanliness";
+          case "Your Nose Chakra" -> "crimbo16NoseChakraCleanliness";
+          case "Your Hat Chakra" -> "crimbo16HatChakraCleanliness";
+          case "Crimbo's Sack" -> "crimbo16SackChakraCleanliness";
+          case "Crimbo's Boots" -> "crimbo16BootsChakraCleanliness";
+          case "Crimbo's Jelly" -> "crimbo16JellyChakraCleanliness";
+          case "Crimbo's Reindeer" -> "crimbo16ReindeerChakraCleanliness";
+          case "Crimbo's Beard" -> "crimbo16BeardChakraCleanliness";
+          case "Crimbo's Hat" -> "crimbo16CrimboHatChakraCleanliness";
+          default -> null;
+        };
 
     if (setting != null) {
       Preferences.setString(setting, matcher.group(1));

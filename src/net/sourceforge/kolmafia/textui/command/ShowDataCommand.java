@@ -316,19 +316,15 @@ public class ShowDataCommand extends AbstractCommand {
     }
 
     List mainList =
-        desiredData.equals("closet")
-            ? KoLConstants.closet
-            : desiredData.equals("summary")
-                ? KoLConstants.tally
-                : desiredData.equals("storage")
-                    ? KoLConstants.storage
-                    : desiredData.equals("display")
-                        ? KoLConstants.collection
-                        : desiredData.equals("outfits")
-                            ? EquipmentManager.getOutfits()
-                            : desiredData.equals("familiars")
-                                ? KoLCharacter.getFamiliarList()
-                                : KoLConstants.inventory;
+        switch (desiredData) {
+          case "closet" -> KoLConstants.closet;
+          case "summary" -> KoLConstants.tally;
+          case "storage" -> KoLConstants.storage;
+          case "display" -> KoLConstants.collection;
+          case "outfits" -> EquipmentManager.getOutfits();
+          case "familiars" -> KoLCharacter.getFamiliarList();
+          default -> KoLConstants.inventory;
+        };
 
     if (desiredData.equals("effects")) {
       mainList = KoLConstants.activeEffects;
