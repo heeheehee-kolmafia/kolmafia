@@ -13,13 +13,12 @@ name: "CodeQL"
 
 on:
   push:
-    branches: [main]
+    branches: [security]
   schedule:
     - cron: "24 5 * * 0"
 
 jobs:
   analyze:
-    if: github.repository == 'kolmafia/kolmafia'
     name: Analyze
     runs-on: ubuntu-latest
     permissions:
