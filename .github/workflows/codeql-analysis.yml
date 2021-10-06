@@ -14,8 +14,6 @@ name: "CodeQL"
 on:
   push:
     branches: [security]
-  schedule:
-    - cron: "24 5 * * 0"
 
 jobs:
   analyze:
