@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import net.java.dev.spellcast.utilities.LockableListModel;
 import net.sourceforge.kolmafia.AdventureResult;
 import net.sourceforge.kolmafia.KoLCharacter;
 import net.sourceforge.kolmafia.KoLConstants;
@@ -26,8 +25,7 @@ public class SendGiftRequest extends TransferItemRequest {
   private final String recipient, message;
   private final GiftWrapper wrappingType;
   private final int maxCapacity, materialCost;
-  private static final LockableListModel<GiftWrapper> PACKAGES =
-      new LockableListModel<GiftWrapper>();
+  private static final List<GiftWrapper> PACKAGES = new ArrayList<GiftWrapper>();
 
   static {
     BufferedReader reader =
@@ -144,12 +142,12 @@ public class SendGiftRequest extends TransferItemRequest {
     return this.source == KoLConstants.storage ? "hagnks_sendmeat" : "sendmeat";
   }
 
-  public static final LockableListModel<GiftWrapper> getPackages() {
+  public static final List<GiftWrapper> getPackages() {
     // Which packages are available depends on ascension count.
     // You start with two packages and receive an additional
     // package every three ascensions you complete.
 
-    LockableListModel<GiftWrapper> packages = new LockableListModel<GiftWrapper>();
+    List<GiftWrapper> packages = new ArrayList<GiftWrapper>();
     int packageCount = Math.min(KoLCharacter.getAscensions() / 3 + 2, 11);
 
     packages.addAll(SendGiftRequest.PACKAGES.subList(0, packageCount + 1));

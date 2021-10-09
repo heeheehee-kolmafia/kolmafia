@@ -1,9 +1,9 @@
 package net.sourceforge.kolmafia.request;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import net.java.dev.spellcast.utilities.LockableListModel;
 import net.sourceforge.kolmafia.KoLConstants;
 import net.sourceforge.kolmafia.KoLConstants.MafiaState;
 import net.sourceforge.kolmafia.KoLmafia;
@@ -25,7 +25,7 @@ public class ClanMembersRequest extends GenericRequest {
 
   private final boolean isLookup;
   private final boolean isDetailLookup;
-  private final LockableListModel<String> rankList;
+  private final List<String> rankList;
 
   public ClanMembersRequest(final boolean isDetailLookup) {
     super(isDetailLookup ? "clan_detailedroster.php" : "showclan.php");
@@ -35,7 +35,7 @@ public class ClanMembersRequest extends GenericRequest {
     this.rankList = null;
   }
 
-  public ClanMembersRequest(final LockableListModel<String> rankList) {
+  public ClanMembersRequest(final List<String> rankList) {
     super("clan_members.php");
 
     this.isLookup = false;
@@ -49,7 +49,7 @@ public class ClanMembersRequest extends GenericRequest {
 
     this.isLookup = false;
     this.isDetailLookup = false;
-    this.rankList = new LockableListModel<String>();
+    this.rankList = new ArrayList<String>();
 
     this.addFormField("action", "modify");
 

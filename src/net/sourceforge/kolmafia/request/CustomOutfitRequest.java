@@ -1,8 +1,10 @@
 package net.sourceforge.kolmafia.request;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import net.java.dev.spellcast.utilities.SortedListModel;
 import net.sourceforge.kolmafia.AdventureResult;
 import net.sourceforge.kolmafia.SpecialOutfit;
 import net.sourceforge.kolmafia.objectpool.ItemPool;
@@ -54,7 +56,7 @@ public class CustomOutfitRequest extends GenericRequest {
   }
 
   public static final void parseResponse(final String urlString, final String responseText) {
-    SortedListModel<SpecialOutfit> outfits = new SortedListModel<SpecialOutfit>();
+    List<SpecialOutfit> outfits = new ArrayList<SpecialOutfit>();
 
     Matcher listMatcher = CustomOutfitRequest.LIST_PATTERN.matcher(responseText);
     if (!listMatcher.find()) {
@@ -87,6 +89,7 @@ public class CustomOutfitRequest extends GenericRequest {
 
       outfits.add(outfit);
     }
+    Collections.sort(outfits);
 
     EquipmentManager.setCustomOutfits(outfits);
   }

@@ -1,6 +1,7 @@
 package net.sourceforge.kolmafia.request;
 
-import net.java.dev.spellcast.utilities.LockableListModel;
+import java.util.ArrayList;
+import java.util.List;
 
 public class ClanBuffRequest extends GenericRequest {
   private final int buffId;
@@ -25,10 +26,10 @@ public class ClanBuffRequest extends GenericRequest {
    * Returns a list of all the possible requests available through the current implementation of
    * <code>ClanBuffRequest</code>.
    *
-   * @return A complete <code>ListModel</code>
+   * @return A complete <code>List</code>
    */
-  public static final LockableListModel<ClanBuffRequest> getRequestList() {
-    LockableListModel<ClanBuffRequest> requestList = new LockableListModel<ClanBuffRequest>();
+  public static final List<ClanBuffRequest> getRequestList() {
+    List<ClanBuffRequest> requestList = new ArrayList<ClanBuffRequest>();
     for (int i = 1; i < 9; ++i) {
       for (int j = 1; j <= 3; ++j) {
         requestList.add(new ClanBuffRequest(10 * i + j));

@@ -1,12 +1,13 @@
 package net.sourceforge.kolmafia.request;
 
 import java.io.BufferedReader;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import net.java.dev.spellcast.utilities.LockableListModel;
-import net.java.dev.spellcast.utilities.SortedListModel;
 import net.sourceforge.kolmafia.AdventureResult;
 import net.sourceforge.kolmafia.KoLCharacter;
 import net.sourceforge.kolmafia.KoLConstants;
@@ -29,8 +30,7 @@ public class ZapRequest extends GenericRequest {
       Pattern.compile("<option value=(\\d+) descid='.*?'>.*?</option>");
 
   private static final BooleanArray isZappable = new BooleanArray();
-  private static final SortedListModel<AdventureResult> zappableItems =
-      new SortedListModel<AdventureResult>();
+  private static final List<AdventureResult> zappableItems = new ArrayList<AdventureResult>();
   private static final Map<Integer, String[]> zapGroups = new HashMap<>();
 
   private AdventureResult item;
@@ -78,12 +78,13 @@ public class ZapRequest extends GenericRequest {
     } catch (Exception e) {
       e.printStackTrace();
     }
+    Collections.sort(ZapRequest.zappableItems);
   }
 
-  public static final LockableListModel<AdventureResult> getZappableItems() {
+  public static final List<AdventureResult> getZappableItems() {
     ZapRequest.initializeList();
 
-    SortedListModel<AdventureResult> matchingItems = new SortedListModel<AdventureResult>();
+    List<AdventureResult> matchingItems = new ArrayList<>();
     matchingItems.addAll(KoLConstants.inventory);
     if (Preferences.getBoolean("relayTrimsZapList")) {
       matchingItems.retainAll(ZapRequest.zappableItems);

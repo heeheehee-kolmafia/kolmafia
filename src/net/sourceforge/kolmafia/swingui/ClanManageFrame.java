@@ -14,6 +14,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTable;
 import net.java.dev.spellcast.utilities.JComponentUtilities;
+import net.java.dev.spellcast.utilities.LockableListModel;
 import net.java.dev.spellcast.utilities.SortedListModel;
 import net.sourceforge.kolmafia.AdventureResult;
 import net.sourceforge.kolmafia.KoLCharacter;
@@ -150,7 +151,7 @@ public class ClanManageFrame extends GenericFrame {
           new Dimension(240, 20));
       this.isBuffing = false;
 
-      this.buffField = new JComboBox(ClanBuffRequest.getRequestList());
+      this.buffField = new JComboBox(new LockableListModel<>(ClanBuffRequest.getRequestList()));
       this.countField = new AutoHighlightTextField();
 
       VerifiableElement[] elements = new VerifiableElement[2];

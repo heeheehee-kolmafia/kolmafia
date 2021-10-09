@@ -2,7 +2,7 @@ package net.sourceforge.kolmafia.request;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import net.java.dev.spellcast.utilities.LockableListModel;
+import java.util.List;
 import net.sourceforge.kolmafia.AdventureResult;
 import net.sourceforge.kolmafia.KoLCharacter;
 import net.sourceforge.kolmafia.session.InventoryManager;
@@ -60,7 +60,7 @@ public class ZapRequestTest {
     // Zap baconstone with wand. both in inventory
     AdventureResult bacon = new AdventureResult(705, 1, false);
     loadInventory("{\"705\": \"1\",\"1268\": \"1\"}");
-    LockableListModel<AdventureResult> items = ZapRequest.getZappableItems();
+    List<AdventureResult> items = ZapRequest.getZappableItems();
     assertTrue(items.contains(bacon));
     String[] zapg = ZapRequest.getZapGroup(705);
     assertTrue(arrayHas(zapg, "baconstone"));

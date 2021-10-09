@@ -1,12 +1,13 @@
 package net.sourceforge.kolmafia.persistence;
 
 import java.io.BufferedReader;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.TreeMap;
-import net.java.dev.spellcast.utilities.LockableListModel;
 import net.sourceforge.kolmafia.AdventureResult;
 import net.sourceforge.kolmafia.CoinmasterData;
 import net.sourceforge.kolmafia.KoLConstants;
@@ -25,17 +26,17 @@ public class CoinmastersDatabase {
   // Map from Integer( itemId ) -> CoinMasterPurchaseRequest
   public static final Map<Integer, CoinMasterPurchaseRequest> COINMASTER_ITEMS = new HashMap<>();
 
-  // Map from String -> LockableListModel
-  public static final Map<String, LockableListModel<AdventureResult>> items = new TreeMap<>();
+  // Map from String -> List
+  public static final Map<String, List<AdventureResult>> items = new TreeMap<>();
 
-  // Map from String -> LockableListModel
-  public static final Map<String, LockableListModel<AdventureResult>> buyItems = new TreeMap<>();
+  // Map from String -> List
+  public static final Map<String, List<AdventureResult>> buyItems = new TreeMap<>();
 
   // Map from String -> Map from Integer -> Integer
   public static final Map<String, Map<Integer, Integer>> buyPrices = new TreeMap<>();
 
-  // Map from String -> LockableListModel
-  public static final Map<String, LockableListModel<AdventureResult>> sellItems = new TreeMap<>();
+  // Map from String -> List
+  public static final Map<String, List<AdventureResult>> sellItems = new TreeMap<>();
 
   // Map from String -> Map from Integer -> Integer
   public static final Map<String, Map<Integer, Integer>> sellPrices = new TreeMap<>();
@@ -43,11 +44,11 @@ public class CoinmastersDatabase {
   // Map from String -> Map from Integer -> Integer
   public static final Map<String, Map<Integer, Integer>> itemRows = new TreeMap<>();
 
-  public static final LockableListModel<AdventureResult> getItems(final String key) {
+  public static final List<AdventureResult> getItems(final String key) {
     return CoinmastersDatabase.items.get(key);
   }
 
-  public static final LockableListModel<AdventureResult> getBuyItems(final String key) {
+  public static final List<AdventureResult> getBuyItems(final String key) {
     return CoinmastersDatabase.buyItems.get(key);
   }
 
@@ -55,7 +56,7 @@ public class CoinmastersDatabase {
     return CoinmastersDatabase.buyPrices.get(key);
   }
 
-  public static final LockableListModel<AdventureResult> getSellItems(final String key) {
+  public static final List<AdventureResult> getSellItems(final String key) {
     return CoinmastersDatabase.sellItems.get(key);
   }
 
@@ -71,17 +72,17 @@ public class CoinmastersDatabase {
     return CoinmastersDatabase.getOrMakeMap(key, CoinmastersDatabase.itemRows);
   }
 
-  public static final LockableListModel<AdventureResult> getNewList() {
-    return new LockableListModel<AdventureResult>();
+  public static final List<AdventureResult> getNewList() {
+    return new ArrayList<AdventureResult>();
   }
 
   public static final Map<Integer, Integer> getNewMap() {
     return new TreeMap<Integer, Integer>();
   }
 
-  private static LockableListModel<AdventureResult> getOrMakeList(
-      final String key, final Map<String, LockableListModel<AdventureResult>> map) {
-    LockableListModel<AdventureResult> retval = map.get(key);
+  private static List<AdventureResult> getOrMakeList(
+      final String key, final Map<String, List<AdventureResult>> map) {
+    List<AdventureResult> retval = map.get(key);
     if (retval == null) {
       retval = CoinmastersDatabase.getNewList();
       map.put(key, retval);
@@ -139,7 +140,7 @@ public class CoinmastersDatabase {
       }
 
       if (type.equals("buy")) {
-        LockableListModel<AdventureResult> list =
+        List<AdventureResult> list =
             CoinmastersDatabase.getOrMakeList(master, CoinmastersDatabase.buyItems);
         list.add(item.getInstance(CoinmastersDatabase.purchaseLimit(iitemId)));
 
@@ -147,7 +148,7 @@ public class CoinmastersDatabase {
             CoinmastersDatabase.getOrMakeMap(master, CoinmastersDatabase.buyPrices);
         map.put(iitemId, iprice);
       } else if (type.equals("sell")) {
-        LockableListModel<AdventureResult> list =
+        List<AdventureResult> list =
             CoinmastersDatabase.getOrMakeList(master, CoinmastersDatabase.sellItems);
         list.add(item);
 
