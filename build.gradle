@@ -9,6 +9,7 @@ plugins {
 	id 'com.github.johnrengelman.shadow' version '6.0.0'
 	id 'net.nemerosa.versioning' version '2.8.2'
 	id 'org.ajoberstar.grgit' version '4.1.0'
+	id 'org.panteleyev.jpackageplugin' version '1.3.1'
 }
 mainClassName = 'net.sourceforge.kolmafia.KoLmafia'
 
@@ -44,11 +45,6 @@ repositories {
 	mavenCentral()
 }
 
-configurations {
-	toCopy
-	implementation.canBeResolved = true
-}
-
 dependencies {
 	// Use JUnit Jupiter for running JUnit5 tests.
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.8.0'
@@ -80,8 +76,6 @@ dependencies {
 	implementation 'org.mozilla:rhino:1.7.13'
 	implementation 'org.swinglabs:swingx:1.0'
 	implementation 'org.tmatesoft.svnkit:svnkit:1.10.3'
-
-	toCopy 'org.swinglabs:swingx:1.0'
 }
 
 application {
@@ -91,12 +85,17 @@ application {
 
 spotless {
 	format 'misc', {
-		target '*.md', '.gitignore'
+		target '.gitignore'
 
 		trimTrailingWhitespace()
 		indentWithSpaces(2)
 		endWithNewline()
 	}
+
+	freshmark {
+		target '*.md'
+	}
+
 	groovyGradle {
 		greclipse()
 	}
@@ -130,7 +129,7 @@ task pruneDist(type: Delete) {
 	doLast {
 		file('dist').eachFile(groovy.io.FileType.FILES) { File file ->
 			if (file.name.startsWith('KoLmafia-') && file.name.endsWith('.jar')) {
-				if (!file.name.contains(project.getVersion()) || (versioning.info.dirty != file.name.endsWith('-M.jar'))) {
+				if (!file.name.contains(project.getVersion().toString()) || (versioning.info.dirty != file.name.endsWith('-M.jar'))) {
 					delete file
 				}
 			}
@@ -157,6 +156,10 @@ jacocoTestReport {
 	}
 }
 
+configurations {
+	implementation.canBeResolved = true
+}
+
 jar {
 	manifest {
 		attributes(
@@ -164,6 +167,7 @@ jar {
 				'Build-Revision'  : new Object() { String toString() { project.getVersion() } },
 				'Build-Branch'    : versioning.info.branch,
 				'Build-Commit'    : versioning.info.commit,
+				'Build-Dirty'     : versioning.info.dirty,
 				'Build-Jdk'       : "${System.properties['java.version']} (${System.properties['java.vendor']} ${System.properties['java.vm.version']})",
 				'Build-OS'        : "${System.properties['os.name']} ${System.properties['os.arch']} ${System.properties['os.version']}"
 				)
@@ -174,7 +178,7 @@ jar {
 	}
 	duplicatesStrategy = 'exclude'
 	destinationDirectory = file('dist/')
-	archiveBaseName.set("KoLmafia")
+	archiveBaseName.set('KoLmafia')
 	archiveClassifier.set("${versioning.info.dirty ? 'M' : ''}")
 }
 
@@ -184,16 +188,11 @@ shadowJar {
 	archiveClassifier.set("${versioning.info.dirty ? 'M' : ''}")
 }
 
-task download(type: Copy) {
-	from configurations.toCopy
-	into 'src/jar'
-}
-
 task getRevision() {
 	onlyIf {
 		file('.git').exists()
 	}
-	def commit = findProperty("commit") ?: 'origin/main'
+	def commit = findProperty('commit') ?: 'origin/main'
 	inputs.dir('.git')
 	inputs.property('commit', commit)
 	outputs.files file('build/revision.txt')
@@ -204,6 +203,9 @@ task getRevision() {
 		file('build/revision.txt').text = revision.toString().trim()
 		// Update the version to the new revision
 		project.setVersion(revision.toString().trim())
+		def revString = versioning.info.dirty ? project.getVersion() +'-M': project.getVersion()
+		println '\nRevision: ' + revString
+
 	}
 }
 
@@ -215,7 +217,7 @@ task gitUpdate() {
 			remote = remote
 		}
 		if (grgit.resolve.toCommit(remote) == latestHead) {
-			println "Already up-to-date, nothing to do."
+			println 'Already up-to-date, nothing to do.'
 			return
 		}
 		def dirty = versioning.info.dirty
@@ -223,7 +225,7 @@ task gitUpdate() {
 			// This pollutes the reflog, but there's no stash functionality in
 			// grgit...
 			grgit.commit {
-				message = "temporary stash commit"
+				message = 'temporary stash commit'
 				all = true
 			}
 		}
@@ -248,6 +250,66 @@ tasks.withType(JavaCompile) {
 	options.encoding = 'UTF-8'
 }
 
+task cleanJpackage(type: Delete) {
+	onlyIf {
+		file('build/releases').exists()
+	}
+	delete 'build/releases'
+}
+
+tasks.jpackage {
+	dependsOn shadowJar, cleanJpackage
+	input = 'dist'
+	destination = 'build/releases'
+	mainClass = mainClassName
+	appVersion = new Date().format('yy.MM')
+	linux {
+		icon = 'util/linux/KoLmafia.ico'
+	}
+	mac {
+		type = 'dmg'
+		icon = 'util/macosx/limeglass.icns'
+
+	}
+	windows{
+		type = 'exe'
+		icon = 'util/windows/KoLmafia.ico'
+		winShortcut = 'true'
+		winDirChooser = 'true'
+		javaOptions = ["-DuseCWDasROOT=true"]
+	}
+	doFirst {
+		mainJar = tasks.shadowJar.archiveFileName.get()
+		appVersion += '.' + version
+		appName = 'KoLmafia-r' + version + "${versioning.info.dirty ? 'M' : ''}"
+		println 'Packaging app ' + appName + '...'
+		if (System.properties['os.name'] != 'Linux') {
+			return
+		}
+		def hasDeb = exec {
+			ignoreExitValue = true
+			errorOutput = OutputStream.nullOutputStream()
+			executable 'bash'
+			args '-c', 'which dpkg-deb'
+		}
+		def hasRpm = exec {
+			ignoreExitValue = true
+			errorOutput = OutputStream.nullOutputStream()
+			executable 'bash'
+			args '-c', 'which rpmbuild'
+		}
+		if (hasDeb.getExitValue() == 0) {
+			println 'Targeting deb for jpackage...'
+			linux { type = 'deb' }
+		} else if (hasRpm.getExitValue() == 0) {
+			println 'Targeting rpm for jpackage...'
+			linux { type = 'rpm' }
+		} else {
+			println 'Bundling all files for jpackage.'
+			linux { type = 'app-image' }
+		}
+	}
+}
 
 clean.dependsOn cleanDist
 pruneDist.dependsOn getRevision
@@ -260,7 +322,7 @@ jacocoTestReport.dependsOn test
 
 def lastRevision() {
 	def revisionFile = file('build/revision.txt')
-	return revisionFile.exists() ? revisionFile.text.trim() : "0"
+	return revisionFile.exists() ? revisionFile.text.trim() : '0'
 }
 
 // Set version from last build/revision.txt if up-to-date
