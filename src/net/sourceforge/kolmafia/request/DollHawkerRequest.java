@@ -1,14 +1,14 @@
 package net.sourceforge.kolmafia.request;
 
+import java.util.List;
 import java.util.Map;
-import net.java.dev.spellcast.utilities.LockableListModel;
 import net.sourceforge.kolmafia.AdventureResult;
 import net.sourceforge.kolmafia.CoinmasterData;
 import net.sourceforge.kolmafia.persistence.CoinmastersDatabase;
 
 public class DollHawkerRequest extends CoinMasterRequest {
   public static final String master = "Dollhawker's Emporium";
-  private static final LockableListModel<AdventureResult> buyItems =
+  private static final List<AdventureResult> buyItems =
       CoinmastersDatabase.getBuyItems(DollHawkerRequest.master);
   private static final Map<Integer, Integer> buyPrices =
       CoinmastersDatabase.getBuyPrices(DollHawkerRequest.master);

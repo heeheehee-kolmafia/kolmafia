@@ -1,9 +1,9 @@
 package net.sourceforge.kolmafia.request;
 
+import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import net.java.dev.spellcast.utilities.LockableListModel;
 import net.sourceforge.kolmafia.AdventureResult;
 import net.sourceforge.kolmafia.CoinmasterData;
 import net.sourceforge.kolmafia.KoLConstants;
@@ -15,7 +15,7 @@ public class FDKOLRequest extends CoinMasterRequest {
   public static final String master = "FDKOL Tent";
   public static final AdventureResult FDKOL_TOKEN = ItemPool.get(ItemPool.FDKOL_COMMENDATION, 1);
   private static final Pattern TOKEN_PATTERN = Pattern.compile("<td>([\\d,]+) FDKOL commendation");
-  public static final LockableListModel<AdventureResult> buyItems =
+  public static final List<AdventureResult> buyItems =
       CoinmastersDatabase.getBuyItems(FDKOLRequest.master);
   private static final Map<Integer, Integer> buyPrices =
       CoinmastersDatabase.getBuyPrices(FDKOLRequest.master);

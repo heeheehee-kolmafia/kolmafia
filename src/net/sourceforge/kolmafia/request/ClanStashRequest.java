@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import net.java.dev.spellcast.utilities.LockableListModel;
 import net.sourceforge.kolmafia.AdventureResult;
 import net.sourceforge.kolmafia.AdventureResult.AdventureLongCountResult;
 import net.sourceforge.kolmafia.KoLCharacter;
@@ -217,7 +216,7 @@ public class ClanStashRequest extends TransferItemRequest {
     ClanManager.setStashRetrieved();
 
     // Start with current stash contents
-    LockableListModel<AdventureResult> stashContents = ClanManager.getStash();
+    List<AdventureResult> stashContents = ClanManager.getStash();
 
     // Clear it
     stashContents.clear();

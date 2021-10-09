@@ -1,7 +1,7 @@
 package net.sourceforge.kolmafia.request;
 
+import java.util.List;
 import java.util.Map;
-import net.java.dev.spellcast.utilities.LockableListModel;
 import net.sourceforge.kolmafia.AdventureResult;
 import net.sourceforge.kolmafia.CoinmasterData;
 import net.sourceforge.kolmafia.RequestThread;
@@ -12,7 +12,7 @@ import net.sourceforge.kolmafia.preferences.Preferences;
 
 public class LunarLunchRequest extends CoinMasterRequest {
   public static final String master = "Lunar Lunch-o-Mat";
-  private static final LockableListModel<AdventureResult> buyItems =
+  private static final List<AdventureResult> buyItems =
       CoinmastersDatabase.getBuyItems(LunarLunchRequest.master);
   private static final Map<Integer, Integer> buyPrices =
       CoinmastersDatabase.getBuyPrices(LunarLunchRequest.master);

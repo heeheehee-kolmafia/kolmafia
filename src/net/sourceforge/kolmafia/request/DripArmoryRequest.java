@@ -1,9 +1,9 @@
 package net.sourceforge.kolmafia.request;
 
+import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import net.java.dev.spellcast.utilities.LockableListModel;
 import net.sourceforge.kolmafia.AdventureResult;
 import net.sourceforge.kolmafia.CoinmasterData;
 import net.sourceforge.kolmafia.objectpool.ItemPool;
@@ -15,7 +15,7 @@ public class DripArmoryRequest extends CoinMasterRequest {
   public static final String master = "Drip Institute Armory";
   public static final AdventureResult TOKEN = ItemPool.get(ItemPool.DRIPLET, 1);
   private static final Pattern TOKEN_PATTERN = Pattern.compile("<td>([\\d,]+) Driplet");
-  public static final LockableListModel<AdventureResult> buyItems =
+  public static final List<AdventureResult> buyItems =
       CoinmastersDatabase.getBuyItems(DripArmoryRequest.master);
   private static final Map<Integer, Integer> buyPrices =
       CoinmastersDatabase.getBuyPrices(DripArmoryRequest.master);

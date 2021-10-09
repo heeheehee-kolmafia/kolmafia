@@ -1,9 +1,9 @@
 package net.sourceforge.kolmafia.request;
 
+import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import net.java.dev.spellcast.utilities.LockableListModel;
 import net.sourceforge.kolmafia.AdventureResult;
 import net.sourceforge.kolmafia.CoinmasterData;
 import net.sourceforge.kolmafia.KoLConstants;
@@ -16,8 +16,7 @@ import net.sourceforge.kolmafia.utilities.StringUtilities;
 
 public class TravelingTraderRequest extends CoinMasterRequest {
   public static final String master = "Traveling Trader";
-  private static final LockableListModel<AdventureResult> buyItems =
-      CoinmastersDatabase.getNewList();
+  private static final List<AdventureResult> buyItems = CoinmastersDatabase.getNewList();
   private static final Map<Integer, Integer> buyPrices = CoinmastersDatabase.getNewMap();
 
   // traveler.php?action=For Gnomeregan!&whichitem=xxxx&quantity=1&tradeall=1&usehagnk=1&pwd
@@ -180,7 +179,7 @@ public class TravelingTraderRequest extends CoinMasterRequest {
     // Refresh the coinmaster lists every time we visit.
     // Learn new trade items by simply visiting the Traveling Trader
 
-    LockableListModel<AdventureResult> items = TravelingTraderRequest.buyItems;
+    List<AdventureResult> items = TravelingTraderRequest.buyItems;
     Map<Integer, Integer> prices = TravelingTraderRequest.buyPrices;
     items.clear();
     prices.clear();

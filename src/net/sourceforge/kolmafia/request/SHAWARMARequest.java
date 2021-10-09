@@ -1,8 +1,8 @@
 package net.sourceforge.kolmafia.request;
 
+import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
-import net.java.dev.spellcast.utilities.LockableListModel;
 import net.sourceforge.kolmafia.AdventureResult;
 import net.sourceforge.kolmafia.CoinmasterData;
 import net.sourceforge.kolmafia.objectpool.ItemPool;
@@ -12,7 +12,7 @@ import net.sourceforge.kolmafia.session.Limitmode;
 
 public class SHAWARMARequest extends CoinMasterRequest {
   public static final String master = "The SHAWARMA Initiative";
-  private static final LockableListModel<AdventureResult> buyItems =
+  private static final List<AdventureResult> buyItems =
       CoinmastersDatabase.getBuyItems(SHAWARMARequest.master);
   private static final Map<Integer, Integer> buyPrices =
       CoinmastersDatabase.getBuyPrices(SHAWARMARequest.master);

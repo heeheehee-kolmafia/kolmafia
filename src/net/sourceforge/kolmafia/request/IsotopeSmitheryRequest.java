@@ -1,14 +1,14 @@
 package net.sourceforge.kolmafia.request;
 
+import java.util.List;
 import java.util.Map;
-import net.java.dev.spellcast.utilities.LockableListModel;
 import net.sourceforge.kolmafia.AdventureResult;
 import net.sourceforge.kolmafia.CoinmasterData;
 import net.sourceforge.kolmafia.persistence.CoinmastersDatabase;
 
 public class IsotopeSmitheryRequest extends CoinMasterRequest {
   public static final String master = "Isotope Smithery";
-  private static final LockableListModel<AdventureResult> buyItems =
+  private static final List<AdventureResult> buyItems =
       CoinmastersDatabase.getBuyItems(IsotopeSmitheryRequest.master);
   private static final Map<Integer, Integer> buyPrices =
       CoinmastersDatabase.getBuyPrices(IsotopeSmitheryRequest.master);

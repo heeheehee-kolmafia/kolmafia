@@ -1,10 +1,10 @@
 package net.sourceforge.kolmafia.request;
 
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import net.java.dev.spellcast.utilities.LockableListModel;
 import net.sourceforge.kolmafia.AdventureResult;
 import net.sourceforge.kolmafia.CoinmasterData;
 import net.sourceforge.kolmafia.KoLConstants;
@@ -21,8 +21,7 @@ import net.sourceforge.kolmafia.utilities.StringUtilities;
 
 public class MrStoreRequest extends CoinMasterRequest {
   public static final String master = "Mr. Store";
-  private static final LockableListModel<AdventureResult> buyItems =
-      CoinmastersDatabase.getNewList();
+  private static final List<AdventureResult> buyItems = CoinmastersDatabase.getNewList();
   private static final Map<Integer, Integer> buyPrices = CoinmastersDatabase.getNewMap();
 
   private static final Pattern TOKEN_PATTERN =
@@ -115,7 +114,7 @@ public class MrStoreRequest extends CoinMasterRequest {
     // Refresh the Coin Master inventory every time we visit.
 
     CoinmasterData data = MrStoreRequest.MR_STORE;
-    LockableListModel<AdventureResult> items = MrStoreRequest.buyItems;
+    List<AdventureResult> items = MrStoreRequest.buyItems;
     Map<Integer, AdventureResult> costs = MrStoreRequest.buyCosts;
     items.clear();
     costs.clear();

@@ -1,8 +1,8 @@
 package net.sourceforge.kolmafia.request;
 
+import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
-import net.java.dev.spellcast.utilities.LockableListModel;
 import net.sourceforge.kolmafia.AdventureResult;
 import net.sourceforge.kolmafia.CoinmasterData;
 import net.sourceforge.kolmafia.RequestThread;
@@ -19,11 +19,11 @@ import net.sourceforge.kolmafia.session.IslandManager;
 
 public class DimemasterRequest extends CoinMasterRequest {
   public static final String master = "Dimemaster";
-  private static final LockableListModel<AdventureResult> buyItems =
+  private static final List<AdventureResult> buyItems =
       CoinmastersDatabase.getBuyItems(DimemasterRequest.master);
   private static final Map<Integer, Integer> buyPrices =
       CoinmastersDatabase.getBuyPrices(DimemasterRequest.master);
-  private static final LockableListModel<AdventureResult> sellItems =
+  private static final List<AdventureResult> sellItems =
       CoinmastersDatabase.getSellItems(DimemasterRequest.master);
   private static final Map<Integer, Integer> sellPrices =
       CoinmastersDatabase.getSellPrices(DimemasterRequest.master);

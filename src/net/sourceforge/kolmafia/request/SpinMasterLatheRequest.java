@@ -1,11 +1,11 @@
 package net.sourceforge.kolmafia.request;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import net.java.dev.spellcast.utilities.LockableListModel;
 import net.sourceforge.kolmafia.AdventureResult;
 import net.sourceforge.kolmafia.CoinmasterData;
 import net.sourceforge.kolmafia.listener.NamedListenerRegistry;
@@ -19,7 +19,7 @@ import net.sourceforge.kolmafia.utilities.StringUtilities;
 
 public class SpinMasterLatheRequest extends CoinMasterRequest {
   public static final String master = "Your SpinMaster&trade; lathe";
-  private static final LockableListModel<AdventureResult> buyItems =
+  private static final List<AdventureResult> buyItems =
       CoinmastersDatabase.getBuyItems(SpinMasterLatheRequest.master);
   private static final Map<Integer, Integer> buyPrices = CoinmastersDatabase.getNewMap();
   private static final Map<Integer, Integer> itemRows =

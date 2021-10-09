@@ -1,9 +1,9 @@
 package net.sourceforge.kolmafia.request;
 
+import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import net.java.dev.spellcast.utilities.LockableListModel;
 import net.sourceforge.kolmafia.AdventureResult;
 import net.sourceforge.kolmafia.CoinmasterData;
 import net.sourceforge.kolmafia.objectpool.ItemPool;
@@ -14,7 +14,7 @@ public class BlackMarketRequest extends CoinMasterRequest {
   public static final String master = "The Black Market";
   public static final AdventureResult TOKEN = ItemPool.get(ItemPool.PRICELESS_DIAMOND, 1);
   private static final Pattern TOKEN_PATTERN = Pattern.compile("<td>([\\d,]+) priceless diamond");
-  public static final LockableListModel<AdventureResult> buyItems =
+  public static final List<AdventureResult> buyItems =
       CoinmastersDatabase.getBuyItems(BlackMarketRequest.master);
   private static final Map<Integer, Integer> buyPrices =
       CoinmastersDatabase.getBuyPrices(BlackMarketRequest.master);

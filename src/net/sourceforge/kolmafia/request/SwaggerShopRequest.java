@@ -2,10 +2,10 @@ package net.sourceforge.kolmafia.request;
 
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import net.java.dev.spellcast.utilities.LockableListModel;
 import net.sourceforge.kolmafia.AdventureResult;
 import net.sourceforge.kolmafia.CoinmasterData;
 import net.sourceforge.kolmafia.KoLCharacter;
@@ -90,7 +90,7 @@ public class SwaggerShopRequest extends CoinMasterRequest {
   }
 
   public static final String master = "The Swagger Shop";
-  private static final LockableListModel<AdventureResult> buyItems =
+  private static final List<AdventureResult> buyItems =
       CoinmastersDatabase.getBuyItems(SwaggerShopRequest.master);
   private static final Map<Integer, Integer> buyPrices =
       CoinmastersDatabase.getBuyPrices(SwaggerShopRequest.master);
@@ -238,7 +238,7 @@ public class SwaggerShopRequest extends CoinMasterRequest {
     // Learn new items by simply visiting the Swagger Shop
     // Refresh the Coin Master inventory every time we visit.
 
-    LockableListModel<AdventureResult> items = SwaggerShopRequest.buyItems;
+    List<AdventureResult> items = SwaggerShopRequest.buyItems;
     Map<Integer, Integer> prices = SwaggerShopRequest.buyPrices;
     items.clear();
     prices.clear();
