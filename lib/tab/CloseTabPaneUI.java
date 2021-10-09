@@ -623,7 +623,7 @@ public class CloseTabPaneUI
 			this.initMnemonics();
 		}
 		this.mnemonicInputMap.put( KeyStroke.getKeyStroke( mnemonic, Event.ALT_MASK ), "setSelectedIndex" );
-		this.mnemonicToIndexMap.put( new Integer( mnemonic ), new Integer( index ) );
+		this.mnemonicToIndexMap.put( Integer.valueOf( mnemonic ), Integer.valueOf( index ) );
 	}
 
 	/**
@@ -1055,7 +1055,7 @@ public class CloseTabPaneUI
 					{
 						mnemonic -= 'a' - 'A';
 					}
-					Integer index = (Integer) ui.mnemonicToIndexMap.get( new Integer( mnemonic ) );
+					Integer index = (Integer) ui.mnemonicToIndexMap.get( Integer.valueOf( mnemonic ) );
 					if ( index != null && pane.isEnabledAt( index.intValue() ) )
 					{
 						pane.setSelectedIndex( index.intValue() );
