@@ -1,11 +1,12 @@
 package net.sourceforge.kolmafia.session;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import net.java.dev.spellcast.utilities.LockableListModel;
 import net.sourceforge.kolmafia.RequestLogger;
 import net.sourceforge.kolmafia.StaticEntity;
 import net.sourceforge.kolmafia.chat.ChatManager;
@@ -14,8 +15,8 @@ import net.sourceforge.kolmafia.request.LoginRequest;
 import net.sourceforge.kolmafia.swingui.SystemTrayFrame;
 
 public class EventManager {
-  private static final LockableListModel<String> eventTexts = new LockableListModel<String>();
-  private static final LockableListModel<String> eventHyperTexts = new LockableListModel<String>();
+  private static final List<String> eventTexts = new ArrayList<String>();
+  private static final List<String> eventHyperTexts = new ArrayList<String>();
 
   public static final Pattern EVENT_PATTERN1 =
       Pattern.compile(
@@ -50,11 +51,11 @@ public class EventManager {
     EventManager.eventHyperTexts.clear();
   }
 
-  public static LockableListModel<String> getEventTexts() {
+  public static List<String> getEventTexts() {
     return EventManager.eventTexts;
   }
 
-  public static LockableListModel<String> getEventHyperTexts() {
+  public static List<String> getEventHyperTexts() {
     return EventManager.eventHyperTexts;
   }
 

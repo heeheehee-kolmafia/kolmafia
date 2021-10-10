@@ -3,7 +3,6 @@ package net.sourceforge.kolmafia.objectpool;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
-import net.java.dev.spellcast.utilities.LockableListModel;
 import net.java.dev.spellcast.utilities.SortedListModel;
 import net.sourceforge.kolmafia.AdventureResult;
 import net.sourceforge.kolmafia.KoLCharacter;
@@ -594,15 +593,15 @@ public class Concoction implements Comparable<Concoction> {
   }
 
   public void queue(
-      final LockableListModel<AdventureResult> globalChanges,
-      final ArrayList<AdventureResult> localChanges,
+      final List<AdventureResult> globalChanges,
+      final List<AdventureResult> localChanges,
       final int amount) {
     this.queue(globalChanges, localChanges, amount, true);
   }
 
   public void queue(
-      final LockableListModel<AdventureResult> globalChanges,
-      final ArrayList<AdventureResult> localChanges,
+      final List<AdventureResult> globalChanges,
+      final List<AdventureResult> localChanges,
       final int amount,
       boolean adjust) {
     if (amount <= 0) {

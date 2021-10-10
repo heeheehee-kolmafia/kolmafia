@@ -4,7 +4,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import net.java.dev.spellcast.utilities.SortedListModel;
 import net.sourceforge.kolmafia.listener.NamedListenerRegistry;
 import net.sourceforge.kolmafia.objectpool.EffectPool;
 import net.sourceforge.kolmafia.objectpool.IntegerPool;
@@ -12,6 +11,7 @@ import net.sourceforge.kolmafia.objectpool.ItemPool;
 import net.sourceforge.kolmafia.request.GenericRequest;
 import net.sourceforge.kolmafia.session.ChoiceManager;
 import net.sourceforge.kolmafia.session.EquipmentManager;
+import net.sourceforge.kolmafia.utilities.SortedList;
 import net.sourceforge.kolmafia.utilities.StringUtilities;
 
 public class EdServantData implements Comparable<EdServantData> {
@@ -194,8 +194,7 @@ public class EdServantData implements Comparable<EdServantData> {
   private int experience;
   private int level;
 
-  public static final SortedListModel<EdServantData> edServants =
-      new SortedListModel<EdServantData>();
+  public static final SortedList<EdServantData> edServants = new SortedList<EdServantData>();
   public static EdServantData currentEdServant = EdServantData.NO_SERVANT;
 
   public static void initialize() {
