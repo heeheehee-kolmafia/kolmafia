@@ -10,7 +10,6 @@ import java.util.Map.Entry;
 import java.util.StringTokenizer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import net.java.dev.spellcast.utilities.LockableListModel;
 import net.sourceforge.kolmafia.AdventureResult;
 import net.sourceforge.kolmafia.AreaCombatData;
 import net.sourceforge.kolmafia.KoLAdventure;
@@ -40,7 +39,7 @@ import net.sourceforge.kolmafia.utilities.StringUtilities;
 public class AdventureDatabase {
   private static final Pattern SNARF_PATTERN = Pattern.compile("snarfblat=(\\d+)");
   private static final Pattern MINE_PATTERN = Pattern.compile("mine=(\\d+)");
-  private static final LockableListModel<KoLAdventure> adventures = new LockableListModel<>();
+  private static final List<KoLAdventure> adventures = new ArrayList<>();
   private static final AdventureArray allAdventures = new AdventureArray();
 
   public static final List<String> PARENT_LIST = new ArrayList<>();
@@ -326,7 +325,7 @@ public class AdventureDatabase {
     }
   }
 
-  public static final LockableListModel<KoLAdventure> getAsLockableListModel() {
+  public static final List<KoLAdventure> getAsList() {
     if (AdventureDatabase.adventures.isEmpty()) {
       AdventureDatabase.refreshAdventureList();
     }
@@ -604,12 +603,12 @@ public class AdventureDatabase {
     return conditions;
   }
 
-  public static final LockableListModel<String> getDefaultConditionsList(
-      final KoLAdventure adventure, LockableListModel<String> list) {
+  public static final List<String> getDefaultConditionsList(
+      final KoLAdventure adventure, List<String> list) {
     String string = AdventureDatabase.getDefaultConditions(adventure);
     String[] conditions = string.split("\\|");
     if (list == null) {
-      list = new LockableListModel<String>();
+      list = new ArrayList<String>();
     } else {
       list.clear();
     }

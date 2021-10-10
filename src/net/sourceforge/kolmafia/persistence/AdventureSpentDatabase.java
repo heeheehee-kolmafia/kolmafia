@@ -49,7 +49,7 @@ public class AdventureSpentDatabase implements Serializable {
   private static void resetTurns(boolean serializeAfterwards) {
     AdventureSpentDatabase.TURNS = new TreeMap<String, Integer>();
 
-    List<KoLAdventure> list = AdventureDatabase.getAsLockableListModel();
+    List<KoLAdventure> list = AdventureDatabase.getAsList();
 
     for (KoLAdventure adv : list) {
       AdventureSpentDatabase.TURNS.put(adv.getAdventureName(), 0);
@@ -63,7 +63,7 @@ public class AdventureSpentDatabase implements Serializable {
   private static boolean checkZones() {
     // See if any zones aren't in the Map.  Add them if so.
 
-    List<KoLAdventure> list = AdventureDatabase.getAsLockableListModel();
+    List<KoLAdventure> list = AdventureDatabase.getAsList();
     Set<String> keys = TURNS.keySet();
 
     boolean keyAdded = false;

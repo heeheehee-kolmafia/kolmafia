@@ -1,6 +1,5 @@
 package net.sourceforge.kolmafia.swingui.menu;
 
-import net.java.dev.spellcast.utilities.LockableListModel;
 import net.sourceforge.kolmafia.AdventureResult;
 import net.sourceforge.kolmafia.KoLCharacter;
 import net.sourceforge.kolmafia.RequestThread;
@@ -21,10 +20,7 @@ public class WandZapMenuItem extends ThreadedMenuItem {
       }
 
       AdventureResult selectedValue =
-          (AdventureResult)
-              InputFieldUtilities.input(
-                  "Let's explodey my wand!",
-                  new LockableListModel<>(ZapRequest.getZappableItems()));
+          InputFieldUtilities.input("Let's explodey my wand!", ZapRequest.getZappableItems());
       if (selectedValue == null) {
         return;
       }

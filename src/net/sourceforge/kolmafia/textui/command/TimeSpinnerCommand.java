@@ -206,7 +206,7 @@ public class TimeSpinnerCommand extends AbstractCommand {
       boolean filterExists = !filter.equals("");
 
       List<String> monsters = new ArrayList<String>();
-      for (KoLAdventure adv : AdventureDatabase.getAsLockableListModel()) {
+      for (KoLAdventure adv : AdventureDatabase.getAsList()) {
         if (!adv.getRequest().getURLString().startsWith("adventure.php")) {
           continue;
         }

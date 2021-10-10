@@ -81,7 +81,7 @@ public class AdventureSelectPanel extends JPanel {
   public AdventureSelectPanel(final boolean enableAdventures) {
     super(new BorderLayout(10, 10));
 
-    this.matchingAdventures = AdventureDatabase.getAsLockableListModel().getMirrorImage();
+    this.matchingAdventures = new LockableListModel<>(AdventureDatabase.getAsList());
 
     // West pane is a scroll pane which lists all of the available
     // locations -- to be included is a map on a separate tab.

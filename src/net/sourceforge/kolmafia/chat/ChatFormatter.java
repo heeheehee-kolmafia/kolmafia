@@ -2,6 +2,7 @@ package net.sourceforge.kolmafia.chat;
 
 import java.awt.Color;
 import java.util.HashMap;
+import java.util.List;
 import java.util.regex.Pattern;
 import net.sourceforge.kolmafia.KoLCharacter;
 import net.sourceforge.kolmafia.KoLConstants;
@@ -343,22 +344,22 @@ public class ChatFormatter {
    * like to remove. Note that only one highlight at a time can be removed with this method.
    */
   public static final void removeHighlighting() {
-    Object[] patterns = StyledChatBuffer.searchStrings.toArray();
+    List<String> patterns = StyledChatBuffer.searchStrings;
 
-    if (patterns.length == 0) {
+    if (patterns.isEmpty()) {
       InputFieldUtilities.alert("No active highlights.");
       return;
     }
 
     String selectedValue =
-        (String) InputFieldUtilities.input("Currently highlighting the following terms:", patterns);
+        InputFieldUtilities.input("Currently highlighting the following terms:", patterns);
 
     if (selectedValue == null) {
       return;
     }
 
-    for (int i = 0; i < patterns.length; ++i) {
-      if (patterns[i].equals(selectedValue)) {
+    for (int i = 0; i < patterns.size(); ++i) {
+      if (patterns.get(i).equals(selectedValue)) {
         String settingString = StyledChatBuffer.removeHighlight(i);
 
         String oldSetting = Preferences.getString("highlightList");

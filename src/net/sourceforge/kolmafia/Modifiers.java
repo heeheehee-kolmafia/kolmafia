@@ -3810,7 +3810,7 @@ public class Modifiers {
     // Make a map of locations
     Set<String> locations = new TreeSet<>();
 
-    it = AdventureDatabase.getAsLockableListModel().iterator();
+    it = AdventureDatabase.getAsList().iterator();
     while (it.hasNext()) {
       KoLAdventure key = (KoLAdventure) it.next();
       String name = key.getAdventureName();

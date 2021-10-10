@@ -83,7 +83,7 @@ public class AdventureQueueDatabase implements Serializable {
     AdventureQueueDatabase.COMBAT_QUEUE = new TreeMap<String, RollingLinkedList<String>>();
     AdventureQueueDatabase.NONCOMBAT_QUEUE = new TreeMap<String, RollingLinkedList<String>>();
 
-    List<KoLAdventure> list = AdventureDatabase.getAsLockableListModel();
+    List<KoLAdventure> list = AdventureDatabase.getAsList();
 
     for (KoLAdventure adv : list) {
       AdventureQueueDatabase.COMBAT_QUEUE.put(
@@ -100,7 +100,7 @@ public class AdventureQueueDatabase implements Serializable {
   private static boolean checkZones() {
     // See if any zones aren't in the TreeMap.  Add them if so.
 
-    List<KoLAdventure> list = AdventureDatabase.getAsLockableListModel();
+    List<KoLAdventure> list = AdventureDatabase.getAsList();
     Set<String> keys = COMBAT_QUEUE.keySet();
 
     boolean keyAdded = false;

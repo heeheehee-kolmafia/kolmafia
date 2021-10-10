@@ -397,7 +397,7 @@ public class Type extends Symbol {
         }
         break;
       case DataTypes.TYPE_LOCATION:
-        this.addValues(list, AdventureDatabase.getAsLockableListModel());
+        this.addValues(list, AdventureDatabase.getAsList());
         break;
       case DataTypes.TYPE_CLASS:
         this.addValues(list, DataTypes.CLASSES);

@@ -1,6 +1,5 @@
 package net.sourceforge.kolmafia.swingui.menu;
 
-import net.java.dev.spellcast.utilities.SortedListModel;
 import net.sourceforge.kolmafia.AdventureResult;
 import net.sourceforge.kolmafia.KoLConstants;
 import net.sourceforge.kolmafia.KoLConstants.CraftingType;
@@ -12,6 +11,7 @@ import net.sourceforge.kolmafia.persistence.ConcoctionDatabase;
 import net.sourceforge.kolmafia.request.UntinkerRequest;
 import net.sourceforge.kolmafia.swingui.listener.ThreadedListener;
 import net.sourceforge.kolmafia.utilities.InputFieldUtilities;
+import net.sourceforge.kolmafia.utilities.SortedList;
 
 public class UntinkerMenuItem extends ThreadedMenuItem {
   public UntinkerMenuItem() {
@@ -21,7 +21,7 @@ public class UntinkerMenuItem extends ThreadedMenuItem {
   private static class UntinkerListener extends ThreadedListener {
     @Override
     protected void execute() {
-      SortedListModel untinkerItems = new SortedListModel();
+      SortedList<AdventureResult> untinkerItems = new SortedList<>();
 
       for (int i = 0; i < KoLConstants.inventory.size(); ++i) {
         AdventureResult currentItem = KoLConstants.inventory.get(i);
@@ -45,7 +45,7 @@ public class UntinkerMenuItem extends ThreadedMenuItem {
       }
 
       AdventureResult selectedValue =
-          (AdventureResult) InputFieldUtilities.input("You can unscrew meat paste?", untinkerItems);
+          InputFieldUtilities.input("You can unscrew meat paste?", untinkerItems);
       if (selectedValue == null) {
         return;
       }

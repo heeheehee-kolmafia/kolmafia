@@ -3,7 +3,7 @@ package net.sourceforge.kolmafia.swingui;
 import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.util.ArrayList;
+import java.util.List;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
 import net.java.dev.spellcast.utilities.LockableListModel;
@@ -224,17 +224,16 @@ public class MuseumFrame extends GenericFrame {
 
     @Override
     public void actionConfirmed() {
-      Object[] headerArray = DisplayCaseManager.getHeaders().toArray();
+      List<String> headers = DisplayCaseManager.getHeaders();
 
-      String selectedValue =
-          (String) InputFieldUtilities.input("Moving to this shelf...", headerArray);
+      String selectedValue = InputFieldUtilities.input("Moving to this shelf...", headers);
 
       if (selectedValue == null) {
         return;
       }
 
-      for (int i = 0; i < headerArray.length; ++i) {
-        if (selectedValue.equals(headerArray[i])) {
+      for (int i = 0; i < headers.size(); ++i) {
+        if (selectedValue.equals(headers.get(i))) {
           DisplayCaseManager.move(this.elementList.getSelectedValuesList(), this.index, i);
           break;
         }
@@ -253,7 +252,7 @@ public class MuseumFrame extends GenericFrame {
 
   public class OrderingPanel extends ItemListManagePanel {
     public OrderingPanel() {
-      super(new LockableListModel<String>(new ArrayList<String>(DisplayCaseManager.getHeaders())));
+      super(new LockableListModel<String>(DisplayCaseManager.getHeaders()));
 
       this.setButtons(
           false,
