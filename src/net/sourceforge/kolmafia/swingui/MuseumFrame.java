@@ -3,6 +3,7 @@ package net.sourceforge.kolmafia.swingui;
 import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.util.ArrayList;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
 import net.java.dev.spellcast.utilities.LockableListModel;
@@ -190,7 +191,7 @@ public class MuseumFrame extends GenericFrame {
 
   public class MuseumShelfList extends PanelList {
     public MuseumShelfList() {
-      super(1, 480, 200, DisplayCaseManager.getShelves(), true);
+      super(1, 480, 200, new LockableListModel<>(DisplayCaseManager.getShelves()), true);
     }
 
     @Override
@@ -207,7 +208,7 @@ public class MuseumFrame extends GenericFrame {
 
   public class MuseumShelfPanel extends ScrollablePanel implements PanelListCell {
     private final int index;
-    private final ShowDescriptionList elementList;
+    private final ShowDescriptionList<AdventureResult> elementList;
 
     public MuseumShelfPanel(final int index, final SortedListModel value) {
       super(
@@ -234,8 +235,7 @@ public class MuseumFrame extends GenericFrame {
 
       for (int i = 0; i < headerArray.length; ++i) {
         if (selectedValue.equals(headerArray[i])) {
-          DisplayCaseManager.move(
-              this.elementList.getSelectedValuesList().toArray(), this.index, i);
+          DisplayCaseManager.move(this.elementList.getSelectedValuesList(), this.index, i);
           break;
         }
       }
@@ -253,7 +253,7 @@ public class MuseumFrame extends GenericFrame {
 
   public class OrderingPanel extends ItemListManagePanel {
     public OrderingPanel() {
-      super((LockableListModel) DisplayCaseManager.getHeaders().clone());
+      super(new LockableListModel<String>(new ArrayList<String>(DisplayCaseManager.getHeaders())));
 
       this.setButtons(
           false,

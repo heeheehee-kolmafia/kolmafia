@@ -4,8 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import net.java.dev.spellcast.utilities.LockableListModel;
-import net.java.dev.spellcast.utilities.SortedListModel;
 import net.sourceforge.kolmafia.AdventureResult;
 import net.sourceforge.kolmafia.KoLConstants;
 import net.sourceforge.kolmafia.KoLmafia;
@@ -15,6 +13,7 @@ import net.sourceforge.kolmafia.persistence.ItemDatabase;
 import net.sourceforge.kolmafia.request.DisplayCaseRequest;
 import net.sourceforge.kolmafia.request.GenericRequest;
 import net.sourceforge.kolmafia.utilities.CharacterEntities;
+import net.sourceforge.kolmafia.utilities.SortedList;
 import net.sourceforge.kolmafia.utilities.StringUtilities;
 
 public abstract class DisplayCaseManager {
@@ -27,8 +26,8 @@ public abstract class DisplayCaseManager {
       Pattern.compile("<script>.*?var shelves = \\{(.*?)\\};.*?</script>", Pattern.DOTALL);
   private static final Pattern SHELF_PATTERN = Pattern.compile("\"(\\d+)\":\"([^\"]*)\"");
 
-  private static final LockableListModel headers = new LockableListModel();
-  private static final LockableListModel shelves = new LockableListModel();
+  private static final List<String> headers = new ArrayList<>();
+  private static final List<SortedList<AdventureResult>> shelves = new ArrayList<>();
 
   public static boolean collectionRetrieved = false;
 
@@ -39,7 +38,7 @@ public abstract class DisplayCaseManager {
     DisplayCaseManager.shelves.clear();
   }
 
-  public static final LockableListModel getHeaders() {
+  public static final List<String> getHeaders() {
     return DisplayCaseManager.headers;
   }
 
@@ -47,29 +46,19 @@ public abstract class DisplayCaseManager {
     return (String) DisplayCaseManager.headers.get(shelf);
   }
 
-  public static final LockableListModel getShelves() {
+  public static final List getShelves() {
     return DisplayCaseManager.shelves;
   }
 
   public static final void move(
-      final Object[] moving, final int sourceShelf, final int destinationShelf) {
-    // In order to take advantage of the utilities of the
-    // Collections interface, place everything inside of
-    // a list first.
-
-    List movingList = new ArrayList();
-    AdventureResult[] items = new AdventureResult[moving.length];
-    for (int i = 0; i < moving.length; ++i) {
-      Object item = moving[i];
-      movingList.add(item);
-      items[i] = (AdventureResult) item;
-    }
+      final List<AdventureResult> moving, final int sourceShelf, final int destinationShelf) {
+    AdventureResult[] items = moving.toArray(new AdventureResult[0]);
 
     // Use the removeAll() and addAll() methods inside of
     // the Collections interface.
 
-    ((SortedListModel) DisplayCaseManager.shelves.get(sourceShelf)).removeAll(movingList);
-    ((SortedListModel) DisplayCaseManager.shelves.get(destinationShelf)).addAll(movingList);
+    DisplayCaseManager.shelves.get(sourceShelf).removeAll(moving);
+    DisplayCaseManager.shelves.get(destinationShelf).addAll(moving);
 
     RequestThread.postRequest(new DisplayCaseRequest(items, destinationShelf));
     KoLmafia.updateDisplay("Display case updated.");
@@ -105,7 +94,7 @@ public abstract class DisplayCaseManager {
     // list of headers to find out where the shelf contents
     // should be stored after the update.
 
-    List shelforder = new ArrayList();
+    List<List<AdventureResult>> shelforder = new ArrayList<>();
     for (int i = 0; i < headers.length; ++i) {
       shelforder.add(
           DisplayCaseManager.shelves.get(DisplayCaseManager.headers.indexOf(headers[i])));
@@ -136,9 +125,9 @@ public abstract class DisplayCaseManager {
     KoLmafia.updateDisplay("Display case updated.");
   }
 
-  private static void save(final List shelfOrder) {
+  private static void save(final List<List<AdventureResult>> shelfOrder) {
     int elementCounter = 0;
-    SortedListModel currentShelf;
+    List<AdventureResult> currentShelf;
 
     // In order to ensure that all data is saved with no
     // glitches server side, all items submit their state.
@@ -152,10 +141,10 @@ public abstract class DisplayCaseManager {
     // the parallel arrays.
 
     for (int i = 0; i < shelfOrder.size(); ++i) {
-      currentShelf = (SortedListModel) shelfOrder.get(i);
+      currentShelf = shelfOrder.get(i);
       for (int j = 0; j < currentShelf.size(); ++j, ++elementCounter) {
         newShelves[elementCounter] = i;
-        newItems[elementCounter] = (AdventureResult) currentShelf.get(j);
+        newItems[elementCounter] = currentShelf.get(j);
       }
     }
 
@@ -169,7 +158,7 @@ public abstract class DisplayCaseManager {
     DisplayCaseManager.updateShelves(data);
 
     ArrayList<AdventureResult> items = new ArrayList<AdventureResult>();
-    ArrayList[] shelves = new ArrayList[DisplayCaseManager.shelves.size()];
+    ArrayList<AdventureResult>[] shelves = new ArrayList[DisplayCaseManager.shelves.size()];
     for (int i = 0; i < shelves.length; ++i) {
       shelves[i] = new ArrayList<AdventureResult>();
     }
@@ -198,7 +187,7 @@ public abstract class DisplayCaseManager {
 
     KoLConstants.collection.addAll(items);
     for (int i = 0; i < DisplayCaseManager.shelves.size(); ++i) {
-      ((SortedListModel) DisplayCaseManager.shelves.get(i)).addAll(shelves[i]);
+      DisplayCaseManager.shelves.get(i).addAll(shelves[i]);
     }
 
     // Finally, we can account for Golden Mr. A's in your display case
@@ -229,7 +218,7 @@ public abstract class DisplayCaseManager {
     }
 
     for (int i = 0; i < DisplayCaseManager.headers.size(); ++i) {
-      DisplayCaseManager.shelves.add(new SortedListModel());
+      DisplayCaseManager.shelves.add(new SortedList<>());
     }
   }
 }

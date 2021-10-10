@@ -46,7 +46,7 @@ import net.sourceforge.kolmafia.utilities.InputFieldUtilities;
 import net.sourceforge.kolmafia.utilities.WikiUtilities;
 import net.sourceforge.kolmafia.webui.RelayLoader;
 
-public class ShowDescriptionList extends JList {
+public class ShowDescriptionList<E> extends JList<E> {
   public int lastSelectIndex;
   public JPopupMenu contextMenu;
   public ListElementFilter filter;
@@ -141,7 +141,6 @@ public class ShowDescriptionList extends JList {
 
     this.setVisibleRowCount(visibleRowCount);
     this.setCellRenderer(ListCellRendererFactory.getDefaultRenderer());
-    this.setPrototypeCellValue("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789");
   }
 
   public LockableListModel getOriginalModel() {
