@@ -1,7 +1,6 @@
 package net.sourceforge.kolmafia.textui;
 
 import java.util.List;
-import net.java.dev.spellcast.utilities.LockableListModel;
 import net.sourceforge.kolmafia.AdventureResult;
 import net.sourceforge.kolmafia.CoinmasterData;
 import net.sourceforge.kolmafia.CoinmasterRegistry;
@@ -944,7 +943,7 @@ public class DataTypes {
 
       case TYPE_LOCATION:
         {
-          LockableListModel<KoLAdventure> inputs = AdventureDatabase.getAsLockableListModel();
+          List<KoLAdventure> inputs = AdventureDatabase.getAsLockableListModel();
           KoLAdventure initial =
               AdventureDatabase.getAdventure(Preferences.getString("lastAdventure"));
           KoLAdventure value = (KoLAdventure) InputFieldUtilities.input(message, inputs, initial);

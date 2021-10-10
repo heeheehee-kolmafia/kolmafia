@@ -97,8 +97,7 @@ public class InputFieldUtilities {
         InputFieldUtilities.activeWindow, StringUtilities.basicTextWrap(message), initial);
   }
 
-  public static final Object input(
-      final String message, final LockableListModel inputs, final Object initial) {
+  public static final <E> E input(final String message, final List<E> inputs, final E initial) {
     if (StaticEntity.isHeadless()) {
       int initialIndex = 0;
       RequestLogger.printLine(message);
@@ -134,7 +133,7 @@ public class InputFieldUtilities {
       return null;
     }
 
-    JList selector = new JList(inputs);
+    JList<E> selector = new JList<>(new LockableListModel<E>(inputs));
 
     JPanel panel = new JPanel(new BorderLayout());
     panel.add(new AutoFilterTextField(selector, initial), BorderLayout.NORTH);
@@ -152,11 +151,11 @@ public class InputFieldUtilities {
         : selector.getSelectedValue();
   }
 
-  public static final Object input(final String message, final LockableListModel inputs) {
+  public static final <E> E input(final String message, final List<E> inputs) {
     return InputFieldUtilities.input(message, inputs, null);
   }
 
-  public static final Object input(final String message, final Object[] inputs) {
+  public static final <E> E input(final String message, final E[] inputs) {
     if (inputs == null || inputs.length == 0) {
       return null;
     }
@@ -164,8 +163,7 @@ public class InputFieldUtilities {
     return InputFieldUtilities.input(message, inputs, null);
   }
 
-  public static final Object input(
-      final String message, final Object[] inputs, final Object initial) {
+  public static final <E> E input(final String message, final E[] inputs, final E initial) {
     if (inputs == null || inputs.length == 0) {
       return null;
     }
@@ -173,35 +171,36 @@ public class InputFieldUtilities {
     // Keep simple input dialog (no AutoFilterTextField) if there
     // are only a few input choices: booleans, stats, classes, ...
     if (inputs.length <= 12) {
-      return JOptionPane.showInputDialog(
-          InputFieldUtilities.activeWindow,
-          StringUtilities.basicTextWrap(message),
-          "",
-          JOptionPane.INFORMATION_MESSAGE,
-          null,
-          inputs,
-          initial);
+      return (E)
+          JOptionPane.showInputDialog(
+              InputFieldUtilities.activeWindow,
+              StringUtilities.basicTextWrap(message),
+              "",
+              JOptionPane.INFORMATION_MESSAGE,
+              null,
+              inputs,
+              initial);
     }
 
     return InputFieldUtilities.input(
-        message, new LockableListModel(Arrays.asList(inputs)), initial);
+        message, new LockableListModel<E>(Arrays.asList(inputs)), initial);
   }
 
-  public static final Object[] multiple(final String message, final LockableListModel inputs) {
+  public static final <E> E[] multiple(final String message, final List<E> inputs) {
     return InputFieldUtilities.multiple(message, inputs, null);
   }
 
-  public static final Object[] multiple(
-      final String message, final LockableListModel inputs, final ListElementFilter filter) {
+  public static final <E> E[] multiple(
+      final String message, final List<E> inputs, final ListElementFilter filter) {
     if (StaticEntity.isHeadless()) {
       RequestLogger.printLine(message);
-      List<Object> visibleInputs = new ArrayList<Object>();
+      List<E> visibleInputs = new ArrayList<E>();
 
       for (int i = 0; i < inputs.size(); ++i) {
         Object o = inputs.get(i);
 
         if (filter.isVisible(o)) {
-          visibleInputs.add(o);
+          visibleInputs.add((E) o);
           RequestLogger.printLine("  " + (visibleInputs.size()) + ": " + o);
         }
       }
@@ -213,7 +212,7 @@ public class InputFieldUtilities {
 
       String[] replyList = reply.split("\\s*,\\s*");
 
-      Set<Object> selectedValues = new HashSet<Object>();
+      Set<E> selectedValues = new HashSet<E>();
 
       for (int i = 0; i < replyList.length; ++i) {
         int selectedIndex = StringUtilities.parseInt(replyList[i]) - 1;
@@ -223,10 +222,11 @@ public class InputFieldUtilities {
         }
       }
 
-      return selectedValues.toArray();
+      return (E[]) selectedValues.toArray();
     }
+    var inputModel = new LockableListModel<E>(inputs);
 
-    JList selector = new JList(inputs);
+    JList<E> selector = new JList<E>(new LockableListModel<E>(inputModel));
     selector.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
 
     JPanel panel = new JPanel(new BorderLayout());
@@ -240,7 +240,7 @@ public class InputFieldUtilities {
               }
             },
         BorderLayout.NORTH);
-    inputs.updateFilter(false);
+    inputModel.updateFilter(false);
     panel.add(new GenericScrollPane(selector), BorderLayout.CENTER);
 
     int option =
@@ -250,9 +250,10 @@ public class InputFieldUtilities {
             StringUtilities.basicTextWrap(message),
             JOptionPane.OK_CANCEL_OPTION);
 
-    return option == JOptionPane.CANCEL_OPTION || option == JOptionPane.CLOSED_OPTION
-        ? new Object[0]
-        : selector.getSelectedValuesList().toArray();
+    return (E[])
+        (option == JOptionPane.CANCEL_OPTION || option == JOptionPane.CLOSED_OPTION
+            ? new Object[0]
+            : selector.getSelectedValuesList().toArray());
   }
 
   /**
