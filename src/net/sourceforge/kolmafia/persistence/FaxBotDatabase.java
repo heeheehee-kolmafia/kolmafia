@@ -12,8 +12,6 @@ import java.util.Set;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
-import net.java.dev.spellcast.utilities.LockableListModel;
-import net.java.dev.spellcast.utilities.SortedListModel;
 import net.sourceforge.kolmafia.KoLConstants;
 import net.sourceforge.kolmafia.KoLConstants.MafiaState;
 import net.sourceforge.kolmafia.KoLmafia;
@@ -25,6 +23,7 @@ import net.sourceforge.kolmafia.session.ContactManager;
 import net.sourceforge.kolmafia.swingui.FaxRequestFrame;
 import net.sourceforge.kolmafia.utilities.CharacterEntities;
 import net.sourceforge.kolmafia.utilities.FileUtilities;
+import net.sourceforge.kolmafia.utilities.SortedList;
 import net.sourceforge.kolmafia.utilities.StringUtilities;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -37,10 +36,10 @@ public class FaxBotDatabase {
   private static String faxBotErrorMessage = "";
 
   // List of bots from faxbots.txt
-  public static final ArrayList<BotData> botData = new ArrayList<BotData>();
+  public static final List<BotData> botData = new ArrayList<BotData>();
 
   // List of faxbots named in config files.
-  public static final ArrayList<FaxBot> faxbots = new ArrayList<FaxBot>();
+  public static final List<FaxBot> faxbots = new ArrayList<FaxBot>();
 
   public static final void reconfigure() {
     FaxBotDatabase.isInitialized = false;
@@ -146,11 +145,11 @@ public class FaxBotDatabase {
     private final int playerId;
 
     // What monsters does it serve?
-    public final SortedListModel<Monster> monsters = new SortedListModel<Monster>();
+    public final List<Monster> monsters = new SortedList<Monster>();
 
     // Lists derived from the list of monsters
-    private final LockableListModel<String> categories = new LockableListModel<String>();
-    private LockableListModel<Monster>[] monstersByCategory = new LockableListModel[0];
+    private final List<String> categories = new ArrayList<String>();
+    private List<Monster>[] monstersByCategory = new ArrayList[0];
 
     private final Map<String, Monster> monsterByActualName = new HashMap<String, Monster>();
     private final Map<String, Monster> monsterByCommand = new HashMap<String, Monster>();
@@ -173,11 +172,11 @@ public class FaxBotDatabase {
       return this.playerId;
     }
 
-    public LockableListModel<String> getCategories() {
+    public List<String> getCategories() {
       return this.categories;
     }
 
-    public LockableListModel<Monster>[] getMonstersByCategory() {
+    public List<Monster>[] getMonstersByCategory() {
       return this.monstersByCategory;
     }
 
@@ -216,7 +215,7 @@ public class FaxBotDatabase {
       this.monsterByActualName.clear();
       this.monsterByCommand.clear();
 
-      SortedListModel<String> tempCategories = new SortedListModel<String>();
+      List<String> tempCategories = new SortedList<String>();
       for (Monster monster : monsters) {
         this.monsters.add(monster);
         String category = monster.category;
@@ -244,14 +243,14 @@ public class FaxBotDatabase {
       this.categories.addAll(tempCategories);
 
       // Make one list for each category
-      this.monstersByCategory = new SortedListModel[this.categories.size()];
+      this.monstersByCategory = new ArrayList[this.categories.size()];
       for (int i = 0; i < this.categories.size(); ++i) {
         String category = categories.get(i);
-        SortedListModel<Monster> model = new SortedListModel<Monster>();
-        this.monstersByCategory[i] = model;
+        List<Monster> list = new ArrayList<Monster>();
+        this.monstersByCategory[i] = list;
         for (Monster monster : monsters) {
           if (i == 0 || category.equals(monster.category)) {
-            model.add(monster);
+            list.add(monster);
           }
         }
       }

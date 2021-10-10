@@ -4,6 +4,7 @@ import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.util.List;
 import javax.swing.JComboBox;
 import javax.swing.JPanel;
 import javax.swing.ListSelectionModel;
@@ -59,7 +60,7 @@ public class FaxRequestFrame extends GenericFrame {
   private class FaxRequestPanel extends GenericPanel {
     private final FaxBot bot;
 
-    public ShowDescriptionList[] monsterLists;
+    public ShowDescriptionList<Monster>[] monsterLists;
     public int monsterIndex;
     private final MonsterCategoryComboBox categorySelect;
     private final MonsterSelectPanel monsterSelect;
@@ -69,11 +70,12 @@ public class FaxRequestFrame extends GenericFrame {
 
       this.bot = bot;
 
-      LockableListModel<Monster>[] monstersByCategory = bot.getMonstersByCategory();
+      List<Monster>[] monstersByCategory = bot.getMonstersByCategory();
       int categories = monstersByCategory.length;
       this.monsterLists = new ShowDescriptionList[categories];
       for (int i = 0; i < categories; ++i) {
-        this.monsterLists[i] = new ShowDescriptionList(monstersByCategory[i], ROWS);
+        this.monsterLists[i] =
+            new ShowDescriptionList<>(new LockableListModel<>(monstersByCategory[i]), ROWS);
       }
 
       this.categorySelect = new MonsterCategoryComboBox(this, bot);
