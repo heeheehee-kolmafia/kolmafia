@@ -30,10 +30,9 @@ public class CharacterEntitiesTest {
     String eua = CharacterEntities.escape(ua);
     assertEquals(a, eua);
     String b = "This is mixed and matched \u00a3 \u00a4";
-    String ub = CharacterEntities.unescape(b); // no & so unchanged
-    assertEquals(b, ub);
-    String eub = CharacterEntities.escape(ub); // should replace
-    assertEquals(a, eub); // if really inverse should compare b and eub
+    String eb = CharacterEntities.escape(b);
+    String ueb = CharacterEntities.unescape(eb);
+    assertEquals(b, ueb);
   }
 
   @Test
