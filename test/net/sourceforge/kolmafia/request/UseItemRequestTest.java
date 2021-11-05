@@ -17,9 +17,12 @@ class UseItemRequestTest extends RequestTestBase {
 
   // We don't use @BeforeEach here because it's specific to milk-related tests.
   private void milkSetup() {
+    Preferences.saveSettingsToFile = false;
+
     // Simulate logging out and back in again.
     KoLCharacter.reset("");
     KoLCharacter.reset("milk user");
+
     // Reset preferences to defaults.
     KoLCharacter.reset(true);
     AdventureResult.addResultToList(
