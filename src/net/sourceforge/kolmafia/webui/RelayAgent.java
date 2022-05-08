@@ -187,10 +187,8 @@ public class RelayAgent extends Thread {
           GenericRequest.saveUserAgent(headerValue);
           break;
         case "cookie":
-          String cookies = headerValue;
           StringBuilder buffer = new StringBuilder();
-          boolean inventory = this.path.startsWith("/inventory");
-          for (String cookie : cookies.split("\\s*;\\s*")) {
+          for (String cookie : headerValue.split("\\s*;\\s*")) {
             if (cookie.startsWith("appserver")
                 || cookie.startsWith("PHPSESSID")
                 || cookie.startsWith("AWSALB")) {
@@ -456,20 +454,16 @@ public class RelayAgent extends Thread {
     }
   }
 
-  private static final String NOCACHE_IMAGES = "(/memes|/otherimages/zonefont)?";
+  private static final String NOCACHE_IMAGES = "(memes|otherimages/zonefont)?";
 
   private static final Pattern IMAGE_PATTERN =
       Pattern.compile(
           "("
-              + KoLmafia.AMAZON_IMAGE_SERVER
+              + String.join("|", KoLmafia.IMAGE_SERVER_PATHS)
               + "|"
-              + KoLmafia.KOL_IMAGE_SERVER
+              + "/iii/"
               + "|"
-              + "/iii"
-              + "|"
-              + "//images.kingdomofloathing.com"
-              + "|"
-              + "http://pics.communityofloathing.com/albums"
+              + "//images.kingdomofloathing.com/"
               + ")"
               + RelayAgent.NOCACHE_IMAGES);
 
@@ -482,14 +476,14 @@ public class RelayAgent extends Thread {
       }
 
       if (Preferences.getBoolean("useImageCache")) {
-        StringBuffer responseBuffer = new StringBuffer();
+        StringBuilder responseBuffer = new StringBuilder();
         Matcher matcher = RelayAgent.IMAGE_PATTERN.matcher(this.request.responseText);
 
         while (matcher.find()) {
           if (matcher.group(2) != null) {
             matcher.appendReplacement(responseBuffer, "$0");
           } else {
-            matcher.appendReplacement(responseBuffer, "/images");
+            matcher.appendReplacement(responseBuffer, "/images/");
           }
         }
 
@@ -577,6 +571,6 @@ public class RelayAgent extends Thread {
     }
   }
 
-  private static final Set<String> validRefererHosts = new HashSet<String>();
-  private static final Set<String> invalidRefererHosts = new HashSet<String>();
+  private static final Set<String> validRefererHosts = new HashSet<>();
+  private static final Set<String> invalidRefererHosts = new HashSet<>();
 }

@@ -312,9 +312,9 @@ public class KoLmafiaCLI {
         lcommand = lcommand.substring(0, length - 1);
       }
 
-      AbstractCommand handler = (AbstractCommand) AbstractCommand.lookup.get(lcommand);
+      AbstractCommand handler = AbstractCommand.lookup.get(lcommand);
       int flags = handler == null ? 0 : handler.flags;
-      if (flags == KoLmafiaCLI.FULL_LINE_CMD && !line.equals("")) {
+      if (flags == KoLmafiaCLI.FULL_LINE_CMD && !line.isEmpty()) {
         // parameters are un-trimmed original
         // parameters + rest of line
         trimmed = parameters + ";" + line;
@@ -362,7 +362,7 @@ public class KoLmafiaCLI {
           command = line.substring(0, splitIndex).toLowerCase();
           line = line.substring(splitIndex + 1).trim();
         }
-        if (command.equals("")) {
+        if (command.isEmpty()) {
           continue;
         }
         seenCmd = true;
@@ -371,7 +371,7 @@ public class KoLmafiaCLI {
         if (command.endsWith("?")) {
           command = command.substring(0, command.length() - 1);
         }
-        AbstractCommand handler = (AbstractCommand) AbstractCommand.lookup.get(command);
+        AbstractCommand handler = AbstractCommand.lookup.get(command);
         int flags = handler == null ? 0 : handler.flags;
         if (flags == KoLmafiaCLI.FULL_LINE_CMD) {
           break;
@@ -435,12 +435,7 @@ public class KoLmafiaCLI {
       return;
     }
 
-    if (parameters.equals("refresh")) {
-      parameters = lcommand;
-      lcommand = command = "refresh";
-    }
-
-    AbstractCommand handler = (AbstractCommand) AbstractCommand.lookup.get(lcommand);
+    AbstractCommand handler = AbstractCommand.lookup.get(lcommand);
 
     if (handler == null) {
       handler = AbstractCommand.getSubstringMatch(lcommand);
@@ -497,9 +492,10 @@ public class KoLmafiaCLI {
     return this.elseRuns;
   }
 
-  static {
+  public static void registerCommands() {
     new AbortCommand().register("abort");
     new AbsorbCommand().register("absorb");
+    new AbsorptionsCommand().register("absorptions");
     new AccordionsCommand().register("accordions");
     new AcquireCommand().register("acquire").register("find").register("retrieve");
     new AdventureCommand().register("adv").register("adventure");
@@ -548,6 +544,7 @@ public class KoLmafiaCLI {
     new CheckDataCommand()
         .register("newdata")
         .register("checkcandy")
+        .register("checkconcoctions")
         .register("checkconsumables")
         .register("checkconsumption")
         .register("checkeffects")
@@ -562,6 +559,7 @@ public class KoLmafiaCLI {
         .register("checkpowers")
         .register("checkprofile")
         .register("checkpulverization")
+        .register("checkrepo")
         .register("checkshields")
         .register("checkskills")
         .register("checkzapgroups");
@@ -647,12 +645,15 @@ public class KoLmafiaCLI {
     new GardenCommand().register("garden");
     new GenieCommand().register("genie");
     new GongCommand().register("gong");
+    new GooSkillsCommand().register("gooskills");
     new GrandpaCommand().register("grandpa");
     new GrayGUICommand().register("graygui").register("greygui").register("jstack");
     new GrimCommand().register("grim");
+    new GuzzlrCommand().register("guzzlr");
     new HallOfLegendsCommand().register("donate");
     new HatterCommand().register("hatter");
     new HeapDumpCommand().register("jmap").register("heapdump");
+    new HeistCommand().register("heist");
     new HermitCommand().register("hermit");
     new HorseryCommand().register("horsery");
     new HotTubCommand().register("hottub").register("soak");
@@ -665,7 +666,7 @@ public class KoLmafiaCLI {
         .register("javascriptq");
     new JsRefCommand().register("jsref");
     new JukeboxCommand().register("jukebox");
-    new KitchenCommand().registerSubstring("kitchen");
+    new KitchenCommand().register("kitchen").register("hellkitchen").register("hellskitchen");
     new LatteCommand().register("latte");
     new LeafletCommand().register("leaflet");
     new LogEchoCommand().register("logecho").register("logprint");
@@ -678,7 +679,11 @@ public class KoLmafiaCLI {
     new MayoMinderCommand().register("mayominder");
     new MayosoakCommand().register("mayosoak");
     new MemoryCleanupCommand().register("gc");
-    new MirrorLogCommand().registerSubstring("mirror");
+    new MirrorLogCommand()
+        .register("mirror")
+        .register("mirrorclose")
+        .register("mirrorend")
+        .register("mirrorstop");
     new ModifierListCommand().register("modifies");
     new ModifierMaximizeCommand().register("maximize");
     new ModifierTraceCommand().register("modtrace");
@@ -721,10 +726,12 @@ public class KoLmafiaCLI {
     new RefreshStatusCommand().register("refresh");
     new RegisterAdventureCommand().register("location");
     new RelayBrowserCommand().register("relay");
+    new ReminisceCommand().register("reminisce");
     new RepeatLineCommand().register("repeat");
-    new RestaurantCommand().register("restaurant").registerSubstring("brewery");
+    new RestaurantCommand().register("restaurant").register("brewery").register("microbrewery");
     new RestoresCommand().register("restores");
     new RetroCapeCommand().register("retrocape");
+    new SaberCommand().register("saber");
     new SaveAsMoodCommand().register("save as mood");
     new SearchMallCommand().register("searchmall");
     new SendMessageCommand().register("send").register("kmail").register("csend");
@@ -753,6 +760,7 @@ public class KoLmafiaCLI {
     new SpacegateCommand().register("spacegate");
     new SpeculateCommand().register("speculate").register("whatif");
     new SpookyravenCommand().register("spookyraven");
+    new SpoonCommand().register("spoon");
     new StickersCommand().registerPlural("sticker");
     new StorageCommand().register("hagnk").register("pull");
     new StyxPixieCommand().register("styx");
@@ -773,6 +781,7 @@ public class KoLmafiaCLI {
     new TowerDoorCommand().register("tower").register("lowkey");
     new TrainFamiliarCommand().register("train");
     new TryStatement().register("try");
+    new UmbrellaCommand().register("umbrella");
     new UnaliasCommand().register("unalias");
     new UneffectCommand().register("shrug").register("uneffect").register("remedy");
     new UnequipCommand().register("unequip").register("remove");
@@ -792,7 +801,11 @@ public class KoLmafiaCLI {
         .register("robo");
     new UseSkillCommand().register("cast").register("skill");
     new VersionCommand().register("version");
-    new VisitURLCommand().register("text").registerPrefix("http://").registerSubstring(".php");
+    new VisitURLCommand()
+        .register("text")
+        .registerPrefix("http://")
+        .registerPrefix("https://")
+        .registerSubstring(".php");
     new VolcanoCommand().register("volcano");
     new WaitCommand().register("wait").register("waitq").register("pause");
     new WhileStatement().register("while");
@@ -817,6 +830,10 @@ public class KoLmafiaCLI {
     new CommandAlias("skills", "passive").register("pass").register("passive");
     new CommandAlias("skills", "self").register("self");
     new CommandAlias("skills", "combat").register("combat");
+  }
+
+  static {
+    registerCommands();
   }
 
   public static void showHTML(final String text) {
@@ -857,6 +874,10 @@ public class KoLmafiaCLI {
   // probably should)
   public static List<File> findScriptFile(final String filename) {
     List<File> matches = new ArrayList<>();
+    // Bail if double dots
+    if (filename.contains("..")) {
+      return matches;
+    }
 
     File absoluteFile = new File(filename);
 
@@ -878,25 +899,18 @@ public class KoLmafiaCLI {
   }
 
   private static List<File> findScriptFile(final String filename, List<File> matches) {
-    File scriptFile = new File(KoLConstants.ROOT_LOCATION, filename);
-
-    if (scriptFile.exists()) {
-      if (!scriptFile.isDirectory()) matches.add(scriptFile);
-    }
+    KoLmafiaCLI.findScriptFile(KoLConstants.ROOT_LOCATION, filename, matches, false);
 
     if (KoLConstants.SCRIPT_LOCATION.exists()) {
-      KoLmafiaCLI.findScriptFile(KoLConstants.SCRIPT_LOCATION, filename, matches);
+      KoLmafiaCLI.findScriptFile(KoLConstants.SCRIPT_LOCATION, filename, matches, true);
     }
 
     if (KoLConstants.PLOTS_LOCATION.exists()) {
-      scriptFile = new File(KoLConstants.PLOTS_LOCATION, filename);
-      if (scriptFile.exists()) {
-        if (!scriptFile.isDirectory()) matches.add(scriptFile);
-      }
+      KoLmafiaCLI.findScriptFile(KoLConstants.PLOTS_LOCATION, filename, matches, false);
     }
 
     if (KoLConstants.RELAY_LOCATION.exists()) {
-      KoLmafiaCLI.findScriptFile(KoLConstants.RELAY_LOCATION, filename, matches);
+      KoLmafiaCLI.findScriptFile(KoLConstants.RELAY_LOCATION, filename, matches, true);
     }
 
     // Only if we get here and there are no matches do we recursively try again, adding some
@@ -914,17 +928,26 @@ public class KoLmafiaCLI {
   }
 
   private static void findScriptFile(
-      final File directory, final String filename, List<File> matches) {
-    File scriptFile = new File(directory, filename);
+      final File directory,
+      final String filename,
+      final List<File> matches,
+      final boolean searchSubdirectories) {
+    // Bail if double dots
+    if (filename.contains("..")) {
+      return;
+    }
 
+    File scriptFile = new File(directory, filename);
     if (scriptFile.exists()) {
       if (!scriptFile.isDirectory()) matches.add(scriptFile);
     }
 
-    File[] contents = DataUtilities.listFiles(directory);
-    for (File content : contents) {
-      if (content.isDirectory()) {
-        KoLmafiaCLI.findScriptFile(content, filename, matches);
+    if (searchSubdirectories) {
+      File[] contents = DataUtilities.listFiles(directory);
+      for (File content : contents) {
+        if (content.isDirectory()) {
+          KoLmafiaCLI.findScriptFile(content, filename, matches, true);
+        }
       }
     }
   }

@@ -4,8 +4,10 @@ import java.awt.Component;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 import javax.swing.DefaultListCellRenderer;
 import javax.swing.JLabel;
 import javax.swing.JList;
@@ -13,6 +15,7 @@ import javax.swing.SwingConstants;
 import net.java.dev.spellcast.utilities.JComponentUtilities;
 import net.sourceforge.kolmafia.objectpool.FamiliarPool;
 import net.sourceforge.kolmafia.objectpool.ItemPool;
+import net.sourceforge.kolmafia.objectpool.SkillPool;
 import net.sourceforge.kolmafia.persistence.EquipmentDatabase;
 import net.sourceforge.kolmafia.persistence.FamiliarDatabase;
 import net.sourceforge.kolmafia.persistence.ItemDatabase;
@@ -21,6 +24,7 @@ import net.sourceforge.kolmafia.request.EquipmentRequest;
 import net.sourceforge.kolmafia.request.GenericRequest;
 import net.sourceforge.kolmafia.request.StandardRequest;
 import net.sourceforge.kolmafia.session.EquipmentManager;
+import net.sourceforge.kolmafia.session.YouRobotManager;
 import net.sourceforge.kolmafia.utilities.StringUtilities;
 
 public class FamiliarData implements Comparable<FamiliarData> {
@@ -70,7 +74,7 @@ public class FamiliarData implements Comparable<FamiliarData> {
   // 1=id 2=image 3=name 4=race 5=exp 6=kills 7=extra
   private static final Pattern CURRENT_FAMILIAR_PATTERN =
       Pattern.compile(
-          ".*?(?:onClick='fam\\((\\d+)\\)')? .*?src=\"[^>]*?(?:images.kingdomofloathing.com|/images)/(?:item|other)images/([^\"]*?)\".*?<b>(.*?)</b>.*?\\d+-pound (.*?) \\(([\\d,]+) (?:exp|experience|candy|candies)?, ([\\d,]+) kills?\\)(.*?)(?:</form)>");
+          ".*?(?:onClick='fam\\((\\d+)\\)')? .*?src=\"[^>]*?(?:cloudfront.net|images.kingdomofloathing.com|/images)/(?:item|other)images/([^\"]*?)\".*?<b>(.*?)</b>.*?\\d+-pound (.*?) \\(([\\d,]+) (?:exp|experience|candy|candies)?, ([\\d,]+) kills?\\)(.*?)(?:</form)>");
 
   private static final Pattern FROW_PATTERN = Pattern.compile("<tr class=\"frow .*?</tr>");
 
@@ -167,8 +171,8 @@ public class FamiliarData implements Comparable<FamiliarData> {
   public static final AdventureResult RAZOR_FANG = ItemPool.get(ItemPool.RAZOR_FANG, 1);
   public static final AdventureResult SMOKE_BALL = ItemPool.get(ItemPool.SMOKE_BALL, 1);
 
-  public static final List<DropInfo> DROP_FAMILIARS = new ArrayList<DropInfo>();
-  public static final List<FightInfo> FIGHT_FAMILIARS = new ArrayList<FightInfo>();
+  public static final List<DropInfo> DROP_FAMILIARS = new ArrayList<>();
+  public static final List<FightInfo> FIGHT_FAMILIARS = new ArrayList<>();
   public static final List<Integer> CRIMBO_GHOSTS =
       Arrays.asList(
           FamiliarPool.GHOST_CAROLS, FamiliarPool.GHOST_CHEER, FamiliarPool.GHOST_COMMERCE);
@@ -185,6 +189,7 @@ public class FamiliarData implements Comparable<FamiliarData> {
   private boolean favorite;
   private int charges;
   private int pokeLevel;
+  private boolean active = false;
 
   public FamiliarData(final int id) {
     this(id, "", 1, EquipmentRequest.UNEQUIP);
@@ -231,7 +236,7 @@ public class FamiliarData implements Comparable<FamiliarData> {
 
   private void update(final Matcher dataMatcher) {
     this.name = dataMatcher.group(3);
-    this.experience = StringUtilities.parseInt(dataMatcher.group(5));
+    this.setExperience(StringUtilities.parseInt(dataMatcher.group(5)));
     this.setWeight();
     // dataMatcher.group( 6 ) => kills
     String itemData = dataMatcher.group(7);
@@ -279,7 +284,7 @@ public class FamiliarData implements Comparable<FamiliarData> {
     }
 
     // Familiars are only allowed with the right hat in You, Robot
-    if (KoLCharacter.inRobocore() && Preferences.getInteger("youRobotTop") != 2) {
+    if (KoLCharacter.inRobocore() && !YouRobotManager.canUseFamiliars()) {
       return false;
     }
 
@@ -328,18 +333,24 @@ public class FamiliarData implements Comparable<FamiliarData> {
   }
 
   public final void setExperience(int exp) {
-    if (CRIMBO_GHOSTS.contains(this.getId())) {
-      for (Integer ghostId : CRIMBO_GHOSTS) {
-        FamiliarData fam = KoLCharacter.findFamiliar(ghostId);
-        if (fam != null) {
+    Stream<FamiliarData> famsToSet =
+        CRIMBO_GHOSTS.contains(this.getId())
+            ? CRIMBO_GHOSTS.stream().map(KoLCharacter::findFamiliar).filter(Objects::nonNull)
+            : Stream.of(this);
+
+    famsToSet.forEach(
+        fam -> {
           fam.experience = exp;
           fam.setWeight();
-        }
-      }
-    } else {
-      this.experience = exp;
-      this.setWeight();
-    }
+        });
+  }
+
+  public final void loseExperience(int exp) {
+    this.setExperience(this.experience - exp);
+  }
+
+  public final void loseExperience() {
+    this.loseExperience(this.experience);
   }
 
   public final int determineTestTeachExperience() {
@@ -347,8 +358,8 @@ public class FamiliarData implements Comparable<FamiliarData> {
     String[] splitTTPref = rawTTPref.split("\\|");
 
     // Check Familiar Testudinal Teachings experience
-    for (int i = 0; i < splitTTPref.length; ++i) {
-      String[] it = splitTTPref[i].split(":");
+    for (String s : splitTTPref) {
+      String[] it = s.split(":");
       if (it.length == 2) {
         if (this.id == Integer.parseInt(it[0])) {
           int testTeachExp = 0;
@@ -359,8 +370,7 @@ public class FamiliarData implements Comparable<FamiliarData> {
             newCount = 0;
           }
           String newTTProperty = it[0] + ":" + newCount;
-          String newTTPref =
-              StringUtilities.globalStringReplace(rawTTPref, splitTTPref[i], newTTProperty);
+          String newTTPref = StringUtilities.globalStringReplace(rawTTPref, s, newTTProperty);
           Preferences.setString("testudinalTeachings", newTTPref);
           return testTeachExp;
         }
@@ -432,7 +442,8 @@ public class FamiliarData implements Comparable<FamiliarData> {
   }
 
   private void setWeight() {
-    this.weight = Math.max(Math.min(this.getMaxBaseWeight(), (int) Math.sqrt(this.experience)), 1);
+    this.setWeight(
+        Math.max(Math.min(this.getMaxBaseWeight(), (int) Math.sqrt(this.experience)), 1));
   }
 
   public final void checkWeight(final int weight, final boolean feasted) {
@@ -608,6 +619,65 @@ public class FamiliarData implements Comparable<FamiliarData> {
     return this.feasted;
   }
 
+  public void deactivate() {
+    // Do anything necessary when this familiar is banished to the Terrarium
+    this.active = false;
+    switch (this.id) {
+      case FamiliarPool.GREY_GOOSE:
+        removeGreyGooseSkills();
+        break;
+    }
+  }
+
+  public void activate() {
+    // Do anything necessary when this familiar is removed from the Terrarium
+    this.active = true;
+    switch (this.id) {
+      case FamiliarPool.GREY_GOOSE:
+        if (this.weight >= 6) {
+          addGreyGooseSkills();
+        }
+        break;
+    }
+  }
+
+  public void setWeight(final int weight) {
+    this.weight = weight;
+    switch (this.id) {
+      case FamiliarPool.GREY_GOOSE:
+        if (this.active) {
+          if (weight >= 6) {
+            addGreyGooseSkills();
+          } else {
+            removeGreyGooseSkills();
+          }
+        }
+        break;
+    }
+  }
+
+  private void addGreyGooseSkills() {
+    if (KoLCharacter.inGreyYou()) {
+      KoLCharacter.addAvailableCombatSkill(SkillPool.RE_PROCESS_MATTER);
+    }
+    if (!Preferences.getBoolean("_meatifyMatterUsed")) {
+      KoLCharacter.addAvailableCombatSkill(SkillPool.MEATIFY_MATTER);
+    }
+    KoLCharacter.addAvailableCombatSkill(SkillPool.EMIT_MATTER_DUPLICATING_DRONES);
+    KoLCharacter.addAvailableCombatSkill(SkillPool.CONVERT_MATTER_TO_PROTEIN);
+    KoLCharacter.addAvailableCombatSkill(SkillPool.CONVERT_MATTER_TO_ENERGY);
+    KoLCharacter.addAvailableCombatSkill(SkillPool.CONVERT_MATTER_TO_POMADE);
+  }
+
+  private void removeGreyGooseSkills() {
+    KoLCharacter.removeAvailableCombatSkill(SkillPool.RE_PROCESS_MATTER);
+    KoLCharacter.removeAvailableCombatSkill(SkillPool.MEATIFY_MATTER);
+    KoLCharacter.removeAvailableCombatSkill(SkillPool.EMIT_MATTER_DUPLICATING_DRONES);
+    KoLCharacter.removeAvailableCombatSkill(SkillPool.CONVERT_MATTER_TO_PROTEIN);
+    KoLCharacter.removeAvailableCombatSkill(SkillPool.CONVERT_MATTER_TO_ENERGY);
+    KoLCharacter.removeAvailableCombatSkill(SkillPool.CONVERT_MATTER_TO_POMADE);
+  }
+
   public void setItem(final AdventureResult item) {
     if (this.id < 1) {
       return;
@@ -669,10 +739,6 @@ public class FamiliarData implements Comparable<FamiliarData> {
 
   public AdventureResult getItem() {
     return this.item == null ? EquipmentRequest.UNEQUIP : this.item;
-  }
-
-  public void setWeight(final int weight) {
-    this.weight = weight;
   }
 
   public int getWeight() {
@@ -774,6 +840,10 @@ public class FamiliarData implements Comparable<FamiliarData> {
     return this.race;
   }
 
+  public boolean isActive() {
+    return this.active;
+  }
+
   public int getPokeLevel() {
     return this.pokeLevel;
   }
@@ -792,6 +862,12 @@ public class FamiliarData implements Comparable<FamiliarData> {
     return index == -1 ? image : image.substring(index + 1);
   }
 
+  public String getFightImageLocation() {
+    String image = FamiliarDatabase.getFamiliarFightImageLocation(this.id);
+    int index = image.lastIndexOf("/");
+    return index == -1 ? image : image.substring(index + 1);
+  }
+
   public void setCharges(int charges) {
     this.charges = charges;
   }
@@ -805,16 +881,12 @@ public class FamiliarData implements Comparable<FamiliarData> {
       return false;
     }
 
-    int[] skills = FamiliarDatabase.getFamiliarSkills(this.id);
-
     // If any skill is greater than 0, we can train in that event
-    for (int i = 0; i < skills.length; ++i) {
-      if (skills[i] > 0) {
-        return true;
-      }
-    }
+    return Arrays.stream(FamiliarDatabase.getFamiliarSkills(this.id)).anyMatch(skill -> skill > 0);
+  }
 
-    return false;
+  public boolean isUndead() {
+    return FamiliarDatabase.hasAttribute(this.id, "undead");
   }
 
   public boolean waterBreathing() {
@@ -1193,7 +1265,7 @@ public class FamiliarData implements Comparable<FamiliarData> {
     }
 
     String others = mods.getString(Modifiers.EQUIPS_ON);
-    if (others == null || others.equals("")) {
+    if (others == null || others.isEmpty()) {
       return false;
     }
 
@@ -1410,7 +1482,7 @@ public class FamiliarData implements Comparable<FamiliarData> {
   private static class FamiliarRenderer extends DefaultListCellRenderer {
     @Override
     public Component getListCellRendererComponent(
-        final JList list,
+        final JList<?> list,
         final Object value,
         final int index,
         final boolean isSelected,

@@ -59,6 +59,7 @@ import net.sourceforge.kolmafia.preferences.Preferences;
 import net.sourceforge.kolmafia.request.GenericRequest.ServerCookie;
 import net.sourceforge.kolmafia.session.ChoiceManager;
 import net.sourceforge.kolmafia.session.EquipmentManager;
+import net.sourceforge.kolmafia.session.EquipmentRequirement;
 import net.sourceforge.kolmafia.session.InventoryManager;
 import net.sourceforge.kolmafia.session.IslandManager;
 import net.sourceforge.kolmafia.session.LightsOutManager;
@@ -81,7 +82,8 @@ import org.json.JSONObject;
 public class RelayRequest extends PasswordHashRequest {
   private final PauseObject pauser = new PauseObject();
 
-  private static final HashMap<String, File> overrideMap = new HashMap<String, File>();
+  private static final HashMap<String, File> overrideMap = new HashMap<>();
+  private static final Object lock = new Object(); // used to synch
 
   private static final Pattern STORE_PATTERN =
       Pattern.compile(
@@ -94,7 +96,7 @@ public class RelayRequest extends PasswordHashRequest {
   private static KoLAdventure lastSafety = null;
 
   private final boolean allowOverride;
-  public List<String> headers = new ArrayList<String>();
+  public List<String> headers = new ArrayList<>();
   public Set<ServerCookie> serverCookies = null;
   public String cookies = null;
   public byte[] rawByteBuffer = null;
@@ -108,7 +110,6 @@ public class RelayRequest extends PasswordHashRequest {
   public static String redirectedCommandURL = "";
 
   private static final String CONFIRM_COUNTER = "confirm0";
-  private static final String CONFIRM_CLOVER = "confirm1";
   private static final String CONFIRM_MCD = "confirm2";
   private static final String CONFIRM_FAMILIAR = "confirm3";
   private static final String CONFIRM_RECOVERY = "confirm4";
@@ -124,7 +125,7 @@ public class RelayRequest extends PasswordHashRequest {
   private static final String CONFIRM_GREMLINS = "confirm14";
   private static final String CONFIRM_HARDCOREPVP = "confirm15";
   private static final String CONFIRM_DESERT_UNHYDRATED = "confirm16";
-  private static final String CONFIRM_MOHAWK_WIG = "confirm17";
+  public static final String CONFIRM_MOHAWK_WIG = "confirm17";
   private static final String CONFIRM_CELLAR = "confirm18";
   private static final String CONFIRM_BOILER = "confirm19";
   private static final String CONFIRM_DIARY = "confirm20";
@@ -134,7 +135,7 @@ public class RelayRequest extends PasswordHashRequest {
   private static final String CONFIRM_OVERDRUNK_ADVENTURE = "confirm24";
   private static final String CONFIRM_STICKER = "confirm25";
   private static final String CONFIRM_DESERT_OFFHAND = "confirm26";
-  private static final String CONFIRM_MACHETE = "confirm27";
+  public static final String CONFIRM_MACHETE = "confirm27";
   private static final String CONFIRM_RALPH = "confirm28";
   private static final String CONFIRM_RALPH1 = "confirm29";
   private static final String CONFIRM_RALPH2 = "confirm30";
@@ -142,10 +143,13 @@ public class RelayRequest extends PasswordHashRequest {
   private static boolean ignoreBoringDoorsWarning = false;
   private static boolean ignoreDesertWarning = false;
   private static boolean ignoreDesertOffhandWarning = false;
-  private static boolean ignoreMacheteWarning = false;
-  private static boolean ignoreMohawkWigWarning = false;
+  public static boolean ignoreMacheteWarning = false;
+  public static boolean ignoreMohawkWigWarning = false;
   private static boolean ignorePoolSkillWarning = false;
   private static boolean ignoreFullnessWarning = false;
+
+  // For testing
+  public String lastWarning = "";
 
   public static final void reset() {
     RelayRequest.ignoreBoringDoorsWarning = false;
@@ -255,7 +259,7 @@ public class RelayRequest extends PasswordHashRequest {
 
         ServerCookie serverCookie = new ServerCookie(cookie);
         if (this.serverCookies == null) {
-          this.serverCookies = new LinkedHashSet<ServerCookie>();
+          this.serverCookies = new LinkedHashSet<>();
         } else {
           this.serverCookies.remove(serverCookie);
         }
@@ -333,8 +337,8 @@ public class RelayRequest extends PasswordHashRequest {
     // above affordable levels.
 
     else if (path.startsWith("mallstore.php")) {
-      int searchItemId = -1;
-      int searchPrice = -1;
+      int searchItemId;
+      int searchPrice;
 
       searchItemId = StringUtilities.parseInt(this.getFormField("searchitem"));
       searchPrice = StringUtilities.parseInt(this.getFormField("searchprice"));
@@ -400,15 +404,20 @@ public class RelayRequest extends PasswordHashRequest {
       return;
     }
 
-    if (this.formConnection != null) {
+    if (this.response != null) {
       // This is a response from KoL.
       // Send down any headers KoL generated
 
-      Map<String, List<String>> headerFields = this.formConnection.getHeaderFields();
+      Map<String, List<String>> headerFields = this.response.headers().map();
 
       for (Entry<String, List<String>> entry : headerFields.entrySet()) {
         String key = entry.getKey();
         if (key == null) {
+          continue;
+        }
+
+        // ignore psuedo-headers
+        if (key.startsWith(":")) {
           continue;
         }
 
@@ -480,9 +489,9 @@ public class RelayRequest extends PasswordHashRequest {
       return "";
     }
 
-    if (this.formConnection != null) {
+    if (this.response != null) {
       // This is a response from KoL.
-      return this.formConnection.getHeaderField(field);
+      return this.response.headers().firstValue(field).orElse(null);
     }
 
     return "";
@@ -491,7 +500,7 @@ public class RelayRequest extends PasswordHashRequest {
   public void pseudoResponse(final String status, final String responseText) {
     this.statusLine = status;
 
-    this.headers.add("Date: " + new Date());
+    this.headers.add("Date: " + StringUtilities.formatDate(new Date()));
     this.headers.add("Server: " + StaticEntity.getVersion());
 
     if (status.contains("302")) {
@@ -526,8 +535,6 @@ public class RelayRequest extends PasswordHashRequest {
     } else {
       this.responseText = " ";
     }
-
-    this.headers.add("Connection: close");
   }
 
   private StringBuffer readContents(final BufferedReader reader) {
@@ -536,14 +543,12 @@ public class RelayRequest extends PasswordHashRequest {
       return contentBuffer;
     }
 
-    try {
+    try (reader) {
       String line;
       while ((line = reader.readLine()) != null) {
         contentBuffer.append(line);
         contentBuffer.append(KoLConstants.LINE_BREAK);
       }
-
-      reader.close();
     } catch (IOException e) {
     }
 
@@ -577,16 +582,17 @@ public class RelayRequest extends PasswordHashRequest {
     }
 
     for (String filename : IMAGES) {
-      String find1 = KoLmafia.KOL_IMAGE_SERVER_PATH + filename;
-      String find2 = KoLmafia.AMAZON_IMAGE_SERVER_PATH + filename;
       String replace = "/images/" + filename;
-      StringUtilities.globalStringReplace(buffer, find1, replace);
-      StringUtilities.globalStringReplace(buffer, find2, replace);
+      for (String path : KoLmafia.IMAGE_SERVER_PATHS) {
+        String find = path + filename;
+        StringUtilities.globalStringReplace(buffer, find, replace);
+      }
     }
   }
 
   private static final FilenameFilter RELAYIMAGES_FILTER =
       new FilenameFilter() {
+        @Override
         public boolean accept(final File dir, final String name) {
           return !name.equals("relayimages");
         }
@@ -594,14 +600,14 @@ public class RelayRequest extends PasswordHashRequest {
 
   private static void clearImageDirectory(File directory, FilenameFilter filter) {
     File[] files = directory.listFiles(filter);
-    for (int i = 0; i < files.length; ++i) {
-      File file = files[i];
+    if (files != null) {
+      for (File file : files) {
+        if (file.isDirectory()) {
+          RelayRequest.clearImageDirectory(file, null);
+        }
 
-      if (file.isDirectory()) {
-        RelayRequest.clearImageDirectory(file, null);
+        file.delete();
       }
-
-      file.delete();
     }
   }
 
@@ -612,7 +618,7 @@ public class RelayRequest extends PasswordHashRequest {
 
   private static String localImagePath(final String filename) {
     return filename.endsWith("favicon.ico")
-        ? "http://www.kingdomofloathing.com/favicon.ico"
+        ? "https://www.kingdomofloathing.com/favicon.ico"
         : filename.startsWith("images")
             ? KoLmafia.imageServerPrefix() + filename.substring(6)
             : filename.startsWith("iii")
@@ -639,7 +645,11 @@ public class RelayRequest extends PasswordHashRequest {
   }
 
   public static File findRelayFile(final String filename) {
-    return new File(KoLConstants.RELAY_LOCATION, filename);
+    if ((filename == null) || (filename.contains(".."))) {
+      return null;
+    } else {
+      return new File(KoLConstants.RELAY_LOCATION, filename);
+    }
   }
 
   private void sendLocalFile(final String filename) {
@@ -666,7 +676,7 @@ public class RelayRequest extends PasswordHashRequest {
     }
 
     // Read the file
-    StringBuffer replyBuffer = null;
+    StringBuffer replyBuffer;
 
     if (override.exists()) {
       // If the file is in the file system, it is a local override
@@ -675,7 +685,7 @@ public class RelayRequest extends PasswordHashRequest {
       // If the file is not in the file system, it's probably a KoL
       // file which is not in the image directory for some reason.
       // Download it from KoL.
-      replyBuffer = FileUtilities.downloadFile("http://www.kingdomofloathing.com/" + filename);
+      replyBuffer = FileUtilities.downloadFile("https://www.kingdomofloathing.com/" + filename);
     }
 
     // If it is a KoLmafia built-in file, as opposed to the
@@ -770,7 +780,7 @@ public class RelayRequest extends PasswordHashRequest {
     return false;
   }
 
-  private boolean sendBreakPrismWarning(final String urlString) {
+  public boolean sendBreakPrismWarning(final String urlString) {
     // place.php?whichplace=nstower&action=ns_11_prism
 
     if (!urlString.startsWith("place.php")
@@ -854,6 +864,48 @@ public class RelayRequest extends PasswordHashRequest {
       */
 
       return false;
+    }
+
+    // In You, Robot, you will lose access to the Scrapheap.
+    // You might want to spend Energy on Adventures or Stats.
+
+    if (KoLCharacter.inRobocore()) {
+      int energy = KoLCharacter.getYouRobotEnergy();
+      int chronolithCost = Preferences.getInteger("_chronolithNextCost");
+      int statbotCost = Preferences.getInteger("statbotUses") + 10;
+
+      if (energy < chronolithCost && energy < statbotCost) {
+        return false;
+      }
+
+      StringBuilder buf = new StringBuilder();
+      buf.append("You are about to free King Ralph and stop being a Robot.");
+      buf.append(" Before you do so, you might want to spend your remaining ");
+      buf.append(energy);
+      buf.append(" energy in the Scrapheap,");
+      buf.append(" since you will not be able to do so after you free the king.");
+      if (energy >= chronolithCost) {
+        buf.append(" You can gain 10 Adventures at the Chronolith for ");
+        buf.append(chronolithCost);
+        buf.append(" energy.");
+      }
+      if (energy >= statbotCost) {
+        buf.append(" You can gain 5 points of the stat of your choice at Statbot 5000 for ");
+        buf.append(statbotCost);
+        buf.append(" energy.");
+      }
+      buf.append(" If you are ready to break the prism, click on the icon on the left.");
+      buf.append(" If you wish to visit the Scrapheap, click on icon on the right.");
+
+      this.sendOptionalWarning(
+          CONFIRM_RALPH,
+          buf.toString(),
+          "hand.gif",
+          "jigawatts.gif",
+          "\"place.php?whichplace=scrapheap\"",
+          null,
+          null);
+      return true;
     }
 
     return false;
@@ -1302,7 +1354,87 @@ public class RelayRequest extends PasswordHashRequest {
     return true;
   }
 
-  private boolean sendMacheteWarning() {
+  private void sendMacheteWarning(int itemId) {
+    String name = ItemDatabase.getItemDataName(itemId);
+    String image = ItemDatabase.getImage(itemId);
+
+    StringBuilder buf = new StringBuilder();
+
+    buf.append("You are about to adventure without your ");
+    buf.append(name);
+    buf.append(" to fight dense lianas.");
+
+    // Message when there is no suggested remedy
+    String ok1 = " If you are sure you wish to adventure without it, click the icon to adventure.";
+    // Message when there is a suggested remedy
+    String ok2 =
+        " If you are sure you wish to adventure without it, click the icon on the left to adventure.";
+
+    if (EquipmentManager.canEquip(itemId)) {
+      buf.append(ok2);
+      buf.append(" If you want to equip the ");
+      buf.append(name);
+      buf.append(" first, click the icon on the right.");
+
+      this.sendOptionalWarning(
+          CONFIRM_MACHETE,
+          buf.toString(),
+          "hand.gif",
+          image,
+          "\"#\" onClick=\"singleUse('inv_equip.php','which=2&action=equip&whichitem="
+              + itemId
+              + "&pwd="
+              + GenericRequest.passwordHash
+              + "&ajax=1');void(0);\"",
+          null,
+          null);
+      return;
+    }
+
+    // If they can't equip it:
+    //   perhaps they don't meet the stat requirements
+    //   perhaps they can't wield a weapon (as a Robot)
+
+    boolean lowStats = !EquipmentManager.meetsStatRequirements(itemId);
+    if (lowStats) {
+      EquipmentRequirement req =
+          new EquipmentRequirement(EquipmentDatabase.getEquipRequirement(itemId));
+      buf.append(" It requires base Muscle of ");
+      buf.append(req.getAmount());
+      buf.append(", but yours is only ");
+      buf.append(KoLCharacter.getBaseMuscle());
+      buf.append(".");
+    }
+
+    if (KoLCharacter.inRobocore()) {
+      String resource;
+      if (lowStats) {
+        buf.append(" Perhaps it is time to visit Statbot 5000.");
+        resource = "jigawatts.gif";
+      } else {
+        buf.append(" You need to attach Vice Grips in order to wield a weapon.");
+        resource = "scrap.gif";
+      }
+
+      buf.append(ok2);
+      buf.append(" If you want to visit the Scrapheap, click the icon on the right.");
+      this.sendOptionalWarning(
+          CONFIRM_MACHETE,
+          buf.toString(),
+          "hand.gif",
+          resource,
+          "\"place.php?whichplace=scrapheap\"",
+          null,
+          null);
+
+      return;
+    }
+
+    buf.append(ok1);
+    this.sendGeneralWarning("hand.gif", buf.toString(), CONFIRM_MACHETE);
+  }
+
+  public boolean sendMacheteWarning() {
     // Only send this warning once per session
     if (RelayRequest.ignoreMacheteWarning) {
       return false;
@@ -1319,6 +1451,13 @@ public class RelayRequest extends PasswordHashRequest {
       return false;
     }
 
+    // New property added to allow scripts to track whether the lianas guarding
+    // the Massive Ziggurat are clear without having to look at turns spent at
+    // the location.
+    if (AdventureSpentDatabase.getTurns("A Massive Ziggurat") >= 3) {
+      Preferences.setInteger("zigguratLianas", 1);
+    }
+
     // If they aren't in a liana location, or the lianas are defeated, no problem
     String location = this.getFormField("snarfblat");
     if (!((AdventurePool.NE_SHRINE_ID.equals(location)
@@ -1330,7 +1469,7 @@ public class RelayRequest extends PasswordHashRequest {
         || (AdventurePool.SW_SHRINE_ID.equals(location)
             && Preferences.getInteger("hiddenHospitalProgress") == 0)
         || (AdventurePool.ZIGGURAT_ID.equals(location)
-            && AdventureSpentDatabase.getTurns("A Massive Ziggurat") < 3))) {
+            && Preferences.getInteger("zigguratLianas") == 0))) {
       return false;
     }
 
@@ -1347,98 +1486,43 @@ public class RelayRequest extends PasswordHashRequest {
       return false;
     }
 
+    // These checks are ordered from lowest Base Muscle to highest.  If you
+    // have more than one kind of machete, if you can't equip one, you can't
+    // equip the heftier ones either.
+
+    // If you have muculent machete, suggest it
+    if (InventoryManager.getCount(ItemPool.MUCULENT_MACHETE) > 0) {
+      sendMacheteWarning(ItemPool.MUCULENT_MACHETE);
+      return true;
+    }
+
     // If you have papier machete, suggest it
     if (InventoryManager.getCount(ItemPool.PAPIER_MACHETE) > 0) {
-
-      String warning =
-          "You are about to adventure without your papier-m&acirc;ch&eacute;te to fight dense lianas. "
-              + "If you are sure you wish to adventure without it, click the icon on the left to adventure. "
-              + "If you want to equip the papier-m&acirc;ch&eacute;te first, click the icon on the right. ";
-      this.sendOptionalWarning(
-          CONFIRM_MACHETE,
-          warning,
-          "hand.gif",
-          "machemachete.gif",
-          "\"#\" onClick=\"singleUse('inv_equip.php','which=2&action=equip&whichitem="
-              + ItemPool.PAPIER_MACHETE
-              + "&pwd="
-              + GenericRequest.passwordHash
-              + "&ajax=1');void(0);\"",
-          null,
-          null);
+      sendMacheteWarning(ItemPool.PAPIER_MACHETE);
+      return true;
     }
-    // If you have muculent machete, suggest it
-    else if (InventoryManager.getCount(ItemPool.MUCULENT_MACHETE) > 0) {
 
-      String warning =
-          "You are about to adventure without your muculent machete to fight dense lianas. "
-              + "If you are sure you wish to adventure without it, click the icon on the left to adventure. "
-              + "If you want to equip the muculent machete first, click the icon on the right. ";
-      this.sendOptionalWarning(
-          CONFIRM_MACHETE,
-          warning,
-          "hand.gif",
-          "machete.gif",
-          "\"#\" onClick=\"singleUse('inv_equip.php','which=2&action=equip&whichitem="
-              + ItemPool.MUCULENT_MACHETE
-              + "&pwd="
-              + GenericRequest.passwordHash
-              + "&ajax=1');void(0);\"",
-          null,
-          null);
-    }
     // If you have machetito, suggest it
-    else if (InventoryManager.getCount(ItemPool.MACHETITO) > 0) {
-
-      String warning =
-          "You are about to adventure without your machetito to fight dense lianas. "
-              + "If you are sure you wish to adventure without it, click the icon on the left to adventure. "
-              + "If you want to equip the machetito first, click the icon on the right. ";
-      this.sendOptionalWarning(
-          CONFIRM_MACHETE,
-          warning,
-          "hand.gif",
-          "machetito.gif",
-          "\"#\" onClick=\"singleUse('inv_equip.php','which=2&action=equip&whichitem="
-              + ItemPool.MACHETITO
-              + "&pwd="
-              + GenericRequest.passwordHash
-              + "&ajax=1');void(0);\"",
-          null,
-          null);
+    if (InventoryManager.getCount(ItemPool.MACHETITO) > 0) {
+      sendMacheteWarning(ItemPool.MACHETITO);
+      return true;
     }
+
     // If you have antique machete, suggest it
-    else if (InventoryManager.getCount(ItemPool.ANTIQUE_MACHETE) > 0) {
-
-      String warning =
-          "You are about to adventure without your antique machete to fight dense lianas. "
-              + "If you are sure you wish to adventure without it, click the icon on the left to adventure. "
-              + "If you want to equip the antique machete first, click the icon on the right. ";
-      this.sendOptionalWarning(
-          CONFIRM_MACHETE,
-          warning,
-          "hand.gif",
-          "machetwo.gif",
-          "\"#\" onClick=\"singleUse('inv_equip.php','which=2&action=equip&whichitem="
-              + ItemPool.ANTIQUE_MACHETE
-              + "&pwd="
-              + GenericRequest.passwordHash
-              + "&ajax=1');void(0);\"",
-          null,
-          null);
+    if (InventoryManager.getCount(ItemPool.ANTIQUE_MACHETE) > 0) {
+      sendMacheteWarning(ItemPool.ANTIQUE_MACHETE);
+      return true;
     }
+
     // Otherwise just ask if you want to adventure
-    else {
-      String message =
-          "You are about to adventure without a machete to fight dense lianas. If you are sure you want to do this, click on the image to proceed.";
-
-      this.sendGeneralWarning("machetwo.gif", message, CONFIRM_MACHETE);
-    }
+    String message =
+        "You are about to adventure without a machete to fight dense lianas. If you are sure you want to do this, click on the image to proceed.";
+    this.sendGeneralWarning("machetwo.gif", message, CONFIRM_MACHETE);
 
     return true;
   }
 
-  private boolean sendMohawkWigWarning() {
+  public boolean sendMohawkWigWarning() {
     // Only send this warning once per session
     if (RelayRequest.ignoreMohawkWigWarning) {
       return false;
@@ -1470,22 +1554,74 @@ public class RelayRequest extends PasswordHashRequest {
       return false;
     }
 
-    String warning =
-        "You are about to adventure without your Mohawk Wig in the Castle. "
-            + "If you are sure you wish to adventure without it, click the icon on the left to adventure. "
-            + "If you want to put the hat on first, click the icon on the right. ";
-    this.sendOptionalWarning(
-        CONFIRM_MOHAWK_WIG,
-        warning,
-        "hand.gif",
-        "mohawk.gif",
-        "\"#\" onClick=\"singleUse('inv_equip.php','which=2&action=equip&whichitem="
-            + ItemPool.MOHAWK_WIG
-            + "&pwd="
-            + GenericRequest.passwordHash
-            + "&ajax=1');void(0);\"",
-        null,
-        null);
+    StringBuilder buf = new StringBuilder();
+    buf.append("You are about to adventure without your Mohawk Wig in the Castle.");
+
+    // Message when there is no suggested remedy
+    String ok1 = " If you are sure you wish to adventure without it, click the icon to adventure.";
+    // Message when there is a suggested remedy
+    String ok2 =
+        " If you are sure you wish to adventure without it, click the icon on the left to adventure.";
+
+    // If they can equip it, give them the option to do so.
+    if (EquipmentManager.canEquip(ItemPool.MOHAWK_WIG)) {
+      buf.append(ok2);
+      buf.append(" If you want to put the hat on first, click the icon on the right.");
+
+      this.sendOptionalWarning(
+          CONFIRM_MOHAWK_WIG,
+          buf.toString(),
+          "hand.gif",
+          "mohawk.gif",
+          "\"#\" onClick=\"singleUse('inv_equip.php','which=2&action=equip&whichitem="
+              + ItemPool.MOHAWK_WIG
+              + "&pwd="
+              + GenericRequest.passwordHash
+              + "&ajax=1');void(0);\"",
+          null,
+          null);
+
+      return true;
+    }
+
+    // If they can't equip it:
+    //   perhaps they don't meet the stat requirements
+    //   perhaps they can't wear a hat (as a Robot)
+
+    boolean lowStats = !EquipmentManager.meetsStatRequirements(ItemPool.MOHAWK_WIG);
+    if (lowStats) {
+      buf.append(" It requires base Moxie of 55, but yours is only ");
+      buf.append(KoLCharacter.getBaseMoxie());
+      buf.append(".");
+    }
+
+    if (KoLCharacter.inRobocore()) {
+      String image;
+      if (lowStats) {
+        buf.append(" Perhaps it is time to visit Statbot 5000.");
+        image = "jigawatts.gif";
+      } else {
+        buf.append(" You need to attach a Mannequin Head in order to wear a hat.");
+        image = "scrap.gif";
+      }
+
+      buf.append(ok2);
+      buf.append(" If you want to visit the Scrapheap, click the icon on the right.");
+
+      this.sendOptionalWarning(
+          CONFIRM_MOHAWK_WIG,
+          buf.toString(),
+          "hand.gif",
+          image,
+          "\"place.php?whichplace=scrapheap\"",
+          null,
+          null);
+
+      return true;
+    }
+
+    buf.append(ok1);
+    this.sendGeneralWarning("hand.gif", buf.toString(), CONFIRM_MOHAWK_WIG);
 
     return true;
   }
@@ -1568,23 +1704,12 @@ public class RelayRequest extends PasswordHashRequest {
     }
 
     // If they have already have the library key, no problem
-    if (KoLConstants.inventory.contains(ItemPool.get(ItemPool.LIBRARY_KEY, 1))) {
+    if (InventoryManager.getCount(ItemPool.LIBRARY_KEY) > 0) {
       return false;
     }
 
     // Calculate current pool skill
-    int drunk = KoLCharacter.getInebriety();
-    int drunkBonus = drunk - (drunk > 10 ? (drunk - 10) * 3 : 0);
-    int equip = KoLCharacter.getPoolSkill();
-    int semiRare = Preferences.getInteger("poolSharkCount");
-    int semiRareBonus = 0;
-    if (semiRare > 25) {
-      semiRareBonus = 10;
-    } else if (semiRare > 0) {
-      semiRareBonus = (int) Math.floor(2 * Math.sqrt(semiRare));
-    }
-    int training = Preferences.getInteger("poolSkill");
-    int poolSkill = equip + training + semiRareBonus + drunkBonus;
+    int poolSkill = KoLCharacter.estimatedPoolSkill();
 
     // If pool skill 18 or greater, no problem (based on current spading, no failures at 18)
     if (poolSkill >= 18) {
@@ -1659,15 +1784,15 @@ public class RelayRequest extends PasswordHashRequest {
     StringBuilder warning = new StringBuilder();
 
     if (poolSkill >= 14) {
-      warning.append(
-          "You can't guarantee beating the hustler. You have "
-              + poolSkill
-              + " pool skill and need 18 to guarantee it. ");
+      warning
+          .append("You can't guarantee beating the hustler. You have ")
+          .append(poolSkill)
+          .append(" pool skill and need 18 to guarantee it. ");
     } else {
-      warning.append(
-          "You cannot beat the hustler. You have "
-              + poolSkill
-              + " pool skill and need 14 to have a chance, and 18 to guarantee it. ");
+      warning
+          .append("You cannot beat the hustler. You have ")
+          .append(poolSkill)
+          .append(" pool skill and need 14 to have a chance, and 18 to guarantee it. ");
     }
 
     if (!KoLCharacter.canDrink()) {
@@ -1677,7 +1802,7 @@ public class RelayRequest extends PasswordHashRequest {
         warning.append("<br>If you are sure you wish to adventure, click the icon on the left. ");
       }
     } else {
-      if (drunk < 10) {
+      if (KoLCharacter.getInebriety() < 10) {
         warning.append(
             "<br>Drinking more may help, giving an extra one pool skill per drunk up to 10.");
       }
@@ -1919,13 +2044,8 @@ public class RelayRequest extends PasswordHashRequest {
       return false;
     }
 
-    if (KoLCharacter.inAxecore()
-        || KoLCharacter.isJarlsberg()
-        || KoLCharacter.isSneakyPete()
-        || KoLCharacter.isEd()
-        || KoLCharacter.inBondcore()
+    if (!KoLCharacter.getPath().canUseFamiliars()
         || KoLCharacter.inPokefam()
-        || KoLCharacter.isVampyre()
         || KoLCharacter.inQuantum()) {
       return false;
     }
@@ -2107,7 +2227,10 @@ public class RelayRequest extends PasswordHashRequest {
     }
 
     // Some paths replace the usual bosses with other monsters
-    if (KoLCharacter.inRaincore() || KoLCharacter.isVampyre() || KoLCharacter.isPlumber()) {
+    if (KoLCharacter.inRaincore()
+        || KoLCharacter.isVampyre()
+        || KoLCharacter.isPlumber()
+        || KoLCharacter.inRobocore()) {
       return false;
     }
 
@@ -2224,10 +2347,10 @@ public class RelayRequest extends PasswordHashRequest {
     warning.append("\"></script>");
 
     warning.append("<script language=Javascript> ");
-    warning.append("var default0 = " + mcd0 + "; ");
-    warning.append("var default1 = " + mcd1 + "; ");
-    warning.append("var default2 = " + mcd2 + "; ");
-    warning.append("var current = " + mcd0 + "; ");
+    warning.append("var default0 = ").append(mcd0).append("; ");
+    warning.append("var default1 = ").append(mcd1).append("; ");
+    warning.append("var default2 = ").append(mcd2).append("; ");
+    warning.append("var current = ").append(mcd0).append("; ");
     warning.append("function switchLinks( id ) { ");
     warning.append("if ( id == \"mcd1\" ) { ");
     warning.append("current = (current == default0) ? default1 : default0; ");
@@ -2495,7 +2618,7 @@ public class RelayRequest extends PasswordHashRequest {
     }
 
     // If you don't own Drunkula's wineglass, nothing to warn about
-    if (!KoLConstants.inventory.contains(ItemPool.get(ItemPool.DRUNKULA_WINEGLASS, 1))) {
+    if (InventoryManager.getCount(ItemPool.DRUNKULA_WINEGLASS) == 0) {
       return false;
     }
 
@@ -2610,6 +2733,9 @@ public class RelayRequest extends PasswordHashRequest {
       final String confirm,
       final String extra,
       final boolean usePostMethod) {
+    // Save for testing
+    this.lastWarning = message;
+
     StringBuilder warning = new StringBuilder();
 
     warning.append(
@@ -2698,6 +2824,9 @@ public class RelayRequest extends PasswordHashRequest {
       final String action2,
       final String image3,
       final String action3) {
+    // Save for testing
+    this.lastWarning = message;
+
     StringBuilder warning = new StringBuilder();
 
     warning.append("<html><head><script language=Javascript src=\"/");
@@ -2767,90 +2896,6 @@ public class RelayRequest extends PasswordHashRequest {
         "</blockquote></td></tr></table></center></td></tr></table></center></body></html>");
 
     this.pseudoResponse("HTTP/1.1 200 OK", warning.toString());
-  }
-
-  public boolean sendCloverWarning(final String adventureName) {
-    if (adventureName == null) {
-      return false;
-    }
-
-    if (!AdventureDatabase.isPotentialCloverAdventure(adventureName)) {
-      return false;
-    }
-
-    if (!InventoryManager.cloverProtectionActive()) {
-      return false;
-    }
-
-    if (this.getFormField(CONFIRM_CLOVER) != null) {
-      return false;
-    }
-
-    StringBuilder warning = new StringBuilder();
-    boolean closetClovers = KoLCharacter.inBeecore() || KoLCharacter.inGLover();
-
-    warning.append("<html><head><script language=Javascript src=\"/");
-    warning.append(KoLConstants.BASICS_JS);
-    warning.append("\"></script>");
-
-    warning.append(
-        "<link rel=\"stylesheet\" type=\"text/css\" href=\"/images/styles.css\"></head>");
-    warning.append(
-        "<body><center><table width=95%	 cellspacing=0 cellpadding=0><tr><td style=\"color: white;\" align=center bgcolor=blue><b>Results:</b></td></tr><tr><td style=\"padding: 5px; border: 1px solid blue;\"><center><table><tr><td><center>");
-
-    warning.append("<table><tr>");
-
-    String url = this.getURLString();
-
-    // Proceed with clover
-    warning.append(
-        "<td align=center valign=center><div id=\"lucky\" style=\"padding: 4px 4px 4px 4px\"><a style=\"text-decoration: none\" href=\"");
-    warning.append(url);
-    warning.append(!url.contains("?") ? "?" : "&");
-    warning.append(CONFIRM_CLOVER);
-    warning.append("=on\"><img src=\"/images/itemimages/clover.gif\" width=30 height=30 border=0>");
-    warning.append("</a></div></td>");
-
-    warning.append("<td>&nbsp;&nbsp;&nbsp;&nbsp;</td>");
-
-    // Protect clover
-    warning.append(
-        "<td align=center valign=center><div id=\"unlucky\" style=\"padding: 4px 4px 4px 4px\">");
-    if (closetClovers) {
-      // fillcloset.php?action=closetpush&whichitem=24&qty=all&pwd&ajax=1
-      warning.append(
-          "<a style=\"text-decoration: none\" href=\"#\" onClick=\"inlineLoad('fillcloset.php', 'action=closetpush&whichitem=");
-      warning.append(ItemPool.TEN_LEAF_CLOVER);
-      warning.append("&qty=all&pwd=");
-      warning.append(GenericRequest.passwordHash);
-      warning.append("&ajax=1', ");
-      warning.append(ItemPool.TEN_LEAF_CLOVER);
-      warning.append("); void(0);\">");
-      warning.append("<img src=\"/images/closet.gif\" width=30 height=30 border=0>");
-    } else {
-      warning.append(
-          "<a style=\"text-decoration: none\" href=\"#\" onClick=\"multiUse('multiuse.php', ");
-      warning.append(ItemPool.TEN_LEAF_CLOVER);
-      warning.append(", ");
-      warning.append(InventoryManager.getCount(ItemPool.TEN_LEAF_CLOVER));
-      warning.append("); void(0);\">");
-      warning.append("<img src=\"/images/itemimages/disclover.gif\" width=30 height=30 border=0>");
-    }
-    warning.append("</a></div></td>");
-
-    warning.append(
-        "</tr></table></center><blockquote>KoLmafia has detected a ten-leaf clover in your inventory.  If you are sure you wish to use it, click on the assembled clover on the left.  If this was an accident, please click on the ");
-    if (closetClovers) {
-      warning.append("closet on the right to closet");
-    } else {
-      warning.append("disassembled clover on the right to disassemble");
-    }
-    warning.append(
-        " your clovers first.  To disable this warning, please check your preferences and disable clover protection.</blockquote></td></tr></table></center></td></tr></table></center></body></html>");
-
-    this.pseudoResponse("HTTP/1.1 200 OK", warning.toString());
-
-    return true;
   }
 
   private void handleSafety() {
@@ -2955,7 +3000,7 @@ public class RelayRequest extends PasswordHashRequest {
                 + "</p></body></html>";
         this.pseudoResponse("HTTP/1.1 200 OK", buffer);
       } else if (RelayRequest.specialCommandResponse.length() > 0) {
-        StringBuffer buffer = new StringBuffer();
+        StringBuilder buffer = new StringBuilder();
 
         Matcher matcher =
             RelayRequest.BASE_LINK_PATTERN.matcher(RelayRequest.specialCommandResponse);
@@ -3050,7 +3095,7 @@ public class RelayRequest extends PasswordHashRequest {
 
       chatText =
           ChatSender.sendMessage(
-              new LinkedList<ChatMessage>(), this.getFormField("graf"), true, false, tabbedChat);
+              new LinkedList<>(), this.getFormField("graf"), true, false, tabbedChat);
 
       if (tabbedChat && chatText.startsWith("{")) {
         ChatPoller.handleNewChat(chatText, this.getFormField("graf"), ChatPoller.localLastSeen);
@@ -3081,7 +3126,7 @@ public class RelayRequest extends PasswordHashRequest {
     ChatPoller.pauseChat(paused, false);
 
     List<HistoryEntry> chatMessages;
-    synchronized (ChatPoller.lastServerPoll) {
+    synchronized (lock) {
       ChatPoller.serverPolled();
       chatMessages = ChatPoller.getEntries(lastSeen, true, paused);
     }
@@ -3124,7 +3169,7 @@ public class RelayRequest extends PasswordHashRequest {
     long lastSeen = StringUtilities.parseLong(this.getFormField("lasttime"));
     ChatRequest request = new ChatRequest(lastSeen, true, false);
 
-    synchronized (ChatPoller.lastServerPoll) {
+    synchronized (lock) {
       ChatPoller.serverPolled();
       request.run();
     }
@@ -3137,12 +3182,10 @@ public class RelayRequest extends PasswordHashRequest {
 
       long localLastSeen = ChatPoller.localLastSeen;
       List<HistoryEntry> newEntries = ChatPoller.getOldEntries(true);
-      ArrayList<ChatMessage> messages = new ArrayList<ChatMessage>();
+      ArrayList<ChatMessage> messages = new ArrayList<>();
       for (HistoryEntry entry : newEntries) {
         if (entry instanceof SentMessageEntry) {
-          for (ChatMessage message : entry.getChatMessages()) {
-            messages.add(message);
-          }
+          messages.addAll(entry.getChatMessages());
         }
       }
 
@@ -3369,7 +3412,7 @@ public class RelayRequest extends PasswordHashRequest {
     String limitmode = KoLCharacter.getLimitmode();
 
     // If we are playing Spelunky, a specialized set of warnings are relevant
-    if (limitmode == Limitmode.SPELUNKY) {
+    if ((limitmode != null) && limitmode.equals(Limitmode.SPELUNKY)) {
       return this.sendSpelunkyWarning(adventure);
     }
 
@@ -3474,10 +3517,6 @@ public class RelayRequest extends PasswordHashRequest {
       return true;
     }
 
-    if (this.sendCloverWarning(adventureName)) {
-      return true;
-    }
-
     if (this.sendBossWarning(path, adventure)) {
       return true;
     }
@@ -3530,11 +3569,7 @@ public class RelayRequest extends PasswordHashRequest {
       return true;
     }
 
-    if (path.contains("whichplace=arcade") && this.sendArcadeWarning()) {
-      return true;
-    }
-
-    return false;
+    return path.contains("whichplace=arcade") && this.sendArcadeWarning();
   }
 
   private boolean sendCounterWarning() {
@@ -3544,9 +3579,8 @@ public class RelayRequest extends PasswordHashRequest {
       expired = TurnCounter.getExpiredCounter(this, true);
     }
 
-    StringBuffer msg = null;
+    StringBuilder msg = null;
     String image = null;
-    boolean cookie = false;
     boolean lights = false;
     boolean voteMonster = false;
 
@@ -3563,17 +3597,18 @@ public class RelayRequest extends PasswordHashRequest {
         continue;
       }
       if (msg == null) {
-        msg = new StringBuffer();
+        msg = new StringBuilder();
       } else {
         msg.append("<br>");
       }
       image = expired.getImage();
-      if (expired.getLabel().equals("Fortune Cookie")) {
-        cookie = true;
-      } else if (expired.getLabel().equals("Spookyraven Lights Out")) {
-        lights = true;
-      } else if (expired.getLabel().equals("Vote Monster")) {
-        voteMonster = true;
+      switch (expired.getLabel()) {
+        case "Spookyraven Lights Out":
+          lights = true;
+          break;
+        case "Vote Monster":
+          voteMonster = true;
+          break;
       }
       msg.append("The ");
       msg.append(expired.getLabel());
@@ -3609,10 +3644,7 @@ public class RelayRequest extends PasswordHashRequest {
         msg.append("this is where you'd like to adventure");
       }
       msg.append(", click on the image to proceed.");
-      if (cookie) {
-        msg.append("<br><br>");
-        msg.append(EatItemRequest.lastSemirareMessage());
-      } else if (lights) {
+      if (lights) {
         msg.append("<br><br>");
         msg.append(LightsOutManager.message(true));
       }

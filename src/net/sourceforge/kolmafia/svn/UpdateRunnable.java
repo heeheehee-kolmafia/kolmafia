@@ -31,6 +31,7 @@ public class UpdateRunnable implements Runnable {
     this.revision = rev;
   }
 
+  @Override
   public void run() {
     if (this.WCDir == null) {
       if (!KoLmafia.permitsContinue()) return;
@@ -61,9 +62,8 @@ public class UpdateRunnable implements Runnable {
         KoLmafia.updateDisplay(MafiaState.ERROR, "Something went wrong creating directories...");
         return;
       }
-    } else
-    // this.repo is null, we need to find it
-    {
+    } else {
+      // this.repo is null, we need to find it
       if (!KoLmafia.permitsContinue()) return;
 
       try {

@@ -3,21 +3,20 @@ package net.sourceforge.kolmafia.textui.parsetree;
 import java.io.PrintStream;
 import net.sourceforge.kolmafia.textui.AshRuntime;
 import net.sourceforge.kolmafia.textui.DataTypes;
+import org.eclipse.lsp4j.Location;
 
 public class Variable extends Symbol {
   Type type;
   Value content;
-  Value expression = null;
+  Evaluable expression = null;
   boolean isStatic = false;
 
   public Variable(final Type type) {
-    super(null);
-    this.type = type;
-    this.content = new Value(type);
+    this(null, type, null);
   }
 
-  public Variable(final String name, final Type type) {
-    super(name);
+  public Variable(final String name, final Type type, final Location location) {
+    super(name, location);
     this.type = type;
     this.content = new Value(type);
   }
@@ -66,7 +65,7 @@ public class Variable extends Symbol {
     return this.getValue(interpreter).floatValue();
   }
 
-  public void setExpression(final Value targetExpression) {
+  public void setExpression(final Evaluable targetExpression) {
     this.expression = targetExpression;
   }
 
@@ -107,5 +106,11 @@ public class Variable extends Symbol {
   public void print(final PrintStream stream, final int indent) {
     AshRuntime.indentLine(stream, indent);
     stream.println("<VAR " + this.getType() + " " + this.getName() + ">");
+  }
+
+  public static class BadVariable extends Variable implements BadNode {
+    public BadVariable(final String name, final Type type, final Location location) {
+      super(name, type, location);
+    }
   }
 }

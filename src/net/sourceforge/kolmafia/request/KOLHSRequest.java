@@ -26,17 +26,23 @@ public class KOLHSRequest extends CreateItemRequest {
         return "kolhs_art";
       case SHOPCLASS:
         return "kolhs_shop";
+      default:
+        return "";
     }
-
-    return "";
   }
 
   private static String shopIDToClassName(final String shopID) {
-    return shopID.equals("kolhs_chem")
-        ? "Chemistry Class"
-        : shopID.equals("kolhs_art")
-            ? "Art Class"
-            : shopID.equals("kolhs_shop") ? "Shop Class" : shopID;
+    if (shopID == null) return null;
+    switch (shopID) {
+      case "kolhs_chem":
+        return "Chemistry Class";
+      case "kolhs_art":
+        return "Art Class";
+      case "kolhs_shop":
+        return "Shop Class";
+      default:
+        return shopID;
+    }
   }
 
   public KOLHSRequest(final Concoction conc) {
@@ -54,16 +60,9 @@ public class KOLHSRequest extends CreateItemRequest {
       return;
     }
 
-    if (true) {
-      String shopID = NPCPurchaseRequest.getShopId(this.getURLString());
-      String className = KOLHSRequest.shopIDToClassName(shopID);
-      KoLmafia.updateDisplay("Visit the " + className + " after school to make that.");
-      return;
-    }
-
-    KoLmafia.updateDisplay("Creating " + this.getQuantityNeeded() + " " + this.getName() + "...");
-    this.addFormField("quantity", String.valueOf(this.getQuantityNeeded()));
-    super.run();
+    String shopID = NPCPurchaseRequest.getShopId(this.getURLString());
+    String className = KOLHSRequest.shopIDToClassName(shopID);
+    KoLmafia.updateDisplay("Visit the " + className + " after school to make that.");
   }
 
   @Override

@@ -8,20 +8,25 @@ import net.sourceforge.kolmafia.textui.AshRuntime;
 import net.sourceforge.kolmafia.textui.DataTypes;
 import net.sourceforge.kolmafia.textui.Parser;
 import net.sourceforge.kolmafia.textui.ScriptRuntime;
+import org.eclipse.lsp4j.Location;
 
 public class CompositeReference extends VariableReference {
-  private final List<Value> indices;
+  private final List<Evaluable> indices;
 
   // Derived from indices: Final slice and index into it
   private CompositeValue slice;
   private Value index;
 
   // For runtime error messages
-  String fileName;
-  int lineNumber;
+  private final String fileName;
+  private final int lineNumber;
 
-  public CompositeReference(final Variable target, final List<Value> indices, final Parser parser) {
-    super(target);
+  public CompositeReference(
+      final Location location,
+      final Variable target,
+      final List<Evaluable> indices,
+      final Parser parser) {
+    super(location, target);
     this.indices = indices;
     this.fileName = parser.getShortFileName();
     this.lineNumber = parser.getLineNumber();
@@ -31,16 +36,30 @@ public class CompositeReference extends VariableReference {
   public Type getType() {
     Type type = this.target.getType().getBaseType();
 
-    for (Value current : this.indices) {
-      type = ((CompositeType) type.asProxy()).getDataType(current).getBaseType();
+    for (Evaluable current : this.indices) {
+      type = type.asProxy();
+
+      if (type instanceof CompositeType) {
+        type = ((CompositeType) type).getDataType(current).getBaseType();
+      } else if (!type.isBad()) {
+        type = new Type.BadType(null, null);
+      }
     }
     return type;
   }
 
+  @Override
   public Type getRawType() {
     Type type = this.target.getType();
-    for (Value current : this.indices) {
-      type = ((CompositeType) type.getBaseType().asProxy()).getDataType(current);
+
+    for (Evaluable current : this.indices) {
+      type = type.getBaseType().asProxy();
+
+      if (type instanceof CompositeType) {
+        type = ((CompositeType) type).getDataType(current);
+      } else if (!type.isBad()) {
+        type = new Type.BadType(null, null);
+      }
     }
     return type;
   }
@@ -51,7 +70,7 @@ public class CompositeReference extends VariableReference {
   }
 
   @Override
-  public List<Value> getIndices() {
+  public List<Evaluable> getIndices() {
     return this.indices;
   }
 
@@ -80,10 +99,10 @@ public class CompositeReference extends VariableReference {
       interpreter.trace("AREF: " + this.slice.toString());
     }
 
-    Iterator<Value> it = this.indices.iterator();
+    Iterator<Evaluable> it = this.indices.iterator();
 
     for (int i = 0; it.hasNext(); ++i) {
-      Value exp = it.next();
+      Evaluable exp = it.next();
 
       interpreter.traceIndent();
       if (ScriptRuntime.isTracing()) {

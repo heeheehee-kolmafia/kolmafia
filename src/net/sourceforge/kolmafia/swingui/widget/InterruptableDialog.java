@@ -14,6 +14,8 @@ import net.sourceforge.kolmafia.utilities.StringUtilities;
 public class InterruptableDialog {
   private static final PauseObject pauser = new PauseObject();
 
+  private InterruptableDialog() {}
+
   private static class InterruptableConfirmDialogBox extends JOptionPane implements Runnable {
     private final String message;
     private Boolean result = null;
@@ -32,6 +34,7 @@ public class InterruptableDialog {
       this.result = b;
     }
 
+    @Override
     public void run() {
       this.setResult(
           JOptionPane.YES_OPTION
@@ -71,6 +74,7 @@ public class InterruptableDialog {
       this.closed = b;
     }
 
+    @Override
     public void run() {
       String result = JOptionPane.showInputDialog(null, StringUtilities.basicTextWrap(message));
       this.setResult(result);
@@ -98,8 +102,7 @@ public class InterruptableDialog {
 
     InterruptableConfirmDialogBox r = new InterruptableConfirmDialogBox(mes);
 
-    synchronized (pauser) // get the object's monitor
-    {
+    synchronized (pauser) { // get the object's monitor
       try {
         pauser.wait(time); // wait for <time> millis, unless the dialog notifies the pauser
       } catch (InterruptedException e) {
@@ -139,8 +142,7 @@ public class InterruptableDialog {
 
     InterruptableInputDialogBox r = new InterruptableInputDialogBox(mes);
 
-    synchronized (pauser) // get the object's monitor
-    {
+    synchronized (pauser) { // get the object's monitor
       try {
         pauser.wait(time); // wait for <time> millis, unless the dialog notifies the pauser
       } catch (InterruptedException e) {

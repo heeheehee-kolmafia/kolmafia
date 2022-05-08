@@ -5,16 +5,17 @@ import net.sourceforge.kolmafia.KoLmafia;
 import net.sourceforge.kolmafia.textui.AshRuntime;
 import net.sourceforge.kolmafia.textui.DataTypes;
 import net.sourceforge.kolmafia.textui.ScriptRuntime;
+import org.eclipse.lsp4j.Location;
 
 public class WhileLoop extends Loop {
-  private final Value condition;
+  private final Evaluable condition;
 
-  public WhileLoop(final Scope scope, final Value condition) {
-    super(scope);
+  public WhileLoop(final Location location, final Scope scope, final Evaluable condition) {
+    super(location, scope);
     this.condition = condition;
   }
 
-  public Value getCondition() {
+  public Evaluable getCondition() {
     return this.condition;
   }
 
@@ -71,7 +72,7 @@ public class WhileLoop extends Loop {
 
   @Override
   public boolean assertBarrier() {
-    return this.condition == DataTypes.TRUE_VALUE && !this.getScope().assertBreakable();
+    return this.condition.evaluatesTo(DataTypes.TRUE_VALUE) && !this.getScope().assertBreakable();
   }
 
   @Override

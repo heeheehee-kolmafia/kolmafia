@@ -6,6 +6,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
+import net.sourceforge.kolmafia.AscensionClass;
 import net.sourceforge.kolmafia.CoinmasterRegistry;
 import net.sourceforge.kolmafia.EdServantData;
 import net.sourceforge.kolmafia.KoLAdventure;
@@ -25,6 +26,7 @@ import net.sourceforge.kolmafia.textui.AshRuntime;
 import net.sourceforge.kolmafia.textui.DataTypes;
 import net.sourceforge.kolmafia.textui.ScriptRuntime;
 import net.sourceforge.kolmafia.utilities.StringUtilities;
+import org.eclipse.lsp4j.Location;
 
 public class Type extends Symbol {
   public boolean primitive;
@@ -32,7 +34,11 @@ public class Type extends Symbol {
   private Value allValues = null;
 
   public Type(final String name, final int type) {
-    super(name);
+    this(name, type, null);
+  }
+
+  public Type(final String name, final int type, final Location location) {
+    super(name, location);
     this.primitive = true;
     this.type = type;
   }
@@ -342,6 +348,8 @@ public class Type extends Symbol {
       switch (this.type) {
         case DataTypes.TYPE_BOOLEAN:
           return DataTypes.makeBooleanValue(integer);
+        case DataTypes.TYPE_CLASS:
+          return DataTypes.makeClassValue(integer, returnDefault);
         case DataTypes.TYPE_INT:
           return DataTypes.makeIntValue(integer);
         case DataTypes.TYPE_FLOAT:
@@ -377,6 +385,18 @@ public class Type extends Symbol {
       }
       return null;
     }
+    if (object instanceof AscensionClass) {
+      AscensionClass ascensionClass = (AscensionClass) object;
+      switch (this.type) {
+        case DataTypes.TYPE_INT:
+          return DataTypes.makeIntValue(ascensionClass.getId());
+        case DataTypes.TYPE_STRING:
+          return new Value(DataTypes.STRING_TYPE, ascensionClass.getName());
+        case DataTypes.TYPE_CLASS:
+          return DataTypes.makeClassValue(ascensionClass, returnDefault);
+      }
+      return null;
+    }
     return null;
   }
 
@@ -400,7 +420,7 @@ public class Type extends Symbol {
         this.addValues(list, AdventureDatabase.getAsList());
         break;
       case DataTypes.TYPE_CLASS:
-        this.addValues(list, DataTypes.CLASSES);
+        this.addValues(list, AscensionClass.allClasses());
         break;
       case DataTypes.TYPE_STAT:
         this.addValues(list, DataTypes.STAT_ARRAY, 0, 3);
@@ -494,5 +514,31 @@ public class Type extends Symbol {
   public void print(final PrintStream stream, final int indent) {
     AshRuntime.indentLine(stream, indent);
     stream.println("<TYPE " + this.name + ">");
+  }
+
+  /**
+   * Creates a copy of the current Type with {@code location} as its Location.
+   *
+   * @param location the location of the reference
+   */
+  public Type reference(final Location location) {
+    return new TypeReference(this, location);
+  }
+
+  private class TypeReference extends Type {
+    private TypeReference(final Type type, final Location location) {
+      super(type.name, type.type, location);
+    }
+
+    @Override
+    public Location getDefinitionLocation() {
+      return Type.this.getDefinitionLocation();
+    }
+  }
+
+  public static class BadType extends Type implements BadNode {
+    public BadType(final String name, final Location location) {
+      super(name, DataTypes.TYPE_ANY, location);
+    }
   }
 }

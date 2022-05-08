@@ -1,5 +1,7 @@
 package net.sourceforge.kolmafia.textui.command;
 
+import java.util.ArrayList;
+import java.util.List;
 import net.sourceforge.kolmafia.AdventureResult;
 import net.sourceforge.kolmafia.KoLCharacter;
 import net.sourceforge.kolmafia.KoLConstants;
@@ -13,7 +15,6 @@ import net.sourceforge.kolmafia.request.StandardRequest;
 import net.sourceforge.kolmafia.request.StorageRequest;
 import net.sourceforge.kolmafia.session.EquipmentManager;
 import net.sourceforge.kolmafia.session.InventoryManager;
-import net.sourceforge.kolmafia.utilities.AdventureResultArray;
 
 public class StorageCommand extends AbstractCommand {
   public StorageCommand() {
@@ -23,6 +24,7 @@ public class StorageCommand extends AbstractCommand {
   @Override
   public void run(final String cmd, final String parameters) {
     boolean inHardcore = KoLCharacter.isHardcore();
+    boolean inRonin = KoLCharacter.inRonin();
 
     if (parameters.trim().equals("all")) {
       if (inHardcore) {
@@ -52,9 +54,9 @@ public class StorageCommand extends AbstractCommand {
         return;
       }
 
-      AdventureResultArray have = new AdventureResultArray();
-      AdventureResultArray missing = new AdventureResultArray();
-      AdventureResultArray needed = new AdventureResultArray();
+      List<AdventureResult> have = new ArrayList<>();
+      List<AdventureResult> missing = new ArrayList<>();
+      List<AdventureResult> needed = new ArrayList<>();
 
       AdventureResult[] pieces = outfit.getPieces();
       for (int i = 0; i < pieces.length; ++i) {
@@ -64,7 +66,8 @@ public class StorageCommand extends AbstractCommand {
         int availableCount = InventoryManager.getAccessibleCount(piece);
 
         // Count of item in storage
-        int storageCount = piece.getCount(KoLConstants.storage);
+        int storageCount =
+            piece.getCount(KoLConstants.storage) + piece.getCount(KoLConstants.freepulls);
 
         if (InventoryManager.canUseStorage()) {
           // Don't double-count items in storage
@@ -115,7 +118,7 @@ public class StorageCommand extends AbstractCommand {
                 + " will be pulled.");
       }
 
-      items = needed.toArray();
+      items = needed.toArray(new AdventureResult[0]);
     } else if (inHardcore) {
       items = ItemFinder.getMatchingItemList(parameters, KoLConstants.freepulls);
     } else {

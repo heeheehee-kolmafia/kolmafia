@@ -16,6 +16,7 @@ package net.sourceforge.kolmafia.svn;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -85,6 +86,8 @@ public class SVNManager {
       Pattern.compile("([^\\.]+)\\.googlecode\\.com", Pattern.DOTALL);
   private static final List<String> permissibles =
       Arrays.asList("scripts", "data", "images", "relay", "ccs", "planting");
+
+  private SVNManager() {}
 
   /** Initializes the library to work with a repository via different protocols. */
   public static synchronized void setupLibrary() {
@@ -372,6 +375,7 @@ public class SVNManager {
             false,
             10,
             new ISVNLogEntryHandler() {
+              @Override
               public void handleLogEntry(SVNLogEntry logEntry) {
                 RequestLogger.printLine("Commit <b>r" + logEntry.getRevision() + "<b>:");
                 RequestLogger.printLine("Author: " + logEntry.getAuthor());
@@ -1057,6 +1061,7 @@ public class SVNManager {
 
     Runnable runMe =
         new Runnable() {
+          @Override
           public void run() {
             KoLmafia.updateDisplay("Checking all SVN projects...");
             List<File> projectsToUpdate = new ArrayList<>();
@@ -1164,6 +1169,9 @@ public class SVNManager {
     try {
       SVN_LOCK.lock();
       if (!SVNWCUtil.isWorkingCopyRoot(f)) {
+        RequestLogger.printLine(
+            f.getPath()
+                + " selected for repository operation but may not have corresponding remote");
         return false;
       }
 
@@ -1207,9 +1215,8 @@ public class SVNManager {
 
     initialize();
 
-    if (SVN_LOCK
-        .tryLock()) // if we're locked, bounce requests to update an individual script immediately
-    {
+    if (SVN_LOCK.tryLock()) {
+      // if we're locked, bounce requests to update an individual script immediately
       try {
         RequestThread.postRequest(new UpdateRunnable(project));
         pushUpdates();
@@ -1261,6 +1268,7 @@ public class SVNManager {
       // dispatch a parallel thread that will wait for a little bit then re-try the delete.
       RequestThread.runInParallel(
           new Runnable() {
+            @Override
             public void run() {
               PauseObject p = new PauseObject();
               p.pause(5000);
@@ -1286,9 +1294,8 @@ public class SVNManager {
       }
 
       String relpath = FileUtilities.getRelativePath(fDepth.getParentFile(), f);
-      if (!relpath.startsWith(
-          ".")) // do not try to delete the rebase of hidden folders such as .svn!
-      {
+      if (!relpath.startsWith(".")) {
+        // do not try to delete the rebase of hidden folders such as .svn!
         File rebase = getRebase(relpath);
 
         if (rebase != null) {
@@ -1559,8 +1566,9 @@ public class SVNManager {
     Iterator<SVNURL> it = installMe.iterator();
     while (it.hasNext()) {
       SVNURL url = it.next();
-      if (validateRepo(url, true)) {
-        RequestLogger.printLine("bogus dependency: " + url);
+      if (validateRepo(url, false)) {
+        RequestLogger.printLine(
+            "Dependency at " + url + " failed validation.  Won't be processed.");
         it.remove();
       }
     }
@@ -1598,9 +1606,8 @@ public class SVNManager {
    * @return a <code>Set</code> of <code>SVNURL</code>s that are dependencies
    */
   private static Set<SVNURL> readDependencies(File dep) {
-    BufferedReader reader = FileUtilities.getReader(dep);
     Set<SVNURL> depURLs = new HashSet<>();
-    try {
+    try (BufferedReader reader = FileUtilities.getReader(dep)) {
       String[] data;
       while ((data = FileUtilities.readData(reader)) != null) {
         // turn it into an SVNURL
@@ -1612,12 +1619,8 @@ public class SVNManager {
           break;
         }
       }
-    } finally {
-      try {
-        reader.close();
-      } catch (Exception e) {
-        StaticEntity.printStackTrace(e);
-      }
+    } catch (IOException e) {
+      StaticEntity.printStackTrace(e);
     }
     return depURLs;
   }

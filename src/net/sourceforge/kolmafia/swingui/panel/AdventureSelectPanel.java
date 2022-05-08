@@ -41,7 +41,6 @@ import net.sourceforge.kolmafia.listener.CharacterListener;
 import net.sourceforge.kolmafia.listener.CharacterListenerRegistry;
 import net.sourceforge.kolmafia.listener.Listener;
 import net.sourceforge.kolmafia.listener.NamedListenerRegistry;
-import net.sourceforge.kolmafia.objectpool.IntegerPool;
 import net.sourceforge.kolmafia.persistence.AdventureDatabase;
 import net.sourceforge.kolmafia.preferences.Preferences;
 import net.sourceforge.kolmafia.request.UseSkillRequest;
@@ -52,10 +51,10 @@ import net.sourceforge.kolmafia.swingui.CommandDisplayFrame;
 import net.sourceforge.kolmafia.swingui.button.InvocationButton;
 import net.sourceforge.kolmafia.swingui.button.ThreadedButton;
 import net.sourceforge.kolmafia.swingui.listener.ThreadedListener;
-import net.sourceforge.kolmafia.swingui.widget.AutoFilterComboBox;
 import net.sourceforge.kolmafia.swingui.widget.AutoFilterTextField;
 import net.sourceforge.kolmafia.swingui.widget.AutoHighlightSpinner;
 import net.sourceforge.kolmafia.swingui.widget.AutoHighlightTextField;
+import net.sourceforge.kolmafia.swingui.widget.EditableAutoFilterComboBox;
 import net.sourceforge.kolmafia.swingui.widget.GenericScrollPane;
 import net.sourceforge.kolmafia.swingui.widget.RequestPane;
 import net.sourceforge.kolmafia.textui.command.ConditionsCommand;
@@ -65,14 +64,18 @@ import net.sourceforge.kolmafia.utilities.PauseObject;
 public class AdventureSelectPanel extends JPanel {
   private ThreadedButton begin;
 
-  private final TreeMap zoneMap;
+  private final TreeMap<String, String> zoneMap;
   private AdventureCountSpinner countField;
-  private final LockableListModel matchingAdventures;
+  private final LockableListModel<KoLAdventure> matchingAdventures;
 
-  private final JList locationSelect;
+  private final JList<KoLAdventure> locationSelect;
   private final JComponent zoneSelect;
 
-  private final LockableListModel locationConditions = new LockableListModel();
+  // zoneSelect will be either of these
+  private final AutoFilterTextField<KoLAdventure> autoFilterZoneSelect;
+  private final JComboBox<String> comboBoxZoneSelect;
+
+  private final LockableListModel<String> locationConditions = new LockableListModel<>();
   private final RedoFreeAdventuresCheckbox redoFreeAdventures;
   private final JCheckBox conditionsFieldActive;
   private final ConditionsComboBox conditionField = new ConditionsComboBox();
@@ -86,25 +89,27 @@ public class AdventureSelectPanel extends JPanel {
     // West pane is a scroll pane which lists all of the available
     // locations -- to be included is a map on a separate tab.
 
-    this.locationSelect = new JList(this.matchingAdventures);
+    this.locationSelect = new JList<>(this.matchingAdventures);
     this.locationSelect.setVisibleRowCount(4);
 
     JPanel zonePanel = new JPanel(new BorderLayout(5, 5));
 
     boolean useZoneComboBox = Preferences.getBoolean("useZoneComboBox");
     if (useZoneComboBox) {
-      this.zoneSelect = new FilterAdventureComboBox();
+      this.zoneSelect = this.comboBoxZoneSelect = new FilterAdventureComboBox();
       this.matchingAdventures.setFilter((FilterAdventureComboBox) this.zoneSelect);
+      this.autoFilterZoneSelect = null;
     } else {
-      this.zoneSelect = new AutoFilterTextField(this.locationSelect);
+      this.zoneSelect = this.autoFilterZoneSelect = new AutoFilterTextField<>(this.locationSelect);
+      this.comboBoxZoneSelect = null;
     }
 
-    this.zoneMap = new TreeMap();
-    Object[] zones = AdventureDatabase.PARENT_LIST.toArray();
+    this.zoneMap = new TreeMap<>();
+    String[] zones = AdventureDatabase.PARENT_LIST.toArray(new String[0]);
 
-    Object currentZone;
+    String currentZone;
 
-    for (Object zone : zones) {
+    for (String zone : zones) {
       currentZone = AdventureDatabase.ZONE_DESCRIPTIONS.get(zone);
       if (currentZone == null) {
         // This indicates an error in zonelist.txt
@@ -114,7 +119,7 @@ public class AdventureSelectPanel extends JPanel {
       this.zoneMap.put(currentZone, zone);
 
       if (useZoneComboBox) {
-        ((JComboBox) this.zoneSelect).addItem(currentZone);
+        this.comboBoxZoneSelect.addItem(currentZone);
       }
     }
 
@@ -189,7 +194,7 @@ public class AdventureSelectPanel extends JPanel {
   }
 
   public KoLAdventure getSelectedAdventure() {
-    return (KoLAdventure) this.locationSelect.getSelectedValue();
+    return this.locationSelect.getSelectedValue();
   }
 
   public void updateFromPreferences() {
@@ -213,11 +218,11 @@ public class AdventureSelectPanel extends JPanel {
       return;
     }
 
-    if (this.zoneSelect instanceof AutoFilterTextField) {
+    if (this.zoneSelect == this.autoFilterZoneSelect) {
       this.locationSelect.clearSelection();
-      ((AutoFilterTextField) this.zoneSelect).setText(location.getZone());
+      this.autoFilterZoneSelect.setText(location.getZone());
     } else {
-      ((JComboBox) this.zoneSelect).setSelectedItem(location.getParentZoneDescription());
+      this.comboBoxZoneSelect.setSelectedItem(location.getParentZoneDescription());
     }
 
     this.locationSelect.setSelectedValue(location, true);
@@ -227,7 +232,7 @@ public class AdventureSelectPanel extends JPanel {
     this.locationSelect.addListSelectionListener(listener);
   }
 
-  private class FilterAdventureComboBox extends JComboBox implements ListElementFilter {
+  private class FilterAdventureComboBox extends JComboBox<String> implements ListElementFilter {
     private Object selectedZone;
 
     @Override
@@ -237,6 +242,7 @@ public class AdventureSelectPanel extends JPanel {
       AdventureSelectPanel.this.matchingAdventures.updateFilter(false);
     }
 
+    @Override
     public boolean isVisible(final Object element) {
       return ((KoLAdventure) element).getParentZoneDescription().equals(this.selectedZone);
     }
@@ -273,11 +279,13 @@ public class AdventureSelectPanel extends JPanel {
       NamedListenerRegistry.registerNamedListener("(adventuring)", this);
     }
 
+    @Override
     public void actionPerformed(final ActionEvent e) {
       KoLmafia.redoSkippedAdventures = this.isSelected();
     }
 
     // called when (adventuring) fires
+    @Override
     public void update() {
       this.setEnabled(!KoLmafia.isAdventuring());
     }
@@ -298,6 +306,7 @@ public class AdventureSelectPanel extends JPanel {
       AdventureSelectPanel.this.fillDefaultConditions();
     }
 
+    @Override
     public void valueChanged(final ListSelectionEvent e) {
       if (KoLmafia.isAdventuring()) {
         return;
@@ -311,14 +320,17 @@ public class AdventureSelectPanel extends JPanel {
       AdventureSelectPanel.this.fillDefaultConditions();
     }
 
+    @Override
     public void intervalAdded(final ListDataEvent e) {
       AdventureSelectPanel.this.fillCurrentConditions();
     }
 
+    @Override
     public void intervalRemoved(final ListDataEvent e) {
       AdventureSelectPanel.this.fillCurrentConditions();
     }
 
+    @Override
     public void contentsChanged(final ListDataEvent e) {
       AdventureSelectPanel.this.fillCurrentConditions();
     }
@@ -331,6 +343,7 @@ public class AdventureSelectPanel extends JPanel {
       this.setToolTipText("Stop after current adventure");
     }
 
+    @Override
     public void actionPerformed(final ActionEvent e) {
       KoLmafia.abortAfter("Manual stop requested.");
     }
@@ -339,6 +352,7 @@ public class AdventureSelectPanel extends JPanel {
   private class ExecuteRunnable implements Runnable {
     private final PauseObject pauser = new PauseObject();
 
+    @Override
     public void run() {
       KoLmafia.updateDisplay("Validating adventure sequence...");
 
@@ -360,13 +374,11 @@ public class AdventureSelectPanel extends JPanel {
       String text = AdventureSelectPanel.this.conditionField.getText();
       String conditionList = text == null ? "" : text.trim().toLowerCase();
 
-      List previousGoals = new ArrayList(GoalManager.getGoals());
+      List<AdventureResult> previousGoals = new ArrayList<>(GoalManager.getGoals());
       GoalManager.clearGoals();
 
       // Retain any stat goal
-      for (Object goal : previousGoals) {
-        AdventureResult previousGoal = (AdventureResult) goal;
-
+      for (AdventureResult previousGoal : previousGoals) {
         if (previousGoal.getName().equals(AdventureResult.SUBSTATS)) {
           GoalManager.addGoal(previousGoal);
           break;
@@ -453,7 +465,7 @@ public class AdventureSelectPanel extends JPanel {
   private String getDefaultConditions() {
     KoLAdventure location = this.getSelectedAdventure();
     AdventureDatabase.getDefaultConditionsList(location, this.locationConditions);
-    return (String) this.locationConditions.get(0);
+    return this.locationConditions.get(0);
   }
 
   public void fillCurrentConditions() {
@@ -475,7 +487,7 @@ public class AdventureSelectPanel extends JPanel {
 
     CardLayout resultCards = new CardLayout();
     JPanel resultPanel = new JPanel(resultCards);
-    JComboBox resultSelect = new JComboBox();
+    JComboBox<String> resultSelect = new JComboBox<>();
 
     int cardCount = 0;
 
@@ -535,12 +547,12 @@ public class AdventureSelectPanel extends JPanel {
     private final String property;
     private final CardLayout resultCards;
     private final JPanel resultPanel;
-    private final JComboBox resultSelect;
+    private final JComboBox<String> resultSelect;
 
     public ResultSelectListener(
         final CardLayout resultCards,
         final JPanel resultPanel,
-        final JComboBox resultSelect,
+        final JComboBox<String> resultSelect,
         final String property) {
       this.resultCards = resultCards;
       this.resultPanel = resultPanel;
@@ -548,6 +560,7 @@ public class AdventureSelectPanel extends JPanel {
       this.property = property;
     }
 
+    @Override
     public void actionPerformed(final ActionEvent e) {
       String index = String.valueOf(this.resultSelect.getSelectedIndex());
       this.resultCards.show(this.resultPanel, index);
@@ -578,6 +591,7 @@ public class AdventureSelectPanel extends JPanel {
       this.setSafetyString();
     }
 
+    @Override
     public void run() {
       this.setSafetyString();
     }
@@ -605,9 +619,9 @@ public class AdventureSelectPanel extends JPanel {
     }
   }
 
-  private class ConditionsComboBox extends AutoFilterComboBox {
+  private class ConditionsComboBox extends EditableAutoFilterComboBox {
     public ConditionsComboBox() {
-      super(AdventureSelectPanel.this.locationConditions, true);
+      super(AdventureSelectPanel.this.locationConditions);
     }
   }
 
@@ -618,18 +632,19 @@ public class AdventureSelectPanel extends JPanel {
       this.setToolTipText("Number of turns to adventure in the selected zone");
     }
 
+    @Override
     public void stateChanged(final ChangeEvent e) {
       int maximum = KoLCharacter.getAdventuresLeft();
       if (maximum == 0) {
-        this.setValue(IntegerPool.get(0));
+        this.setValue(0);
         return;
       }
 
       int desired = InputFieldUtilities.getValue(this, maximum);
       if (desired == maximum + 1) {
-        this.setValue(IntegerPool.get(1));
+        this.setValue(1);
       } else if (desired <= 0 || desired > maximum) {
-        this.setValue(IntegerPool.get(maximum));
+        this.setValue(maximum);
       }
     }
   }

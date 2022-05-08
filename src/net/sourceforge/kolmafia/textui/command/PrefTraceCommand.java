@@ -8,7 +8,8 @@ import net.sourceforge.kolmafia.listener.PreferenceListenerRegistry;
 import net.sourceforge.kolmafia.preferences.Preferences;
 
 public class PrefTraceCommand extends AbstractCommand {
-  private static ArrayList<Listener> audience = null; // keeps listeners from being GC'd
+  private static final ArrayList<PreferenceListener> audience =
+      new ArrayList<>(); // keeps listeners from being GC'd
 
   public PrefTraceCommand() {
     this.usage = " <name> [, <name>]... - watch changes to indicated preferences";
@@ -16,8 +17,11 @@ public class PrefTraceCommand extends AbstractCommand {
 
   @Override
   public synchronized void run(String command, final String parameters) {
-    if (audience != null) {
-      audience = null;
+    if (audience.size() != 0) {
+      for (PreferenceListener listener : audience) {
+        listener.unregister();
+      }
+      audience.clear();
       RequestLogger.printLine("Previously watched prefs have been cleared.");
     }
 
@@ -26,9 +30,8 @@ public class PrefTraceCommand extends AbstractCommand {
     }
 
     String[] prefList = parameters.split("\\s*,\\s*");
-    audience = new ArrayList<Listener>();
-    for (int i = 0; i < prefList.length; ++i) {
-      audience.add(new PreferenceListener(prefList[i]));
+    for (String pref : prefList) {
+      audience.add(new PreferenceListener(pref));
     }
   }
 
@@ -41,6 +44,11 @@ public class PrefTraceCommand extends AbstractCommand {
       this.update();
     }
 
+    public void unregister() {
+      PreferenceListenerRegistry.unregisterPreferenceListener(name, this);
+    }
+
+    @Override
     public void update() {
       String msg = "ptrace: " + this.name + " = " + Preferences.getString(this.name);
       RequestLogger.updateSessionLog(msg);

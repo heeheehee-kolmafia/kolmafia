@@ -22,14 +22,21 @@ public class Speculation {
   public AdventureResult[] equipment;
   private final ArrayList<AdventureResult> effects;
   private FamiliarData familiar, enthroned, bjorned;
-  private String edPiece, snowsuit, custom, horsery, boomBox, retroCape, backupCamera;
+  private String edPiece,
+      snowsuit,
+      custom,
+      horsery,
+      boomBox,
+      retroCape,
+      backupCamera,
+      unbreakableUmbrella;
   protected boolean calculated = false;
   protected Modifiers mods;
 
   public Speculation() {
     this.MCD = KoLCharacter.getMindControlLevel();
     this.equipment = EquipmentManager.allEquipment();
-    this.effects = new ArrayList<AdventureResult>();
+    this.effects = new ArrayList<>();
     this.effects.addAll(KoLConstants.activeEffects);
     // Strip out intrinsic effects granted by equipment - they will
     // be readded if appropriate via Intrinsic Effect modifiers.
@@ -58,6 +65,7 @@ public class Speculation {
             + " "
             + Preferences.getString("retroCapeWashingInstructions");
     this.backupCamera = Preferences.getString("backupCameraMode");
+    this.unbreakableUmbrella = Preferences.getString("umbrellaState");
   }
 
   public void setMindControlLevel(int MCD) {
@@ -86,6 +94,10 @@ public class Speculation {
 
   public void setBackupCamera(String backupCamera) {
     this.backupCamera = backupCamera;
+  }
+
+  public void setUnbreakableUmbrella(String unbreakableUmbrella) {
+    this.unbreakableUmbrella = unbreakableUmbrella;
   }
 
   public void setSnowsuit(String snowsuit) {
@@ -126,6 +138,10 @@ public class Speculation {
 
   public String getBackupCamera() {
     return this.backupCamera;
+  }
+
+  public String getUnbreakableUmbrella() {
+    return this.unbreakableUmbrella;
   }
 
   public String getSnowsuit() {
@@ -183,6 +199,7 @@ public class Speculation {
             this.boomBox,
             this.retroCape,
             this.backupCamera,
+            this.unbreakableUmbrella,
             true);
     this.calculated = true;
     return this.mods;
@@ -196,12 +213,12 @@ public class Speculation {
   public boolean parse(String text) {
     boolean quiet = false;
     String[] pieces = text.toLowerCase().split("\\s*;\\s*");
-    for (int i = 0; i < pieces.length; ++i) {
-      String[] piece = pieces[i].split(" ", 2);
+    for (String s : pieces) {
+      String[] piece = s.split(" ", 2);
       String cmd = piece[0];
       String params = piece.length > 1 ? piece[1] : "";
 
-      if (cmd.equals("")) {
+      if (cmd.isEmpty()) {
         continue;
       }
 
@@ -293,6 +310,18 @@ public class Speculation {
         }
         this.setBackupCamera(params);
         this.equip(EquipmentManager.ACCESSORY3, ItemPool.get(ItemPool.BACKUP_CAMERA));
+      } else if (cmd.equals("umbrella")) {
+        if (!params.equals("broken")
+            && !params.equals("forward-facing")
+            && !params.equals("bucket style")
+            && !params.equals("pitchfork style")
+            && !params.equals("constantly twirling")
+            && !params.equals("cocoon")) {
+          KoLmafia.updateDisplay(
+              MafiaState.ERROR, "Unknown unbreakable umbrella setting:" + params);
+        }
+        this.setUnbreakableUmbrella(params);
+        this.equip(EquipmentManager.OFFHAND, ItemPool.get(ItemPool.UNBREAKABLE_UMBRELLA));
       } else if (cmd.equals("snowsuit")) {
         if (!params.equals("eyebrows")
             && !params.equals("smirk")
@@ -305,25 +334,25 @@ public class Speculation {
         this.setSnowsuit(params);
         this.equip(EquipmentManager.FAMILIAR, ItemPool.get(ItemPool.SNOW_SUIT));
       } else if (cmd.equals("up")) {
-        List effects = EffectDatabase.getMatchingNames(params);
+        List<String> effects = EffectDatabase.getMatchingNames(params);
         if (effects.isEmpty()) {
           KoLmafia.updateDisplay(MafiaState.ERROR, "Unknown effect: " + params);
           return true;
         }
 
-        int effectId = EffectDatabase.getEffectId((String) effects.get(0));
+        int effectId = EffectDatabase.getEffectId(effects.get(0));
         AdventureResult effect = EffectPool.get(effectId);
         if (!this.hasEffect(effect)) {
           this.addEffect(effect);
         }
       } else if (cmd.equals("uneffect")) {
-        List effects = EffectDatabase.getMatchingNames(params);
+        List<String> effects = EffectDatabase.getMatchingNames(params);
         if (effects.isEmpty()) {
           KoLmafia.updateDisplay(MafiaState.ERROR, "Unknown effect: " + params);
           return true;
         }
 
-        int effectId = EffectDatabase.getEffectId((String) effects.get(0));
+        int effectId = EffectDatabase.getEffectId(effects.get(0));
         AdventureResult effect = EffectPool.get(effectId);
         this.removeEffect(effect);
       } else if (cmd.equals("quiet")) {

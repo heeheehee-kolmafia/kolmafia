@@ -31,6 +31,7 @@ import net.sourceforge.kolmafia.preferences.Preferences;
 import net.sourceforge.kolmafia.session.BatManager;
 import net.sourceforge.kolmafia.session.Limitmode;
 import net.sourceforge.kolmafia.session.ResultProcessor;
+import net.sourceforge.kolmafia.session.YouRobotManager;
 import net.sourceforge.kolmafia.swingui.MallSearchFrame;
 import net.sourceforge.kolmafia.swingui.RequestFrame;
 import net.sourceforge.kolmafia.textui.command.SnowsuitCommand;
@@ -98,7 +99,7 @@ public class CharPaneRequest extends GenericRequest {
 
   public static final void liberateKing() {
     // Set variables without making requests
-    CharPaneRequest.canInteract = true;
+    CharPaneRequest.setCanInteract(true);
     KoLCharacter.setRestricted(false);
   }
 
@@ -116,12 +117,16 @@ public class CharPaneRequest extends GenericRequest {
         RequestThread.postRequest(new FamiliarRequest());
         KoLCharacter.setRestricted(false);
       }
-      CharPaneRequest.canInteract = interaction;
+      CharPaneRequest.setCanInteract(interaction);
       MallSearchFrame.updateMeat();
     }
     if (interaction) {
       ConcoctionDatabase.setPullsRemaining(-1);
     }
+  }
+
+  public static final void setCanInteract(final boolean interaction) {
+    CharPaneRequest.canInteract = interaction;
   }
 
   public static boolean processResults(String responseText) {
@@ -270,12 +275,15 @@ public class CharPaneRequest extends GenericRequest {
   // width=60 height=100 border=0></a>
 
   public static final Pattern AVATAR_PATTERN =
-      Pattern.compile("<img +src=[^>]*?(?:images.kingdomofloathing.com|/images)/([^>'\"\\s]+)");
+      Pattern.compile(
+          "<img +src=[^>]*?(?:cloudfront.net|images.kingdomofloathing.com|/images)/([^>'\"\\s]+)");
 
   public static final void parseAvatar(final String responseText) {
-    Matcher avatarMatcher = CharPaneRequest.AVATAR_PATTERN.matcher(responseText);
-    if (avatarMatcher.find()) {
-      KoLCharacter.setAvatar(avatarMatcher.group(1));
+    if (!KoLCharacter.inRobocore()) {
+      Matcher avatarMatcher = CharPaneRequest.AVATAR_PATTERN.matcher(responseText);
+      if (avatarMatcher.find()) {
+        KoLCharacter.setAvatar(avatarMatcher.group(1));
+      }
     }
   }
 
@@ -657,7 +665,7 @@ public class CharPaneRequest extends GenericRequest {
       ResultProcessor.processAdventuresLeft(newAdventures - oldAdventures);
     }
 
-    if (KoLCharacter.getClassType() == KoLCharacter.SEAL_CLUBBER) {
+    if (KoLCharacter.isSealClubber()) {
       pattern = Pattern.compile(">(\\d+) gal.</span>");
       matcher = pattern.matcher(responseText);
       if (matcher != null && matcher.find()) {
@@ -666,7 +674,7 @@ public class CharPaneRequest extends GenericRequest {
       } else {
         KoLCharacter.setFuryNoCheck(0);
       }
-    } else if (KoLCharacter.getClassType() == KoLCharacter.SAUCEROR) {
+    } else if (KoLCharacter.isSauceror()) {
       pattern =
           Pattern.compile(
               "auce:(?:</small>)?</td><td align=left><b><font color=black>(?:<span>)?(\\d+)<");
@@ -1097,7 +1105,7 @@ public class CharPaneRequest extends GenericRequest {
 
   private static final Pattern PokeFamPattern =
       Pattern.compile(
-          "img align=\"absmiddle\" src=http://images.kingdomofloathing.com/itemimages/(.*?)>&nbsp;(.*?) \\(Lvl (\\d+)\\)",
+          "img align=\"absmiddle\" src=(?:cloudfront.net|images.kingdomofloathing.com)/itemimages/(.*?)>&nbsp;(.*?) \\(Lvl (\\d+)\\)",
           Pattern.DOTALL);
 
   private static void checkPokeFam(final String responseText) {
@@ -1187,7 +1195,7 @@ public class CharPaneRequest extends GenericRequest {
           Pattern.DOTALL);
 
   private static void checkPastaThrall(final String responseText) {
-    if (KoLCharacter.getClassType() != KoLCharacter.PASTAMANCER) {
+    if (!KoLCharacter.isPastamancer()) {
       return;
     }
     Pattern pattern = CharPaneRequest.pastaThrallPattern;
@@ -1505,13 +1513,13 @@ public class CharPaneRequest extends GenericRequest {
   private static final Pattern YOU_ROBOT_SCRAPS_COMPACT =
       Pattern.compile("Scrap.*?<b>([\\d,]+)</b>");
 
-  private static void checkYouRobot(final String responseText) {
+  public static void checkYouRobot(final String responseText) {
     if (!KoLCharacter.inRobocore()) {
       return;
     }
 
     if (!CharPaneRequest.compactCharacterPane) {
-      ScrapheapRequest.parseConfiguration(responseText);
+      YouRobotManager.parseAvatar(responseText);
     }
 
     // Energy is handled in the handleMiscPoints function as it replaces MP
@@ -1600,7 +1608,7 @@ public class CharPaneRequest extends GenericRequest {
     KoLCharacter.setMindControlLevel(mcd);
 
     int classType = JSON.getInt("class");
-    KoLCharacter.setClassType(classType);
+    KoLCharacter.setAscensionClass(classType);
 
     int pvpFights = JSON.getInt("pvpfights");
     KoLCharacter.setAttacksLeft(pvpFights);
@@ -1664,9 +1672,7 @@ public class CharPaneRequest extends GenericRequest {
     } else if (KoLCharacter.isEd()) {
       // No familiar, but may have a servant.  Unfortunately,
       // details of such are not in api.php
-    } else if (!KoLCharacter.isSneakyPete()
-        && !KoLCharacter.inBondcore()
-        && !KoLCharacter.isVampyre()) {
+    } else if (KoLCharacter.getPath().canUseFamiliars()) {
       int famId = JSON.getInt("familiar");
       int famExp = JSON.getInt("familiarexp");
       FamiliarData familiar = FamiliarData.registerFamiliar(famId, famExp);
@@ -1719,9 +1725,9 @@ public class CharPaneRequest extends GenericRequest {
       // KoL returns an empty JSON array if there are no effects
       JSONObject effects = (JSONObject) o;
 
-      Iterator keys = effects.keys();
+      Iterator<String> keys = effects.keys();
       while (keys.hasNext()) {
-        String descId = (String) keys.next();
+        String descId = keys.next();
         JSONArray data = effects.getJSONArray(descId);
         String effectName = data.getString(0);
         int count = data.getInt(1);
@@ -1737,9 +1743,9 @@ public class CharPaneRequest extends GenericRequest {
     if (o instanceof JSONObject) {
       JSONObject intrinsics = (JSONObject) o;
 
-      Iterator keys = intrinsics.keys();
+      Iterator<String> keys = intrinsics.keys();
       while (keys.hasNext()) {
-        String descId = (String) keys.next();
+        String descId = keys.next();
         JSONArray data = intrinsics.getJSONArray(descId);
         String effectName = data.getString(0);
 

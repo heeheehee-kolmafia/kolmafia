@@ -2,17 +2,19 @@ package net.sourceforge.kolmafia;
 
 import java.lang.reflect.Method;
 import java.util.HashMap;
-import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletionService;
+import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.swing.SwingUtilities;
 import net.sourceforge.kolmafia.KoLConstants.MafiaState;
 import net.sourceforge.kolmafia.SpecialOutfit.Checkpoint;
 import net.sourceforge.kolmafia.chat.ChatManager;
 import net.sourceforge.kolmafia.chat.InternalMessage;
-import net.sourceforge.kolmafia.objectpool.IntegerPool;
 import net.sourceforge.kolmafia.preferences.Preferences;
 import net.sourceforge.kolmafia.request.GenericRequest;
 import net.sourceforge.kolmafia.swingui.SystemTrayFrame;
@@ -21,13 +23,16 @@ import net.sourceforge.kolmafia.utilities.PauseObject;
 
 public abstract class RequestThread {
   private static final AtomicInteger nextRequestId = new AtomicInteger();
-  private static final Map<Integer, Thread> threadMap = new HashMap<Integer, Thread>();
+  private static final Map<Integer, Thread> threadMap = new HashMap<>();
   private static final ExecutorService EXECUTOR;
 
   static {
     int fixedPoolSize = Preferences.getInteger("fixedThreadPoolSize");
-    if (fixedPoolSize > 0) EXECUTOR = Executors.newFixedThreadPool(fixedPoolSize);
-    else EXECUTOR = Executors.newCachedThreadPool();
+    if (fixedPoolSize == 0) {
+      fixedPoolSize = 100;
+    }
+
+    EXECUTOR = Executors.newFixedThreadPool(fixedPoolSize);
   }
 
   public static final void runInParallel(final Runnable action) {
@@ -36,6 +41,34 @@ public abstract class RequestThread {
 
   public static final void runInParallel(final Runnable action, final boolean sequence) {
     EXECUTOR.submit(new SequencedRunnable(action, sequence));
+  }
+
+  public static final boolean runInParallel(final List<Runnable> actions, final boolean verbose) {
+    CompletionService<Boolean> completionService = new ExecutorCompletionService<>(EXECUTOR);
+
+    for (Runnable action : actions) {
+      completionService.submit(action, true);
+    }
+
+    int received = 0;
+    boolean result = true;
+    int lastAnnounce = 0;
+
+    while (received < actions.size() && result) {
+      try {
+        Future<Boolean> resultFuture = completionService.take(); // blocks if none available
+        result = result && resultFuture.get();
+        received++;
+        if (lastAnnounce < received && verbose && received % 100 == 1) {
+          KoLmafia.updateDisplay("Progress: " + received + "/" + actions.size());
+          lastAnnounce = received;
+        }
+      } catch (Exception e) {
+        result = false;
+      }
+    }
+
+    return result;
   }
 
   public static final void postRequestAfterInitialization(final GenericRequest request) {
@@ -51,6 +84,7 @@ public abstract class RequestThread {
       this.pauser = new PauseObject();
     }
 
+    @Override
     public void run() {
       while (KoLmafia.isRefreshing()) {
         this.pauser.pause(100);
@@ -66,7 +100,7 @@ public abstract class RequestThread {
   }
 
   private static class ExecuteDelayedMethodRunnable implements Runnable {
-    private final Class objectClass;
+    private final Class<?> objectClass;
     private final Object object;
     private final String methodName;
     private Method method;
@@ -74,7 +108,7 @@ public abstract class RequestThread {
 
     public ExecuteDelayedMethodRunnable(final Object object, final String methodName) {
       if (object instanceof Class) {
-        this.objectClass = (Class) object;
+        this.objectClass = (Class<?>) object;
         this.object = null;
       } else {
         this.objectClass = object.getClass();
@@ -83,7 +117,7 @@ public abstract class RequestThread {
 
       this.methodName = methodName;
       try {
-        Class[] parameters = new Class[0];
+        Class<?>[] parameters = new Class[0];
         this.method = this.objectClass.getMethod(methodName, parameters);
       } catch (Exception e) {
         this.method = null;
@@ -94,6 +128,7 @@ public abstract class RequestThread {
       this.pauser = new PauseObject();
     }
 
+    @Override
     public void run() {
       if (this.method == null) {
         return;
@@ -116,14 +151,14 @@ public abstract class RequestThread {
   }
 
   private static class ExecuteMethodRunnable implements Runnable {
-    private final Class objectClass;
+    private final Class<?> objectClass;
     private final Object object;
     private final String methodName;
     private Method method;
 
     public ExecuteMethodRunnable(final Object object, final String methodName) {
       if (object instanceof Class) {
-        this.objectClass = (Class) object;
+        this.objectClass = (Class<?>) object;
         this.object = null;
       } else {
         this.objectClass = object.getClass();
@@ -132,7 +167,7 @@ public abstract class RequestThread {
 
       this.methodName = methodName;
       try {
-        Class[] parameters = new Class[0];
+        Class<?>[] parameters = new Class[0];
         this.method = this.objectClass.getMethod(methodName, parameters);
       } catch (Exception e) {
         this.method = null;
@@ -141,6 +176,7 @@ public abstract class RequestThread {
       }
     }
 
+    @Override
     public void run() {
       if (this.method == null) {
         return;
@@ -212,18 +248,10 @@ public abstract class RequestThread {
   }
 
   public static final synchronized void checkOpenRequestSequences(final boolean flush) {
-    int openSequences = 0;
     Thread currentThread = Thread.currentThread();
 
-    Iterator threadIterator = RequestThread.threadMap.values().iterator();
-
-    while (threadIterator.hasNext()) {
-      Thread thread = (Thread) threadIterator.next();
-
-      if (thread != currentThread) {
-        ++openSequences;
-      }
-    }
+    long openSequences =
+        RequestThread.threadMap.values().stream().filter(t -> t != currentThread).count();
 
     if (flush) {
       RequestThread.threadMap.clear();
@@ -252,7 +280,7 @@ public abstract class RequestThread {
 
     int requestId = RequestThread.nextRequestId.getAndIncrement();
 
-    Integer requestIdObj = IntegerPool.get(requestId);
+    Integer requestIdObj = requestId;
 
     // Don't include relay requests in "request sequences" - this could stop the display from being
     // enabled
@@ -303,6 +331,7 @@ public abstract class RequestThread {
       this.sequence = sequence;
     }
 
+    @Override
     public void run() {
       Integer requestId = null;
 

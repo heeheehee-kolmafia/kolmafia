@@ -37,7 +37,6 @@ import javax.swing.JSplitPane;
 import net.java.dev.spellcast.utilities.JComponentUtilities;
 import net.sourceforge.kolmafia.KoLmafia;
 import net.sourceforge.kolmafia.RequestThread;
-import net.sourceforge.kolmafia.objectpool.IntegerPool;
 import net.sourceforge.kolmafia.request.TrophyRequest;
 import net.sourceforge.kolmafia.request.TrophyRequest.Trophy;
 import net.sourceforge.kolmafia.swingui.button.InvocationButton;
@@ -88,13 +87,10 @@ public class TrophyFrame extends GenericFrame {
       this.hiddenList.removeAll();
       TrophyRequest req = new TrophyRequest();
       RequestThread.postRequest(req);
-      ArrayList trophies = req.getTrophies();
-      if (req == null) {
-        return;
-      }
-      Iterator i = trophies.iterator();
+      ArrayList<Trophy> trophies = req.getTrophies();
+      Iterator<Trophy> i = trophies.iterator();
       while (i.hasNext()) {
-        Trophy t = (Trophy) i.next();
+        Trophy t = i.next();
         FileUtilities.downloadImage(KoLmafia.imageServerPath() + t.filename);
         (t.visible ? this.shownList : this.hiddenList).add(new DraggableTrophy(t));
       }
@@ -105,7 +101,7 @@ public class TrophyFrame extends GenericFrame {
     }
 
     public void doSave() {
-      ArrayList trophies = new ArrayList();
+      ArrayList<Trophy> trophies = new ArrayList<>();
       this.shownList.addChildrenToList(trophies);
       this.hiddenList.addChildrenToList(trophies);
       RequestThread.postRequest(new TrophyRequest(trophies));
@@ -159,7 +155,7 @@ public class TrophyFrame extends GenericFrame {
       new DropTarget(this, DnDConstants.ACTION_MOVE | DnDConstants.ACTION_LINK, this);
     }
 
-    public void addChildrenToList(ArrayList list) {
+    public void addChildrenToList(ArrayList<Trophy> list) {
       int nc = this.getComponentCount();
       for (int i = 0; i < nc; ++i) {
         DraggableTrophy t = (DraggableTrophy) this.getComponent(i);
@@ -195,20 +191,25 @@ public class TrophyFrame extends GenericFrame {
 
     /* Required methods for DropTargetListener */
 
+    @Override
     public void dragEnter(DropTargetDragEvent dtde) {}
 
+    @Override
     public void dragOver(DropTargetDragEvent dtde) {
       Point xy = dtde.getLocation();
       dtde.acceptDrag(this.findDrop(xy.x, xy.y));
     }
 
+    @Override
     public void dropActionChanged(DropTargetDragEvent dtde) {
       Point xy = dtde.getLocation();
       dtde.acceptDrag(this.findDrop(xy.x, xy.y));
     }
 
+    @Override
     public void dragExit(DropTargetEvent dte) {}
 
+    @Override
     public void drop(DropTargetDropEvent dtde) {
       Point xy = dtde.getLocation();
       dtde.acceptDrop(this.findDrop(xy.x, xy.y));
@@ -232,8 +233,7 @@ public class TrophyFrame extends GenericFrame {
             this.add(TrophyPanel.source, destIndex);
             TrophyPanel.sourceList.add(dest, sourceIndex);
           }
-        } else // move, instead of exchange
-        {
+        } else { // move, instead of exchange
           if (TrophyPanel.sourceList == this && destIndex >= sourceIndex) {
             --destIndex;
           }
@@ -252,14 +252,18 @@ public class TrophyFrame extends GenericFrame {
 
     /* Required methods for LayoutManager */
 
+    @Override
     public void addLayoutComponent(String name, Component comp) {}
 
+    @Override
     public void removeLayoutComponent(Component comp) {}
 
+    @Override
     public Dimension minimumLayoutSize(Container parent) {
       return this.preferredLayoutSize(parent);
     }
 
+    @Override
     public Dimension preferredLayoutSize(Container parent) {
       int nc = parent.getComponentCount();
       int height = (nc / 11) * 2;
@@ -273,6 +277,7 @@ public class TrophyFrame extends GenericFrame {
       return new Dimension(600 + ins.left + ins.right, 100 * height + ins.top + ins.bottom);
     }
 
+    @Override
     public void layoutContainer(Container parent) {
       Insets ins = parent.getInsets();
       int nc = parent.getComponentCount();
@@ -319,7 +324,7 @@ public class TrophyFrame extends GenericFrame {
       implements DragGestureListener, DragSourceListener {
     public Trophy trophy;
     private final DragSource dragSource = DragSource.getDefaultDragSource();
-    private final HashMap similarities = new HashMap();
+    private final HashMap<Integer, Integer> similarities = new HashMap<>();
     private int[] cache;
     public int score;
 
@@ -351,8 +356,9 @@ public class TrophyFrame extends GenericFrame {
       Integer key, rv;
       int id1 = this.trophy.id;
       int id2 = other.trophy.id;
-      key = IntegerPool.get(id1 < id2 ? (id1 << 16) | id2 : (id2 << 16) | id1);
-      rv = (Integer) this.similarities.get(key);
+      int i1 = id1 < id2 ? (id1 << 16) | id2 : (id2 << 16) | id1;
+      key = i1;
+      rv = this.similarities.get(key);
       if (rv != null) return rv.intValue();
       int[] img1 = this.grab();
       int[] img2 = other.grab();
@@ -361,7 +367,7 @@ public class TrophyFrame extends GenericFrame {
         score += Math.abs((img1[i] & 0xFF) - (img2[i] & 0xFF));
       }
 
-      this.similarities.put(key, IntegerPool.get(score));
+      this.similarities.put(key, score);
       return score;
     }
 
@@ -395,6 +401,7 @@ public class TrophyFrame extends GenericFrame {
 
     /* Methods required by DragGestureListener */
 
+    @Override
     public void dragGestureRecognized(DragGestureEvent dge) {
       TrophyPanel.source = this;
       TrophyPanel.sourceList = (TrophyPanel) this.getParent();
@@ -406,14 +413,19 @@ public class TrophyFrame extends GenericFrame {
 
     /* Methods required by DragSourceListener */
 
+    @Override
     public void dragEnter(DragSourceDragEvent dsde) {}
 
+    @Override
     public void dragOver(DragSourceDragEvent dsde) {}
 
+    @Override
     public void dropActionChanged(DragSourceDragEvent dsde) {}
 
+    @Override
     public void dragExit(DragSourceEvent dse) {}
 
+    @Override
     public void dragDropEnd(DragSourceDropEvent dsde) {}
   }
 }

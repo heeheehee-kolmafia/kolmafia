@@ -12,11 +12,11 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.TimeZone;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import net.sourceforge.kolmafia.AdventureResult;
 import net.sourceforge.kolmafia.AdventureResult.AdventureLongCountResult;
+import net.sourceforge.kolmafia.AscensionClass;
 import net.sourceforge.kolmafia.EdServantData;
 import net.sourceforge.kolmafia.FamiliarData;
 import net.sourceforge.kolmafia.KoLAdventure;
@@ -37,12 +37,13 @@ import net.sourceforge.kolmafia.combat.MonsterStatusTracker;
 import net.sourceforge.kolmafia.moods.HPRestoreItemList;
 import net.sourceforge.kolmafia.moods.MPRestoreItemList;
 import net.sourceforge.kolmafia.objectpool.EffectPool;
-import net.sourceforge.kolmafia.objectpool.IntegerPool;
+import net.sourceforge.kolmafia.objectpool.FamiliarPool;
 import net.sourceforge.kolmafia.objectpool.ItemPool;
 import net.sourceforge.kolmafia.objectpool.OutfitPool;
 import net.sourceforge.kolmafia.persistence.AdventureDatabase;
 import net.sourceforge.kolmafia.persistence.AdventureSpentDatabase;
 import net.sourceforge.kolmafia.persistence.ConcoctionDatabase;
+import net.sourceforge.kolmafia.persistence.HolidayDatabase;
 import net.sourceforge.kolmafia.persistence.ItemDatabase;
 import net.sourceforge.kolmafia.persistence.MonsterDatabase;
 import net.sourceforge.kolmafia.persistence.MonsterDatabase.Element;
@@ -78,11 +79,11 @@ import net.sourceforge.kolmafia.request.PyramidRequest;
 import net.sourceforge.kolmafia.request.QuestLogRequest;
 import net.sourceforge.kolmafia.request.RelayRequest;
 import net.sourceforge.kolmafia.request.SaberRequest;
-import net.sourceforge.kolmafia.request.ScrapheapRequest;
 import net.sourceforge.kolmafia.request.SpaaaceRequest;
 import net.sourceforge.kolmafia.request.SpelunkyRequest;
 import net.sourceforge.kolmafia.request.SweetSynthesisRequest;
 import net.sourceforge.kolmafia.request.TavernRequest;
+import net.sourceforge.kolmafia.request.UmbrellaRequest;
 import net.sourceforge.kolmafia.request.UseItemRequest;
 import net.sourceforge.kolmafia.request.WildfireCampRequest;
 import net.sourceforge.kolmafia.textui.ScriptRuntime;
@@ -126,15 +127,7 @@ public abstract class ChoiceManager {
   }
 
   public static int extractChoice(final String responseText) {
-    int choice = ChoiceUtilities.extractChoice(responseText);
-
-    if (choice == 0 && responseText.contains("<b>Lyle, LyleCo CEO</b>")) {
-      // We still don't know the choice number, so take action here instead
-      // We will either now, or in the past, have had Favored By Lyle
-      Preferences.setBoolean("_lyleFavored", true);
-    }
-
-    return choice;
+    return ChoiceUtilities.extractChoice(responseText);
   }
 
   public static final Pattern URL_CHOICE_PATTERN = Pattern.compile("whichchoice=(\\d+)");
@@ -272,7 +265,6 @@ public abstract class ChoiceManager {
   private static final Pattern SHEN_PATTERN =
       Pattern.compile(
           "(?:Bring me|artifact known only as) <b>(.*?)</b>, hidden away for centuries");
-  private static final Pattern BASTILLE_PATTERN = Pattern.compile("You can play <b>(\\d+)</b>");
   private static final Pattern GERALD_PATTERN =
       Pattern.compile("Gerald wants (\\d+)<table>.*?descitem\\((\\d+)\\)");
   private static final Pattern GERALDINE_PATTERN =
@@ -439,25 +431,54 @@ public abstract class ChoiceManager {
   public static class Option {
     private final String name;
     private final int option;
-    private final AdventureResult item;
+    private final AdventureResult items[];
 
     public Option(final String name) {
-      this(name, 0, null);
+      this(name, 0, null, null, null);
     }
 
     public Option(final String name, final int option) {
-      this(name, option, null);
+      this(name, option, null, null, null);
     }
 
-    public Option(final String name, final String item) {
-      this(name, 0, item);
+    public Option(final String name, final int option, final String item1) {
+      this(name, option, item1, null, null);
     }
 
-    public Option(final String name, final int option, final String item) {
+    public Option(final String name, final int option, final String item1, String item2) {
+      this(name, option, item1, item2, null);
+    }
+
+    public Option(final String name, final String item1) {
+      this(name, 0, item1, null, null);
+    }
+
+    public Option(final String name, final String item1, String item2) {
+      this(name, 0, item1, item2, null);
+    }
+
+    public Option(final String name, final String item1, String item2, String item3) {
+      this(name, 0, item1, item2, item3);
+    }
+
+    public Option(
+        final String name, final int option, final String item1, String item2, String item3) {
       this.name = name;
       this.option = option;
-      int itemId = ItemDatabase.getItemId(item);
-      this.item = item != null ? ItemPool.get(itemId) : null;
+      int count = item3 != null ? 3 : item2 != null ? 2 : item1 != null ? 1 : 0;
+      this.items = new AdventureResult[count];
+
+      if (count > 0) {
+        this.items[0] = ItemPool.get(ItemDatabase.getItemId(item1));
+      }
+
+      if (count > 1) {
+        this.items[1] = ItemPool.get(ItemDatabase.getItemId(item2));
+      }
+
+      if (count > 2) {
+        this.items[2] = ItemPool.get(ItemDatabase.getItemId(item3));
+      }
     }
 
     public String getName() {
@@ -472,8 +493,8 @@ public abstract class ChoiceManager {
       return this.option == 0 ? def : this.option;
     }
 
-    public AdventureResult getItem() {
-      return this.item;
+    public AdventureResult[] getItems() {
+      return this.items;
     }
 
     @Override
@@ -538,6 +559,7 @@ public abstract class ChoiceManager {
       return this.spoilers;
     }
 
+    @Override
     public int compareTo(final ChoiceAdventure o) {
       // Choices can have a specified relative ordering
       // within zone regardless of name or choice number
@@ -590,7 +612,7 @@ public abstract class ChoiceManager {
           new Option("denim axe", "denim axe"), new Option("skip adventure", "rubber axe")
         }),
     // Denim Axes Examined
-    new Object[] {IntegerPool.get(2), IntegerPool.get(1), ItemPool.get(ItemPool.RUBBER_AXE, -1)},
+    new Object[] {2, 1, ItemPool.get(ItemPool.RUBBER_AXE, -1)},
 
     // The Oracle Will See You Now
     new ChoiceSpoiler(
@@ -607,12 +629,8 @@ public abstract class ChoiceManager {
           "small meat boost", new Option("try for poultrygeist", "poultrygeist"), "skip adventure"
         }),
     // Finger-Lickin'... Death.
-    new Object[] {
-      IntegerPool.get(4), IntegerPool.get(1), new AdventureResult(AdventureResult.MEAT, -500)
-    },
-    new Object[] {
-      IntegerPool.get(4), IntegerPool.get(2), new AdventureResult(AdventureResult.MEAT, -500)
-    },
+    new Object[] {4, 1, new AdventureResult(AdventureResult.MEAT, -500)},
+    new Object[] {4, 2, new AdventureResult(AdventureResult.MEAT, -500)},
 
     // Heart of Very, Very Dark Darkness
     new ChoiceAdventure(
@@ -750,9 +768,7 @@ public abstract class ChoiceManager {
         "Sleazy Back Alley",
         new Object[] {"switch genders", "skip adventure"}),
     // Under the Knife
-    new Object[] {
-      IntegerPool.get(21), IntegerPool.get(1), new AdventureResult(AdventureResult.MEAT, -500)
-    },
+    new Object[] {21, 1, new AdventureResult(AdventureResult.MEAT, -500)},
 
     // The Arrrbitrator
     new ChoiceAdventure(
@@ -801,12 +817,8 @@ public abstract class ChoiceManager {
           "skip adventure"
         }),
     // Ouch! You bump into a door!
-    new Object[] {
-      IntegerPool.get(25), IntegerPool.get(1), new AdventureResult(AdventureResult.MEAT, -50)
-    },
-    new Object[] {
-      IntegerPool.get(25), IntegerPool.get(2), new AdventureResult(AdventureResult.MEAT, -5000)
-    },
+    new Object[] {25, 1, new AdventureResult(AdventureResult.MEAT, -50)},
+    new Object[] {25, 2, new AdventureResult(AdventureResult.MEAT, -5000)},
 
     // A Three-Tined Fork
     new ChoiceSpoiler(
@@ -820,21 +832,21 @@ public abstract class ChoiceManager {
         "Woods",
         "choiceAdventure27",
         "Spooky Forest",
-        new Object[] {KoLCharacter.SEAL_CLUBBER, KoLCharacter.TURTLE_TAMER}),
+        new Object[] {AscensionClass.SEAL_CLUBBER, AscensionClass.TURTLE_TAMER}),
 
     // A Pair of Craters
     new ChoiceSpoiler(
         "Woods",
         "choiceAdventure28",
         "Spooky Forest",
-        new Object[] {KoLCharacter.PASTAMANCER, KoLCharacter.SAUCEROR}),
+        new Object[] {AscensionClass.PASTAMANCER, AscensionClass.SAUCEROR}),
 
     // The Road Less Visible
     new ChoiceSpoiler(
         "Woods",
         "choiceAdventure29",
         "Spooky Forest",
-        new Object[] {KoLCharacter.DISCO_BANDIT, KoLCharacter.ACCORDION_THIEF}),
+        new Object[] {AscensionClass.DISCO_BANDIT, AscensionClass.ACCORDION_THIEF}),
 
     // Choices 30 - 39 are unknown
 
@@ -903,7 +915,7 @@ public abstract class ChoiceManager {
     // Have a Heart
     // This trades all vampire hearts for an equal number of
     // bottles of used blood.
-    new Object[] {IntegerPool.get(47), IntegerPool.get(1), ItemPool.get(ItemPool.VAMPIRE_HEART, 1)},
+    new Object[] {47, 1, ItemPool.get(ItemPool.VAMPIRE_HEART, 1)},
 
     // Choices 48 - 70 are violet fog adventures
     // Choice 71 is A Journey to the Center of Your Mind
@@ -920,7 +932,7 @@ public abstract class ChoiceManager {
     // Lording Over The Flies
     // This trades all Spanish flies for around the worlds,
     // in multiples of 5.  Excess flies are left in inventory.
-    new Object[] {IntegerPool.get(72), IntegerPool.get(1), ItemPool.get(ItemPool.SPANISH_FLY, 5)},
+    new Object[] {72, 1, ItemPool.get(ItemPool.SPANISH_FLY, 5)},
 
     // Don't Fence Me In
     new ChoiceAdventure(
@@ -1150,7 +1162,7 @@ public abstract class ChoiceManager {
         "Palindome",
         new Object[] {new Option("3 papayas", "papaya"), "trade 3 papayas for stats", "stats"}),
     // No sir, away!  A papaya war is on!
-    new Object[] {IntegerPool.get(127), IntegerPool.get(2), ItemPool.get(ItemPool.PAPAYA, -3)},
+    new Object[] {127, 2, ItemPool.get(ItemPool.PAPAYA, -3)},
 
     // Choice 128 is unknown
 
@@ -1161,9 +1173,7 @@ public abstract class ChoiceManager {
         "Palindome",
         new Object[] {new Option("photograph of God", "photograph of God"), "skip adventure"}),
     // Do Geese See God?
-    new Object[] {
-      IntegerPool.get(129), IntegerPool.get(1), new AdventureResult(AdventureResult.MEAT, -500)
-    },
+    new Object[] {129, 1, new AdventureResult(AdventureResult.MEAT, -500)},
 
     // Choice 133 is unknown
 
@@ -1518,7 +1528,7 @@ public abstract class ChoiceManager {
     // Chieftain of the Flies
     // This trades all Spanish flies for around the worlds,
     // in multiples of 5.  Excess flies are left in inventory.
-    new Object[] {IntegerPool.get(181), IntegerPool.get(1), ItemPool.get(ItemPool.SPANISH_FLY, 5)},
+    new Object[] {181, 1, ItemPool.get(ItemPool.SPANISH_FLY, 5)},
 
     // Random Lack of an Encounter
     new ChoiceAdventure(
@@ -1560,9 +1570,7 @@ public abstract class ChoiceManager {
         }),
 
     //  O Cap'm, My Cap'm
-    new Object[] {
-      IntegerPool.get(189), IntegerPool.get(1), new AdventureResult(AdventureResult.MEAT, -977)
-    },
+    new Object[] {189, 1, new AdventureResult(AdventureResult.MEAT, -977)},
 
     // Choice 190 is unknown
 
@@ -1581,9 +1589,7 @@ public abstract class ChoiceManager {
           "use valuable trinket to banish, or mysticality",
           "use valuable trinket to banish, or mainstat"
         }),
-    new Object[] {
-      IntegerPool.get(191), IntegerPool.get(2), ItemPool.get(ItemPool.VALUABLE_TRINKET, -1)
-    },
+    new Object[] {191, 2, ItemPool.get(ItemPool.VALUABLE_TRINKET, -1)},
 
     // Choice 192 is unknown
     // Choice 193 is Modular, Dude
@@ -1797,9 +1803,7 @@ public abstract class ChoiceManager {
         "Hobopolis Town Square",
         new Object[] {new Option("hobo code binder", "hobo code binder"), "skip adventure"}),
     // Mind Yer Binder
-    new Object[] {
-      IntegerPool.get(230), IntegerPool.get(1), ItemPool.get(ItemPool.HOBO_NICKEL, -30)
-    },
+    new Object[] {230, 1, ItemPool.get(ItemPool.HOBO_NICKEL, -30)},
 
     // Choices 231-271 are subchoices of Choice 272
 
@@ -1816,9 +1820,7 @@ public abstract class ChoiceManager {
         new Object[] {"muscle booze", "mysticality booze", "moxie booze"}),
 
     // The Guy Who Carves Driftwood Animals
-    new Object[] {
-      IntegerPool.get(247), IntegerPool.get(1), ItemPool.get(ItemPool.HOBO_NICKEL, -10)
-    },
+    new Object[] {247, 1, ItemPool.get(ItemPool.HOBO_NICKEL, -10)},
 
     // A Hattery
     new ChoiceSpoiler(
@@ -1830,15 +1832,9 @@ public abstract class ChoiceManager {
           new Option("shapeless wide-brimmed hat", "shapeless wide-brimmed hat")
         }),
     // A Hattery
-    new Object[] {
-      IntegerPool.get(250), IntegerPool.get(1), ItemPool.get(ItemPool.HOBO_NICKEL, -250)
-    },
-    new Object[] {
-      IntegerPool.get(250), IntegerPool.get(2), ItemPool.get(ItemPool.HOBO_NICKEL, -150)
-    },
-    new Object[] {
-      IntegerPool.get(250), IntegerPool.get(3), ItemPool.get(ItemPool.HOBO_NICKEL, -200)
-    },
+    new Object[] {250, 1, ItemPool.get(ItemPool.HOBO_NICKEL, -250)},
+    new Object[] {250, 2, ItemPool.get(ItemPool.HOBO_NICKEL, -150)},
+    new Object[] {250, 3, ItemPool.get(ItemPool.HOBO_NICKEL, -200)},
 
     // A Pantry
     new ChoiceSpoiler(
@@ -1850,15 +1846,9 @@ public abstract class ChoiceManager {
           new Option("old patched suit-pants", "old patched suit-pants")
         }),
     // A Pantry
-    new Object[] {
-      IntegerPool.get(251), IntegerPool.get(1), ItemPool.get(ItemPool.HOBO_NICKEL, -200)
-    },
-    new Object[] {
-      IntegerPool.get(251), IntegerPool.get(2), ItemPool.get(ItemPool.HOBO_NICKEL, -150)
-    },
-    new Object[] {
-      IntegerPool.get(251), IntegerPool.get(3), ItemPool.get(ItemPool.HOBO_NICKEL, -250)
-    },
+    new Object[] {251, 1, ItemPool.get(ItemPool.HOBO_NICKEL, -200)},
+    new Object[] {251, 2, ItemPool.get(ItemPool.HOBO_NICKEL, -150)},
+    new Object[] {251, 3, ItemPool.get(ItemPool.HOBO_NICKEL, -250)},
 
     // Hobo Blanket Bingo
     new ChoiceSpoiler(
@@ -1870,15 +1860,9 @@ public abstract class ChoiceManager {
           new Option("rope with some soap on it", "rope with some soap on it")
         }),
     // Hobo Blanket Bingo
-    new Object[] {
-      IntegerPool.get(252), IntegerPool.get(1), ItemPool.get(ItemPool.HOBO_NICKEL, -250)
-    },
-    new Object[] {
-      IntegerPool.get(252), IntegerPool.get(2), ItemPool.get(ItemPool.HOBO_NICKEL, -200)
-    },
-    new Object[] {
-      IntegerPool.get(252), IntegerPool.get(3), ItemPool.get(ItemPool.HOBO_NICKEL, -150)
-    },
+    new Object[] {252, 1, ItemPool.get(ItemPool.HOBO_NICKEL, -250)},
+    new Object[] {252, 2, ItemPool.get(ItemPool.HOBO_NICKEL, -200)},
+    new Object[] {252, 3, ItemPool.get(ItemPool.HOBO_NICKEL, -150)},
 
     // Black-and-Blue-and-Decker
     new ChoiceSpoiler(
@@ -1890,20 +1874,12 @@ public abstract class ChoiceManager {
           new Option("The Six-Pack of Pain", "The Six-Pack of Pain")
         }),
     // Black-and-Blue-and-Decker
-    new Object[] {
-      IntegerPool.get(255), IntegerPool.get(1), ItemPool.get(ItemPool.HOBO_NICKEL, -10)
-    },
-    new Object[] {
-      IntegerPool.get(255), IntegerPool.get(2), ItemPool.get(ItemPool.HOBO_NICKEL, -10)
-    },
-    new Object[] {
-      IntegerPool.get(255), IntegerPool.get(3), ItemPool.get(ItemPool.HOBO_NICKEL, -10)
-    },
+    new Object[] {255, 1, ItemPool.get(ItemPool.HOBO_NICKEL, -10)},
+    new Object[] {255, 2, ItemPool.get(ItemPool.HOBO_NICKEL, -10)},
+    new Object[] {255, 3, ItemPool.get(ItemPool.HOBO_NICKEL, -10)},
 
     // Instru-mental
-    new Object[] {
-      IntegerPool.get(258), IntegerPool.get(1), ItemPool.get(ItemPool.HOBO_NICKEL, -99)
-    },
+    new Object[] {258, 1, ItemPool.get(ItemPool.HOBO_NICKEL, -99)},
 
     // We'll Make Great...
     new ChoiceSpoiler(
@@ -1912,9 +1888,7 @@ public abstract class ChoiceManager {
         new Object[] {"hobo monkey", "stats", "enter combat"}),
 
     // Everybody's Got Something To Hide
-    new Object[] {
-      IntegerPool.get(261), IntegerPool.get(1), ItemPool.get(ItemPool.HOBO_NICKEL, -1000)
-    },
+    new Object[] {261, 1, ItemPool.get(ItemPool.HOBO_NICKEL, -1000)},
 
     // Tanning Salon
     new ChoiceSpoiler(
@@ -1922,8 +1896,8 @@ public abstract class ChoiceManager {
         "Hobopolis Marketplace",
         new Object[] {"20 adv of +50% moxie", "20 adv of +50% mysticality"}),
     // Tanning Salon
-    new Object[] {IntegerPool.get(264), IntegerPool.get(1), ItemPool.get(ItemPool.HOBO_NICKEL, -5)},
-    new Object[] {IntegerPool.get(264), IntegerPool.get(2), ItemPool.get(ItemPool.HOBO_NICKEL, -5)},
+    new Object[] {264, 1, ItemPool.get(ItemPool.HOBO_NICKEL, -5)},
+    new Object[] {264, 2, ItemPool.get(ItemPool.HOBO_NICKEL, -5)},
 
     // Let's All Go To The Movies
     new ChoiceSpoiler(
@@ -1931,8 +1905,8 @@ public abstract class ChoiceManager {
         "Hobopolis Marketplace",
         new Object[] {"20 adv of +5 spooky resistance", "20 adv of +5 sleaze resistance"}),
     // Let's All Go To The Movies
-    new Object[] {IntegerPool.get(267), IntegerPool.get(1), ItemPool.get(ItemPool.HOBO_NICKEL, -5)},
-    new Object[] {IntegerPool.get(267), IntegerPool.get(2), ItemPool.get(ItemPool.HOBO_NICKEL, -5)},
+    new Object[] {267, 1, ItemPool.get(ItemPool.HOBO_NICKEL, -5)},
+    new Object[] {267, 2, ItemPool.get(ItemPool.HOBO_NICKEL, -5)},
 
     // It's Fun To Stay There
     new ChoiceSpoiler(
@@ -1940,8 +1914,8 @@ public abstract class ChoiceManager {
         "Hobopolis Marketplace",
         new Object[] {"20 adv of +5 stench resistance", "20 adv of +50% muscle"}),
     // It's Fun To Stay There
-    new Object[] {IntegerPool.get(268), IntegerPool.get(1), ItemPool.get(ItemPool.HOBO_NICKEL, -5)},
-    new Object[] {IntegerPool.get(268), IntegerPool.get(2), ItemPool.get(ItemPool.HOBO_NICKEL, -5)},
+    new Object[] {268, 1, ItemPool.get(ItemPool.HOBO_NICKEL, -5)},
+    new Object[] {268, 2, ItemPool.get(ItemPool.HOBO_NICKEL, -5)},
 
     // Marketplace Entrance
     new ChoiceAdventure(
@@ -1967,9 +1941,7 @@ public abstract class ChoiceManager {
     // Choice 275 is Triangle, Man, a subchoice of Choice 272 when
     // you've already purchased your class instrument
     // Triangle, Man
-    new Object[] {
-      IntegerPool.get(275), IntegerPool.get(1), ItemPool.get(ItemPool.HOBO_NICKEL, -10)
-    },
+    new Object[] {275, 1, ItemPool.get(ItemPool.HOBO_NICKEL, -10)},
 
     // Choices 278-290 are llama lama gong related choices
 
@@ -2060,7 +2032,7 @@ public abstract class ChoiceManager {
         "Burnbarrel Blvd.",
         new Object[] {new Option("jar of squeeze", "jar of squeeze"), "skip adventure"}),
     // A Tight Squeeze - jar of squeeze
-    new Object[] {IntegerPool.get(291), IntegerPool.get(1), ItemPool.get(ItemPool.HOBO_NICKEL, -5)},
+    new Object[] {291, 1, ItemPool.get(ItemPool.HOBO_NICKEL, -5)},
 
     // Cold Comfort
     new ChoiceAdventure(
@@ -2069,7 +2041,7 @@ public abstract class ChoiceManager {
         "Exposure Esplanade",
         new Object[] {new Option("bowl of fishysoisse", "bowl of fishysoisse"), "skip adventure"}),
     // Cold Comfort - bowl of fishysoisse
-    new Object[] {IntegerPool.get(292), IntegerPool.get(1), ItemPool.get(ItemPool.HOBO_NICKEL, -5)},
+    new Object[] {292, 1, ItemPool.get(ItemPool.HOBO_NICKEL, -5)},
 
     // Flowers for You
     new ChoiceAdventure(
@@ -2078,7 +2050,7 @@ public abstract class ChoiceManager {
         "The Ancient Hobo Burial Ground",
         new Object[] {new Option("deadly lampshade", "deadly lampshade"), "skip adventure"}),
     // Flowers for You - deadly lampshade
-    new Object[] {IntegerPool.get(293), IntegerPool.get(1), ItemPool.get(ItemPool.HOBO_NICKEL, -5)},
+    new Object[] {293, 1, ItemPool.get(ItemPool.HOBO_NICKEL, -5)},
 
     // Maybe It's a Sexy Snake!
     new ChoiceAdventure(
@@ -2087,7 +2059,7 @@ public abstract class ChoiceManager {
         "The Purple Light District",
         new Object[] {new Option("lewd playing card", "lewd playing card"), "skip adventure"}),
     // Maybe It's a Sexy Snake! - lewd playing card
-    new Object[] {IntegerPool.get(294), IntegerPool.get(1), ItemPool.get(ItemPool.HOBO_NICKEL, -5)},
+    new Object[] {294, 1, ItemPool.get(ItemPool.HOBO_NICKEL, -5)},
 
     // Juicy!
     new ChoiceAdventure(
@@ -2098,7 +2070,7 @@ public abstract class ChoiceManager {
           new Option("concentrated garbage juice", "concentrated garbage juice"), "skip adventure"
         }),
     // Juicy! - concentrated garbage juice
-    new Object[] {IntegerPool.get(295), IntegerPool.get(1), ItemPool.get(ItemPool.HOBO_NICKEL, -5)},
+    new Object[] {295, 1, ItemPool.get(ItemPool.HOBO_NICKEL, -5)},
 
     // Choice 296 is Pop!
 
@@ -2141,11 +2113,7 @@ public abstract class ChoiceManager {
           new Option("bubbling tempura batter", "bubbling tempura batter"), "skip adventure"
         }),
     // A Vent Horizon
-    new Object[] {
-      IntegerPool.get(304),
-      IntegerPool.get(1),
-      new AdventureLongCountResult(AdventureResult.MP, -200)
-    },
+    new Object[] {304, 1, new AdventureLongCountResult(AdventureResult.MP, -200)},
 
     // There is Sauce at the Bottom of the Ocean
     new ChoiceAdventure(
@@ -2154,9 +2122,7 @@ public abstract class ChoiceManager {
         "The Marinara Trench",
         new Object[] {new Option("globe of Deep Sauce", "globe of Deep Sauce"), "skip adventure"}),
     // There is Sauce at the Bottom of the Ocean
-    new Object[] {
-      IntegerPool.get(305), IntegerPool.get(1), ItemPool.get(ItemPool.MERKIN_PRESSUREGLOBE, -1)
-    },
+    new Object[] {305, 1, ItemPool.get(ItemPool.MERKIN_PRESSUREGLOBE, -1)},
 
     // Choice 306 is [Grandpa Mine Choice]
     // Choice 307 is Ode to the Sea
@@ -2183,18 +2149,10 @@ public abstract class ChoiceManager {
         }),
     // The Economist of Scales
     // This trades 10 dull fish scales in.
-    new Object[] {
-      IntegerPool.get(310), IntegerPool.get(1), ItemPool.get(ItemPool.DULL_FISH_SCALE, -10)
-    },
-    new Object[] {
-      IntegerPool.get(310), IntegerPool.get(2), ItemPool.get(ItemPool.ROUGH_FISH_SCALE, -10)
-    },
-    new Object[] {
-      IntegerPool.get(310), IntegerPool.get(4), ItemPool.get(ItemPool.DULL_FISH_SCALE, 10)
-    },
-    new Object[] {
-      IntegerPool.get(310), IntegerPool.get(5), ItemPool.get(ItemPool.ROUGH_FISH_SCALE, 10)
-    },
+    new Object[] {310, 1, ItemPool.get(ItemPool.DULL_FISH_SCALE, -10)},
+    new Object[] {310, 2, ItemPool.get(ItemPool.ROUGH_FISH_SCALE, -10)},
+    new Object[] {310, 4, ItemPool.get(ItemPool.DULL_FISH_SCALE, 10)},
+    new Object[] {310, 5, ItemPool.get(ItemPool.ROUGH_FISH_SCALE, 10)},
 
     // Heavily Invested in Pun Futures
     new ChoiceAdventure(
@@ -2544,9 +2502,7 @@ public abstract class ChoiceManager {
     // Choice 437 is Flying In Circles
 
     // From Little Acorns...
-    new Object[] {
-      IntegerPool.get(438), IntegerPool.get(1), ItemPool.get(ItemPool.UNDERWORLD_ACORN, -1)
-    },
+    new Object[] {438, 1, ItemPool.get(ItemPool.UNDERWORLD_ACORN, -1)},
 
     // Choice 439 is unknown
     // Choice 440 is Puttin' on the Wax
@@ -2744,11 +2700,9 @@ public abstract class ChoiceManager {
           "skip adventure"
         }),
     // Tree's Last Stand
-    new Object[] {IntegerPool.get(504), IntegerPool.get(1), ItemPool.get(ItemPool.BAR_SKIN, -1)},
-    new Object[] {IntegerPool.get(504), IntegerPool.get(2), ItemPool.get(ItemPool.BAR_SKIN, 1)},
-    new Object[] {
-      IntegerPool.get(504), IntegerPool.get(3), new AdventureResult(AdventureResult.MEAT, -100)
-    },
+    new Object[] {504, 1, ItemPool.get(ItemPool.BAR_SKIN, -1)},
+    new Object[] {504, 2, ItemPool.get(ItemPool.BAR_SKIN, 1)},
+    new Object[] {504, 3, new AdventureResult(AdventureResult.MEAT, -100)},
 
     // Consciousness of a Stream
     new ChoiceSpoiler(
@@ -2767,7 +2721,8 @@ public abstract class ChoiceManager {
         new Object[] {
           "gain a starter item",
           new Option("gain Spooky-Gro fertilizer", "Spooky-Gro fertilizer"),
-          new Option("gain spooky temple map", "spooky temple map")
+          new Option("gain spooky temple map", "spooky temple map"),
+          new Option("gain fake blood", "fake blood")
         }),
 
     // O Lith, Mon
@@ -2776,9 +2731,7 @@ public abstract class ChoiceManager {
         "Spooky Forest",
         new Object[] {"gain Spooky Temple map", "skip adventure", "skip adventure"}),
     // O Lith, Mon
-    new Object[] {
-      IntegerPool.get(507), IntegerPool.get(1), ItemPool.get(ItemPool.TREE_HOLED_COIN, -1)
-    },
+    new Object[] {507, 1, ItemPool.get(ItemPool.TREE_HOLED_COIN, -1)},
 
     // Choice 508 is Pants-Gazing
     // Choice 509 is Of Course!
@@ -2819,9 +2772,7 @@ public abstract class ChoiceManager {
         "Elf Alley",
         new Object[] {new Option("gift-a-pult", "gift-a-pult"), "skip adventure"}),
     // What a Tosser - gift-a-pult
-    new Object[] {
-      IntegerPool.get(519), IntegerPool.get(1), ItemPool.get(ItemPool.HOBO_NICKEL, -50)
-    },
+    new Object[] {519, 1, ItemPool.get(ItemPool.HOBO_NICKEL, -50)},
 
     // Choice 520 is A Show-ho-ho-down
     // Choice 521 is A Wicked Buzz
@@ -3946,9 +3897,7 @@ public abstract class ChoiceManager {
           new Option("photograph of a red nugget", "photograph of a red nugget"), "skip adventure"
         }),
     // Rod Nevada, Vendor
-    new Object[] {
-      IntegerPool.get(873), IntegerPool.get(1), new AdventureResult(AdventureResult.MEAT, -500)
-    },
+    new Object[] {873, 1, new AdventureResult(AdventureResult.MEAT, -500)},
 
     // Welcome To Our ool Table
     new ChoiceAdventure(
@@ -5923,20 +5872,18 @@ public abstract class ChoiceManager {
         new Object[] {
           new Option("drippy candy bar", 1, "drippy candy bar"), new Option("Driplets", 2)
         }),
-    new Object[] {
-      IntegerPool.get(1415), IntegerPool.get(1), new AdventureResult(AdventureResult.MEAT, -10000)
-    },
+    new Object[] {1415, 1, new AdventureResult(AdventureResult.MEAT, -10000)},
 
     // Choice 1427 is The Hidden Junction
     new ChoiceAdventure(
-        "Guano Junction",
+        "BatHole",
         "choiceAdventure1427",
         "The Hidden Junction",
         new Object[] {new Option("fight screambat", 1), new Option("gain ~360 meat", 2)}),
 
     // Choice 1428 is Your Neck of the Woods
     new ChoiceAdventure(
-        "The Dark Neck of the Woods",
+        "Friars",
         "choiceAdventure1428",
         "Your Neck of the Woods",
         new Object[] {
@@ -5946,16 +5893,16 @@ public abstract class ChoiceManager {
 
     // Choice 1429 is No Nook Unknown
     new ChoiceAdventure(
-        "Defiled Nook",
+        "Cyrpt",
         "choiceAdventure1429",
         "No Nook Unknown",
         new Object[] {new Option("acquire 2 evil eyes", 1), new Option("fight party skeleton", 2)}),
 
     // Choice 1430 is Ghostly Memories
     new ChoiceAdventure(
-        "Ghostly Memories",
+        "Highlands",
         "choiceAdventure1430",
-        "A-Boo Peak",
+        "Ghostly Memories",
         new Object[] {
           new Option("the Horror, spooky/cold res recommended", 1),
           new Option("fight oil baron", 2),
@@ -5964,9 +5911,9 @@ public abstract class ChoiceManager {
 
     // Choice 1431 is Here There Be Giants
     new ChoiceAdventure(
-        "Here There Be Giants",
+        "Beanstalk",
         "choiceAdventure1431",
-        "The Castle in the Clouds in the Sky (Top Floor)",
+        "Here There Be Giants",
         new Object[] {
           new Option("complete trash quest, unlock HiTS", 1),
           new Option("fight goth giant, acquire black candles", 2),
@@ -5976,9 +5923,9 @@ public abstract class ChoiceManager {
 
     // Choice 1432 is Mob Maptality
     new ChoiceAdventure(
-        "Mob Maptality",
+        "The Red Zeppelin's Mooring",
         "choiceAdventure1432",
-        "A Mob of Zeppelin Protesters",
+        "Mob Maptality",
         new Object[] {
           new Option("creep protestors (more with sleaze damage/sleaze spell damage)", 1),
           new Option("scare protestors (more with lynyrd gear)", 2),
@@ -5987,9 +5934,9 @@ public abstract class ChoiceManager {
 
     // Choice 1433 is Hippy camp verge of war Sneaky Sneaky
     new ChoiceAdventure(
-        "Sneaky Sneaky",
+        "Island",
         "choiceAdventure1433",
-        "The Hippy Camp (Verge of War)",
+        "Sneaky Sneaky",
         new Object[] {
           new Option("fight a war hippy drill sargent", 1),
           new Option("fight a war hippy space cadet", 2),
@@ -5998,9 +5945,9 @@ public abstract class ChoiceManager {
 
     // Choice 1434 is frat camp verge of war Sneaky Sneaky
     new ChoiceAdventure(
-        "Sneaky Sneaky",
+        "Island",
         "choiceAdventure1434",
-        "The Frat Camp (Verge of War)",
+        "Sneaky Sneaky",
         new Object[] {
           new Option("fight a war pledge/acquire sake bombers", 1),
           new Option("start the war", 2),
@@ -6009,14 +5956,56 @@ public abstract class ChoiceManager {
 
     // Choice 1436 is Billiards Room Options
     new ChoiceAdventure(
-        "Billiards Room Options",
+        "Manor1",
         "choiceAdventure1436",
-        "The Haunted Billiards Room",
+        "Billiards Room Options",
         new Object[] {
           new Option("aquire pool cue", 1),
           new Option("play pool with the ghost", 2),
           new Option("fight a chalkdust wraith", 3)
-        })
+        }),
+
+    // Gift Fabrication Lab
+    new ChoiceAdventure(
+        "Crimbo21",
+        "choiceAdventure1460",
+        "Site Alpha Toy Lab",
+        new Object[] {
+          new Option("fleshy putty", "fleshy putty", "third ear", "festive egg sac"),
+          new Option(
+              "poisonsettia",
+              "poisonsettia",
+              "peppermint-scented socks",
+              "the Crymbich Manuscript"),
+          new Option(
+              "projectile chemistry set",
+              "projectile chemistry set",
+              "depleted Crimbonium football helmet",
+              "synthetic rock"),
+          new Option(
+              "&quot;caramel&quot; orange",
+              "&quot;caramel&quot; orange",
+              "self-repairing earmuffs",
+              "carnivorous potted plant"),
+          new Option(
+              "universal biscuit", "universal biscuit", "yule hatchet", "potato alarm clock"),
+          new Option("lab-grown meat", "lab-grown meat", "golden fleece", "boxed gumball machine"),
+          new Option("cloning kit", "cloning kit", "electric pants", "can of mixed everything"),
+          new Option("return to Site Alpha")
+        }),
+
+    // Hello Knob My Old Friend
+    new ChoiceAdventure(
+        "Crimbo21",
+        "choiceAdventure1461",
+        "Site Alpha Primary Lab",
+        new Object[] {
+          new Option("Increase goo intensity", 1),
+          new Option("Decrease goo intensity", 2),
+          new Option("Trade grey goo ring for gooified matter", 3),
+          new Option("Do nothing", 4),
+          new Option("Grab the cheer core. Just do it!", 5),
+        }),
   };
 
   public static final ChoiceAdventure[] CHOICE_ADVS;
@@ -7138,12 +7127,16 @@ public abstract class ChoiceManager {
                 + coinAction
                 + ", get stats or fight a vampire";
 
-        // gain a starter item, gain Spooky-Gro fertilizer or gain spooky temple map
+        // gain a starter item, gain Spooky-Gro fertilizer, gain spooky temple map or gain fake bood
         int fertilizer = InventoryManager.getCount(ItemPool.SPOOKY_FERTILIZER);
         String mapAction = (haveCoin ? ", gain spooky temple map" : "");
 
         result[2] =
-            "gain a starter item, gain Spooky-Gro fertilizer (" + fertilizer + ")" + mapAction;
+            "gain a starter item, gain Spooky-Gro fertilizer ("
+                + fertilizer
+                + ")"
+                + mapAction
+                + ", gain fake blood";
 
         return result;
 
@@ -7475,9 +7468,11 @@ public abstract class ChoiceManager {
         // The Fast and the Furry-ous
         result = new Object[4];
         result[0] =
-            KoLCharacter.hasEquipped(ItemPool.get(ItemPool.TITANIUM_UMBRELLA, 1))
+            KoLCharacter.hasEquipped(ItemPool.get(ItemPool.TITANIUM_UMBRELLA))
                 ? "open Ground Floor (titanium umbrella equipped)"
-                : "Neckbeard Choice (titanium umbrella not equipped)";
+                : KoLCharacter.hasEquipped(ItemPool.get(ItemPool.UNBREAKABLE_UMBRELLA))
+                    ? "open Ground Floor (unbreakable umbrella equipped)"
+                    : "Neckbeard Choice (titanium/unbreakable umbrella not equipped)";
         result[1] = "200 Moxie substats";
         result[2] = "";
         result[3] = "skip adventure and guarantees this adventure will reoccur";
@@ -7616,7 +7611,7 @@ public abstract class ChoiceManager {
           buffer.setLength(0);
           ChoiceManager.lockSpoiler(buffer);
           buffer.append("-spooky");
-          if (KoLCharacter.getClassType() == KoLCharacter.ACCORDION_THIEF) {
+          if (KoLCharacter.isAccordionThief()) {
             buffer.append(" + intricate music box parts");
           }
           buffer.append(", fewer werewolves");
@@ -7659,10 +7654,7 @@ public abstract class ChoiceManager {
         // Where it's Attic
         result = new Object[6];
         result[0] =
-            "-spooky"
-                + (KoLCharacter.getClassType() == KoLCharacter.ACCORDION_THIEF
-                    ? " + intricate music box parts"
-                    : "");
+            "-spooky" + (KoLCharacter.isAccordionThief() ? " + intricate music box parts" : "");
         result[1] = "fewer werewolves";
         result[2] = "fewer vampires";
         result[3] = "+Moxie";
@@ -8548,13 +8540,13 @@ public abstract class ChoiceManager {
         // Yachtzee
         result = new String[3];
         // Is it 7 or more days since the last time you got the Ultimate Mind Destroyer?
-        Calendar date = Calendar.getInstance(TimeZone.getTimeZone("GMT-0700"));
+        Calendar date = HolidayDatabase.getCalendar();
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
         String lastUMDDateString = Preferences.getString("umdLastObtained");
         if (lastUMDDateString != null && lastUMDDateString != "") {
           try {
             Date lastUMDDate = sdf.parse(lastUMDDateString);
-            Calendar compareDate = Calendar.getInstance(TimeZone.getTimeZone("GMT-0700"));
+            Calendar compareDate = HolidayDatabase.getCalendar();
             compareDate.setTime(lastUMDDate);
             compareDate.add(Calendar.DAY_OF_MONTH, 7);
             if (date.compareTo(compareDate) >= 0) {
@@ -9177,17 +9169,6 @@ public abstract class ChoiceManager {
         ResultProcessor.removeItem(ItemPool.FUNKY_JUNK_KEY);
         break;
 
-      case 866:
-        // Choice 866 is Methinks the Protesters Doth Protest Too Little
-        // If you have a clover, this is a clover adventure.
-        // Otherwise it is a semirare
-        if (InventoryManager.getCount(ItemPool.TEN_LEAF_CLOVER) > 0) {
-          ResultProcessor.removeItem(ItemPool.TEN_LEAF_CLOVER);
-        } else {
-          KoLCharacter.registerSemirare();
-        }
-        break;
-
       case 931:
         // Life Ain't Nothin But Witches and Mummies
         QuestDatabase.setQuestIfBetter(Quest.CITADEL, "step6");
@@ -9381,6 +9362,17 @@ public abstract class ChoiceManager {
           }
           break;
         }
+
+      case 1313: // Bastille Battalion
+      case 1314: // Bastille Battalion (Master of None)
+      case 1315: // Castle vs. Castle
+      case 1316: // GAME OVER
+      case 1317: // A Hello to Arms (Battalion)
+      case 1318: // Defensive Posturing
+      case 1319: // Cheese Seeking Behavior
+        BastilleBattalionManager.preChoice(urlString, request);
+        break;
+
       case 1451:
         // Fire Captain Hagnk
         WildfireCampRequest.parseCaptain(text);
@@ -9505,7 +9497,7 @@ public abstract class ChoiceManager {
         // Chatterboxing
         if (ChoiceManager.lastDecision == 2
             && text.contains("find a valuable trinket that looks promising")) {
-          BanishManager.banishMonster("chatty pirate", "chatterboxing");
+          BanishManager.banishMonster("chatty pirate", BanishManager.Banisher.CHATTERBOXING);
         }
         break;
 
@@ -10026,8 +10018,7 @@ public abstract class ChoiceManager {
         // We need to detect if the choiceadv step was completed OR we got beaten up.
         // If we Flee, nothing changes
         if (ChoiceManager.lastDecision == 1) {
-          if (text.contains("That's all the horror you can take")) // AKA beaten up
-          {
+          if (text.contains("That's all the horror you can take")) { // AKA beaten up
             Preferences.decrement("booPeakProgress", 2, 0);
           } else {
             Preferences.decrement("booPeakProgress", 2 * ChoiceManager.abooPeakLevel, 0);
@@ -10670,7 +10661,7 @@ public abstract class ChoiceManager {
       case 836:
         // Adventures Who Live in Ice Houses...
         if (ChoiceManager.lastDecision == 1) {
-          BanishManager.removeBanishByBanisher("ice house");
+          BanishManager.removeBanishByBanisher(BanishManager.Banisher.ICE_HOUSE);
         }
         break;
 
@@ -10678,7 +10669,7 @@ public abstract class ChoiceManager {
         // Shen Copperhead, Nightclub Owner
         QuestDatabase.setQuestProgress(Quest.SHEN, "step1");
         Preferences.setInteger("shenInitiationDay", KoLCharacter.getCurrentDays());
-        if (Preferences.getString("shenQuestItem") == "") {
+        if (Preferences.getString("shenQuestItem").isEmpty()) {
           // We didn't recognise quest text before accepting quest, so get it from quest log
           RequestThread.postRequest(new QuestLogRequest());
         }
@@ -11349,7 +11340,9 @@ public abstract class ChoiceManager {
         if (text.contains("Also in this room is a ghost")) {
           QuestDatabase.setQuestProgress(Quest.NEMESIS, "step1");
         } else if (text.contains("You acquire")) {
-          ResultProcessor.processItem(KoLCharacter.getClassStarterWeapon(), -1);
+          AscensionClass ascensionClass = KoLCharacter.getAscensionClass();
+          int starterWeaponId = ascensionClass == null ? -1 : ascensionClass.getStarterWeapon();
+          ResultProcessor.processItem(starterWeaponId, -1);
           QuestDatabase.setQuestProgress(Quest.NEMESIS, "step4");
         }
         break;
@@ -11784,6 +11777,7 @@ public abstract class ChoiceManager {
         // Travel to a Recent Fight
         if (ChoiceManager.lastDecision == 1 && !urlString.contains("monid=0")) {
           Preferences.increment("_timeSpinnerMinutesUsed", 3);
+          EncounterManager.ignoreSpecialMonsters();
         }
         break;
 
@@ -12587,6 +12581,16 @@ public abstract class ChoiceManager {
           break;
         }
 
+      case 1313: // Bastille Battalion
+      case 1314: // Bastille Battalion (Master of None)
+      case 1315: // Castle vs. Castle
+      case 1316: // GAME OVER
+      case 1317: // A Hello to Arms (Battalion)
+      case 1318: // Defensive Posturing
+      case 1319: // Cheese Seeking Behavior
+        BastilleBattalionManager.postChoice1(urlString, request);
+        break;
+
       case 1322:
         {
           // The Beginning of the Neverend
@@ -12873,7 +12877,7 @@ public abstract class ChoiceManager {
       case 1340:
         // Is There A Doctor In The House?
         if (ChoiceManager.lastDecision == 1) {
-          if (Preferences.getString("doctorBagQuestItem") == "") {
+          if (Preferences.getString("doctorBagQuestItem").isEmpty()) {
             // We didn't recognise quest text, so get it from quest log
             RequestThread.postRequest(new QuestLogRequest());
           }
@@ -13262,8 +13266,7 @@ public abstract class ChoiceManager {
                 // Increment the number of gold or platinum deliveres STARTED today
                 if (!tier.equals("bronze")) {
                   Preferences.increment(
-                      "_guzzlr" + StringUtilities.toTitleCase(tier) + "Deliveries",
-                      tier == "gold" ? 3 : 1);
+                      "_guzzlr" + StringUtilities.toTitleCase(tier) + "Deliveries", 1);
                 }
 
                 if (boozeMatcher.find()) {
@@ -13271,8 +13274,8 @@ public abstract class ChoiceManager {
                   Preferences.setString("guzzlrQuestBooze", ItemDatabase.getItemName(itemId));
                 }
 
-                if (Preferences.getString("guzzlrQuestBooze") == ""
-                    || Preferences.getString("guzzlrQuestLocation") == "") {
+                if (Preferences.getString("guzzlrQuestBooze").isEmpty()
+                    || Preferences.getString("guzzlrQuestLocation").isEmpty()) {
                   RequestThread.postRequest(new QuestLogRequest());
                 }
 
@@ -13296,6 +13299,14 @@ public abstract class ChoiceManager {
 
       case 1414:
         Preferences.setBoolean("lockPicked", true);
+        break;
+
+      case 1418:
+        // So Cold
+        if (ChoiceManager.lastDecision == 1) {
+          KoLCharacter.findFamiliar(FamiliarPool.MELODRAMEDARY).loseExperience();
+          Preferences.setBoolean("_entauntaunedToday", true);
+        }
         break;
 
       case 1420:
@@ -13365,61 +13376,12 @@ public abstract class ChoiceManager {
           }
           break;
         }
-      case 1445:
-        {
-          // KoL may have unequipped some items based on our selection
-          Matcher partMatcher = Pattern.compile("part=([^&]*)").matcher(urlString);
-          Matcher chosenPartMatcher = Pattern.compile("p=([^&]*)").matcher(urlString);
-          String part = partMatcher.find() ? partMatcher.group(1) : null;
-          int chosenPart =
-              chosenPartMatcher.find() ? StringUtilities.parseInt(chosenPartMatcher.group(1)) : 0;
 
-          if (part != null && !part.equals("cpus") && chosenPart != 0) {
-            // If we have set our "top" to anything other than 2, we now have no familiar
-            if (part.equals("top") && chosenPart != 2) {
-              KoLCharacter.setFamiliar(FamiliarData.NO_FAMILIAR);
-            }
+      case 1445: // Reassembly Station
+      case 1447: // Statbot 5000
+        YouRobotManager.postChoice1(urlString, request);
+        break;
 
-            // If we've set any part of the main body to anything other than 4, we are now missing
-            // an equip
-            if (chosenPart != 4) {
-              int slot = -1;
-
-              switch (part) {
-                case "top":
-                  slot = EquipmentManager.HAT;
-                  break;
-                case "right":
-                  slot = EquipmentManager.OFFHAND;
-                  break;
-                case "bottom":
-                  slot = EquipmentManager.PANTS;
-                  break;
-                case "left":
-                  slot = EquipmentManager.WEAPON;
-                  break;
-              }
-
-              if (slot != -1) {
-                EquipmentManager.setEquipment(slot, EquipmentRequest.UNEQUIP);
-              }
-            }
-          }
-
-          ScrapheapRequest.parseConfiguration(text);
-
-          if (urlString.contains("show=cpus")) {
-            ScrapheapRequest.parseCPUUpgrades(text);
-          }
-
-          KoLCharacter.updateStatus();
-          break;
-        }
-      case 1447:
-        {
-          KoLCharacter.updateStatus();
-          break;
-        }
       case 1448:
         {
           if (text.contains("You acquire an item:")) {
@@ -13489,6 +13451,13 @@ public abstract class ChoiceManager {
         // Cropduster Dusty
         if (ChoiceManager.lastDecision == 1 && text.contains("raindrop.gif")) {
           Preferences.setBoolean("wildfireDusted", true);
+        }
+        break;
+      case 1455:
+        // Cold Medicine Cabinet
+        if (ChoiceManager.lastDecision != 6) {
+          Preferences.increment("_coldMedicineConsults", 1, 5, false);
+          Preferences.setInteger("_nextColdMedicineConsult", KoLCharacter.getTurnsPlayed() + 20);
         }
         break;
     }
@@ -14325,7 +14294,7 @@ public abstract class ChoiceManager {
       case 918:
         // Yachtzee!
         if (text.contains("Ultimate Mind Destroyer")) {
-          Calendar date = Calendar.getInstance(TimeZone.getTimeZone("GMT-0700"));
+          Calendar date = HolidayDatabase.getCalendar();
           SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
           String today = sdf.format(date.getTime());
           Preferences.setString("umdLastObtained", today);
@@ -15134,11 +15103,7 @@ public abstract class ChoiceManager {
             }
           }
           if (ChoiceManager.lastDecision == 7) {
-            TurnCounter.stopCounting("Fortune Cookie");
-            TurnCounter.stopCounting("Semirare window begin");
-            TurnCounter.stopCounting("Semirare window end");
-            TurnCounter.startCounting(0, "Fortune Cookie", "fortune.gif");
-            Preferences.setString("semirareLocation", "");
+            // *** No longer forces a semirare
           }
         }
         break;
@@ -15147,6 +15112,7 @@ public abstract class ChoiceManager {
         // Your Quest is Over
         ChoiceManager.handleAfterAvatar();
         break;
+
       case 1449:
         // If you change the mode with the item equipped, you need to un-equip and re-equip it to
         // get the modifiers
@@ -15165,14 +15131,97 @@ public abstract class ChoiceManager {
       case 1454: // Cropduster Dusty
         WildfireCampRequest.refresh();
         break;
+
+      case 1457: // Food Lab
+        if (ChoiceManager.lastDecision == 1 && text.contains("You acquire an item")) {
+          ResultProcessor.processItem(ItemPool.GOOIFIED_ANIMAL_MATTER, -5);
+        }
+        break;
+
+      case 1458: // Nog Lab
+        if (ChoiceManager.lastDecision == 1 && text.contains("You acquire an item")) {
+          ResultProcessor.processItem(ItemPool.GOOIFIED_VEGETABLE_MATTER, -5);
+        }
+        break;
+
+      case 1459: // Chem Lab
+        if (ChoiceManager.lastDecision == 1 && text.contains("You acquire an item")) {
+          ResultProcessor.processItem(ItemPool.GOOIFIED_MINERAL_MATTER, -5);
+        }
+        break;
+
+      case 1460: // Gift Fabrication Lab
+        if (text.contains("You acquire an item")) {
+          switch (ChoiceManager.lastDecision) {
+            case 1:
+              ResultProcessor.processItem(ItemPool.GOOIFIED_ANIMAL_MATTER, -30);
+              break;
+            case 2:
+              ResultProcessor.processItem(ItemPool.GOOIFIED_VEGETABLE_MATTER, -30);
+              break;
+            case 3:
+              ResultProcessor.processItem(ItemPool.GOOIFIED_MINERAL_MATTER, -30);
+              break;
+            case 4:
+              ResultProcessor.processItem(ItemPool.GOOIFIED_ANIMAL_MATTER, -15);
+              ResultProcessor.processItem(ItemPool.GOOIFIED_VEGETABLE_MATTER, -15);
+              break;
+            case 5:
+              ResultProcessor.processItem(ItemPool.GOOIFIED_VEGETABLE_MATTER, -15);
+              ResultProcessor.processItem(ItemPool.GOOIFIED_MINERAL_MATTER, -15);
+              break;
+            case 6:
+              ResultProcessor.processItem(ItemPool.GOOIFIED_MINERAL_MATTER, -15);
+              ResultProcessor.processItem(ItemPool.GOOIFIED_ANIMAL_MATTER, -15);
+              break;
+            case 7:
+              ResultProcessor.processItem(ItemPool.GOOIFIED_ANIMAL_MATTER, -10);
+              ResultProcessor.processItem(ItemPool.GOOIFIED_VEGETABLE_MATTER, -10);
+              ResultProcessor.processItem(ItemPool.GOOIFIED_MINERAL_MATTER, -10);
+              break;
+            default:
+              break;
+          }
+        }
+        break;
+
+      case 1461: // Site Alpha Primary Lab
+        switch (ChoiceManager.lastDecision) {
+          case 1:
+            Preferences.increment("primaryLabGooIntensity", 1);
+            break;
+          case 2:
+            Preferences.decrement("primaryLabGooIntensity", 1);
+            break;
+          case 3:
+            ResultProcessor.processItem(ItemPool.GREY_GOO_RING, -1);
+            break;
+          case 4:
+            // Do nothing
+            break;
+          case 5:
+            // Grab the Cheer Core
+            Preferences.setBoolean("primaryLabCheerCoreGrabbed", true);
+            break;
+        }
+        break;
+
+      case 1465:
+        // No More Grey You
+        ChoiceManager.handleAfterAvatar();
+        break;
+
+      case 1466: // Configure Your Unbreakable Umbrella
+        UmbrellaRequest.parseUmbrella(urlString, text);
+        break;
     }
+
+    SpadingManager.processChoice(urlString, text);
 
     if (ChoiceManager.handlingChoice) {
       ChoiceManager.visitChoice(request);
       return;
     }
-
-    SpadingManager.processChoice(urlString, text);
 
     if (text.contains("charpane.php")) {
       // Since a charpane refresh was requested, a turn might have been spent
@@ -15511,6 +15560,11 @@ public abstract class ChoiceManager {
         }
         break;
 
+      case 791:
+        // Legend of the Temple in the Hidden City
+        Preferences.setInteger("zigguratLianas", 1);
+        break;
+
       case 798:
         // Hippy Talkin'
         if (text.contains("You should totally keep it!")) {
@@ -15561,12 +15615,8 @@ public abstract class ChoiceManager {
           // Adventures Who Live in Ice Houses...
           Matcher matcher = ChoiceManager.ICEHOUSE_PATTERN.matcher(text);
           if (matcher.find()) {
-            String icehouseMonster = matcher.group(1).toLowerCase();
-            String knownBanishes = Preferences.getString("banishedMonsters");
-            if (!knownBanishes.contains(icehouseMonster)) {
-              // If not already known to be banished, add it
-              BanishManager.banishMonster(icehouseMonster, "ice house");
-            }
+            String icehouseMonster = matcher.group(1);
+            BanishManager.banishMonster(icehouseMonster, BanishManager.Banisher.ICE_HOUSE);
           }
           break;
         }
@@ -15773,6 +15823,11 @@ public abstract class ChoiceManager {
           QuestDatabase.setQuestProgress(Quest.SMOKES, QuestDatabase.UNSTARTED);
           QuestDatabase.setQuestProgress(Quest.OUT_OF_ORDER, QuestDatabase.UNSTARTED);
         }
+        break;
+
+      case 1002:
+        // Legend of the Temple in the Hidden City
+        Preferences.setInteger("zigguratLianas", 1);
         break;
 
       case 1003:
@@ -16353,6 +16408,11 @@ public abstract class ChoiceManager {
           break;
         }
 
+      case 1309:
+        // We will either now, or in the past, have had Favored By Lyle
+        Preferences.setBoolean("_lyleFavored", true);
+        break;
+
       case 1312:
         {
           // Choose a Soundtrack
@@ -16370,23 +16430,15 @@ public abstract class ChoiceManager {
           break;
         }
 
-      case 1313:
-        // Bastille Battalion
-        if (!text.contains("option=5")) {
-          Preferences.setInteger("_bastilleGames", 5);
-        }
+      case 1313: // Bastille Battalion
+      case 1314: // Bastille Battalion (Master of None)
+      case 1315: // Castle vs. Castle
+      case 1316: // GAME OVER
+      case 1317: // A Hello to Arms (Battalion)
+      case 1318: // Defensive Posturing
+      case 1319: // Cheese Seeking Behavior
+        BastilleBattalionManager.visitChoice(request);
         break;
-
-      case 1316:
-        {
-          // GAME OVER
-          Matcher matcher = ChoiceManager.BASTILLE_PATTERN.matcher(text);
-          if (matcher.find()) {
-            Preferences.setInteger(
-                "_bastilleGames", 5 - StringUtilities.parseInt(matcher.group(1)));
-          }
-          break;
-        }
 
       case 1322:
         // The Beginning of the Neverend
@@ -16664,14 +16716,15 @@ public abstract class ChoiceManager {
 
           Preferences.setBoolean(
               "_guzzlrQuestAbandoned",
-              (ChoiceManager.findChoiceDecisionIndex("Abandon Client", text) == "0"));
+              (ChoiceManager.findChoiceDecisionIndex("Abandon Client", text).equals("0")));
 
           break;
         }
 
         // If we have unlocked Gold Tier but cannot accept one, we must have already accepted three.
         boolean unlockedGoldTier = Preferences.getInteger("guzzlrBronzeDeliveries") >= 5;
-        if (unlockedGoldTier && ChoiceManager.findChoiceDecisionIndex("Gold Tier", text) == "0") {
+        if (unlockedGoldTier
+            && ChoiceManager.findChoiceDecisionIndex("Gold Tier", text).equals("0")) {
           Preferences.setInteger("_guzzlrGoldDeliveries", 3);
         }
 
@@ -16679,7 +16732,7 @@ public abstract class ChoiceManager {
         // one.
         boolean unlockedPlatinumTier = Preferences.getInteger("guzzlrGoldDeliveries") >= 5;
         if (unlockedPlatinumTier
-            && ChoiceManager.findChoiceDecisionIndex("Platinum Tier", text) == "0") {
+            && ChoiceManager.findChoiceDecisionIndex("Platinum Tier", text).equals("0")) {
           Preferences.setInteger("_guzzlrPlatinumDeliveries", 1);
         }
 
@@ -16689,18 +16742,12 @@ public abstract class ChoiceManager {
         // Cargo Cultist Shorts
         CargoCultistShortsRequest.parseAvailablePockets(text);
         break;
-      case 1445:
-        ScrapheapRequest.parseConfiguration(text);
 
-        if (request.getURLString().contains("show=cpus")) {
-          ScrapheapRequest.parseCPUUpgrades(text);
-        }
+      case 1445: // Reassembly Station
+      case 1447: // Statbot 5000
+        YouRobotManager.visitChoice(request);
         break;
-      case 1447:
-        {
-          ScrapheapRequest.parseStatbotCost(text);
-          break;
-        }
+
       case 1448:
         {
           String[] stalkStatus = new String[7];
@@ -16726,7 +16773,22 @@ public abstract class ChoiceManager {
 
           Preferences.setString("backupCameraMode", setting);
           Preferences.setBoolean("backupCameraReverserEnabled", text.contains("Disable Reverser"));
+          break;
         }
+      case 1455:
+        CampgroundRequest.setCurrentWorkshedItem(ItemPool.COLD_MEDICINE_CABINET);
+        Matcher consultations = Pattern.compile("You have <b>(\\d)</b> consul").matcher(text);
+        if (consultations.find()) {
+          int remaining = Integer.parseInt(consultations.group(1));
+          Preferences.setInteger("_coldMedicineConsults", 5 - remaining);
+        }
+        break;
+      case 1462:
+        CrystalBallManager.parsePonder(text);
+        break;
+      case 1463:
+        LocketManager.parseMonsters(text);
+        break;
     }
 
     // Do this after special classes (like WumpusManager) have a
@@ -17556,7 +17618,7 @@ public abstract class ChoiceManager {
     return true;
   }
 
-  private static String specialChoiceDecision1(
+  public static String specialChoiceDecision1(
       final int choice, String decision, final int stepCount, final String responseText) {
     // A few choices have non-standard options: 0 is not Manual Control
     switch (choice) {
@@ -17713,24 +17775,30 @@ public abstract class ChoiceManager {
           // The only one that has more than one option is the initial riddle.
           // The option numbers are randomized each time, although the correct
           // answer remains the same.
-          String myClass = KoLCharacter.getClassType();
-          String answer =
-              myClass == KoLCharacter.SEAL_CLUBBER
-                  ? "Boredom."
-                  : myClass == KoLCharacter.TURTLE_TAMER
-                      ? "Friendship."
-                      : myClass == KoLCharacter.PASTAMANCER
-                          ? "Binding pasta thralls."
-                          : myClass == KoLCharacter.SAUCEROR
-                              ? "Power."
-                              : myClass == KoLCharacter.DISCO_BANDIT
-                                  ? "Me. Duh."
-                                  : myClass == KoLCharacter.ACCORDION_THIEF ? "Music." : null;
-
-          // Only standard classes can join the guild, so we
-          // should not fail. But, if we do, cope.
-          if (answer == null) {
-            return "0";
+          final String answer;
+          switch (KoLCharacter.getAscensionClass()) {
+            case SEAL_CLUBBER:
+              answer = "Boredom.";
+              break;
+            case TURTLE_TAMER:
+              answer = "Friendship.";
+              break;
+            case PASTAMANCER:
+              answer = "Binding pasta thralls.";
+              break;
+            case SAUCEROR:
+              answer = "Power.";
+              break;
+            case DISCO_BANDIT:
+              answer = "Me. Duh.";
+              break;
+            case ACCORDION_THIEF:
+              answer = "Music.";
+              break;
+            default:
+              // Only standard classes can join the guild, so we
+              // should not fail. But, if we do, cope.
+              return "0";
           }
 
           // Iterate over the option strings and find the one
@@ -17752,26 +17820,30 @@ public abstract class ChoiceManager {
           return "1";
         }
 
-        String myClass = KoLCharacter.getClassType();
-        String answer =
-            myClass == KoLCharacter.SEAL_CLUBBER
-                ? "Freak the hell out like a wrathful wolverine."
-                : myClass == KoLCharacter.TURTLE_TAMER
-                    ? "Sympathize with an amphibian."
-                    : myClass == KoLCharacter.PASTAMANCER
-                        ? "Entangle the wall with noodles."
-                        : myClass == KoLCharacter.SAUCEROR
-                            ? "Shoot a stream of sauce at the wall."
-                            : myClass == KoLCharacter.DISCO_BANDIT
-                                ? "Focus on your disco state of mind."
-                                : myClass == KoLCharacter.ACCORDION_THIEF
-                                    ? "Bash the wall with your accordion."
-                                    : null;
-
-        // Only standard classes can join the guild, so we
-        // should not fail. But, if we do, cope.
-        if (answer == null) {
-          return "0";
+        final String answer;
+        switch (KoLCharacter.getAscensionClass()) {
+          case SEAL_CLUBBER:
+            answer = "Freak the hell out like a wrathful wolverine.";
+            break;
+          case TURTLE_TAMER:
+            answer = "Sympathize with an amphibian.";
+            break;
+          case PASTAMANCER:
+            answer = "Entangle the wall with noodles.";
+            break;
+          case SAUCEROR:
+            answer = "Shoot a stream of sauce at the wall.";
+            break;
+          case DISCO_BANDIT:
+            answer = "Focus on your disco state of mind.";
+            break;
+          case ACCORDION_THIEF:
+            answer = "Bash the wall with your accordion.";
+            break;
+          default:
+            // Only standard classes can join the guild, so we
+            // should not fail. But, if we do, cope.
+            return "0";
         }
 
         // Iterate over the option strings and find the one
@@ -18751,6 +18823,14 @@ public abstract class ChoiceManager {
       case 1262:
         // What Setting?
         return VillainLairDecorator.Symbology(responseText);
+
+      case 1461:
+        // Hello Knob My Old Friend
+        // If you can "Grab the Cheer Core!", do it.
+        if (responseText.contains("Grab the Cheer Core!")) {
+          return "5";
+        }
+        return decision;
     }
     return decision;
   }
@@ -18816,12 +18896,13 @@ public abstract class ChoiceManager {
       }
 
       Option opt = (Option) obj;
-      AdventureResult item = opt.getItem();
-      if (item == null) {
+      AdventureResult item[] = opt.getItems();
+      if (item.length == 0) {
         continue;
       }
 
-      if (GoalManager.hasGoal(item)) {
+      // Iterate?
+      if (GoalManager.hasGoal(item[0])) {
         return String.valueOf(opt.getDecision(i + 1));
       }
 
@@ -18849,12 +18930,13 @@ public abstract class ChoiceManager {
       }
 
       Option opt = (Option) obj;
-      AdventureResult item = opt.getItem();
+      AdventureResult item[] = opt.getItems();
       if (item == null) {
         continue;
       }
 
-      if (!InventoryManager.hasItem(item)) {
+      // Should iterate
+      if (!InventoryManager.hasItem(item[0])) {
         return String.valueOf(opt.getDecision(i + 1));
       }
     }
@@ -18951,7 +19033,7 @@ public abstract class ChoiceManager {
     return request.responseText;
   }
 
-  private static String choiceDescription(final int choice, final int decision) {
+  public static String choiceDescription(final int choice, final int decision) {
     // If we have spoilers for this choice, use that
     Object[][] spoilers = ChoiceManager.choiceSpoilers(choice, null);
     if (spoilers != null && spoilers.length > 2) {
@@ -19110,6 +19192,15 @@ public abstract class ChoiceManager {
           }
           return true;
 
+        case 1313: // Bastille Battalion
+        case 1314: // Bastille Battalion (Master of None)
+        case 1315: // Castle vs. Castle
+        case 1316: // GAME OVER
+        case 1317: // A Hello to Arms (Battalion)
+        case 1318: // Defensive Posturing
+        case 1319: // Cheese Seeking Behavior
+          return BastilleBattalionManager.registerRequest(urlString);
+
         case 1334: // Boxing Daycare (Lobby)
         case 1335: // Boxing Daycare Spa
         case 1336: // Boxing Daycare
@@ -19144,6 +19235,10 @@ public abstract class ChoiceManager {
           {
             return BeachCombRequest.registerRequest(urlString);
           }
+
+        case 1445: // Reassembly Station
+        case 1447: // Statbot 5000
+          return YouRobotManager.registerRequest(urlString);
       }
 
       if (decision != 0) {
@@ -19521,6 +19616,12 @@ public abstract class ChoiceManager {
       case 1452: // Sprinkler Joe
       case 1453: // Fracker Dan
       case 1454: // Cropduster Dusty
+      case 1455: // Cold Medicine Cabinet
+      case 1457: // Food Lab
+      case 1458: // Booze Lab
+      case 1459: // Chem Lab
+      case 1460: // Toy Lab
+      case 1463: // Reminiscing About Those Monsters You Fought
         return true;
 
       default:

@@ -6,6 +6,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import net.java.dev.spellcast.utilities.DataUtilities;
@@ -31,7 +32,6 @@ import net.sourceforge.kolmafia.combat.MonsterStatusTracker;
 import net.sourceforge.kolmafia.moods.RecoveryManager;
 import net.sourceforge.kolmafia.objectpool.Concoction;
 import net.sourceforge.kolmafia.objectpool.ConcoctionPool;
-import net.sourceforge.kolmafia.objectpool.IntegerPool;
 import net.sourceforge.kolmafia.persistence.AdventureDatabase;
 import net.sourceforge.kolmafia.persistence.ConcoctionDatabase;
 import net.sourceforge.kolmafia.persistence.EffectDatabase;
@@ -56,7 +56,9 @@ import net.sourceforge.kolmafia.request.GenericRequest.ServerCookie;
 import net.sourceforge.kolmafia.request.MonsterManuelRequest;
 import net.sourceforge.kolmafia.request.NPCPurchaseRequest;
 import net.sourceforge.kolmafia.request.PlaceRequest;
+import net.sourceforge.kolmafia.request.ScrapheapRequest;
 import net.sourceforge.kolmafia.request.SpaaaceRequest;
+import net.sourceforge.kolmafia.session.BastilleBattalionManager;
 import net.sourceforge.kolmafia.session.BeachManager;
 import net.sourceforge.kolmafia.session.ChoiceManager;
 import net.sourceforge.kolmafia.session.DadManager;
@@ -89,17 +91,15 @@ public class TestCommand extends AbstractCommand {
 
   private static void dump(final String data) {
     File file = new File(KoLConstants.DATA_LOCATION, "testCommand.html");
-    try {
-      OutputStream o = DataUtilities.getOutputStream(file);
-      BufferedWriter w = new BufferedWriter(new OutputStreamWriter(o));
+    try (OutputStream o = DataUtilities.getOutputStream(file);
+        BufferedWriter w = new BufferedWriter(new OutputStreamWriter(o))) {
       w.write(data);
       w.flush();
-      o.close();
     } catch (Exception e) {
     }
   }
 
-  private static Frame findFrame(final Class type) {
+  private static Frame findFrame(final Class<?> type) {
     for (Frame frame : Frame.getFrames()) {
       if (frame.getClass() == type) {
         return frame;
@@ -129,7 +129,7 @@ public class TestCommand extends AbstractCommand {
       }
 
       byte[] bytes = ByteBufferUtilities.read(file);
-      String string = StringUtilities.getEncodedString(bytes, "UTF-8");
+      String string = new String(bytes, StandardCharsets.UTF_8);
       TestCommand.contents = string;
 
       KoLmafia.updateDisplay(
@@ -152,6 +152,11 @@ public class TestCommand extends AbstractCommand {
       String adventureURL = split[1].trim();
       KoLAdventure adventure = AdventureDatabase.getAdventureByURL(adventureURL);
       RequestLogger.printLine("returned " + adventure);
+      return;
+    }
+
+    if (command.equals("bastille")) {
+      BastilleBattalionManager.saveStyleSets();
       return;
     }
 
@@ -353,26 +358,6 @@ public class TestCommand extends AbstractCommand {
       } else {
         RequestLogger.printLine("You have 1 " + item.getName() + " in inventory.");
       }
-      return;
-    }
-
-    if (command.equals("intcache")) {
-      int cacheHits = IntegerPool.getCacheHits();
-      int cacheMissLows = IntegerPool.getCacheMissLows();
-      int cacheMissHighs = IntegerPool.getCacheMissHighs();
-      int totalAccesses = cacheHits + cacheMissLows + cacheMissHighs;
-
-      float successRate = 0.0f;
-
-      if (totalAccesses != 0) {
-        successRate = (float) cacheHits / (float) totalAccesses * 100.0f;
-      }
-
-      RequestLogger.printLine("cache hits: " + cacheHits);
-      RequestLogger.printLine("cache misses (too low): " + cacheMissLows);
-      RequestLogger.printLine("cache misses (too high): " + cacheMissHighs);
-      RequestLogger.printLine("success rate: " + successRate + " %");
-
       return;
     }
 
@@ -585,6 +570,46 @@ public class TestCommand extends AbstractCommand {
       return;
     }
 
+    if (command.equals("robot")) {
+      if (split.length < 2) {
+        KoLmafia.updateDisplay(MafiaState.ERROR, "Do what as a robot?");
+        return;
+      }
+      if (!KoLCharacter.inRobocore()) {
+        KoLmafia.updateDisplay(MafiaState.ERROR, "You are not a robot.");
+        return;
+      }
+      if (split[1].startsWith("chrono")) {
+        int originalEnergy = KoLCharacter.getYouRobotEnergy();
+        int cost = Preferences.getInteger("_chronolithNextCost");
+        RequestLogger.printLine(
+            "You have "
+                + originalEnergy
+                + " energy and the Chronolith will use "
+                + cost
+                + " to activate.");
+        ScrapheapRequest request = new ScrapheapRequest("sh_chronobo");
+        request.run();
+        int currentEnergy = KoLCharacter.getYouRobotEnergy();
+        int currentCost = Preferences.getInteger("_chronolithNextCost");
+        RequestLogger.printLine(
+            "You now have "
+                + currentEnergy
+                + " energy and the Chronolith will use "
+                + cost
+                + " to activate.");
+      }
+      if (split[1].startsWith("power")) {
+        int originalEnergy = KoLCharacter.getYouRobotEnergy();
+        RequestLogger.printLine("You have " + originalEnergy + " energy");
+        ScrapheapRequest request = new ScrapheapRequest("sh_getpower");
+        request.run();
+        int currentEnergy = KoLCharacter.getYouRobotEnergy();
+        RequestLogger.printLine("You now have " + currentEnergy + " energy");
+      }
+      return;
+    }
+
     if (command.equals("row")) {
       if (split.length < 2) {
         KoLmafia.updateDisplay(MafiaState.ERROR, "test row #");
@@ -609,6 +634,22 @@ public class TestCommand extends AbstractCommand {
               + ") "
               + (concoction == null ? "IS NOT" : "is")
               + " a known concoction");
+      return;
+    }
+
+    if (command.equals("skill")) {
+      if (split.length < 3 || !split[1].equals("add") && !split[1].equals("remove")) {
+        KoLmafia.updateDisplay(MafiaState.ERROR, "test skill [add/remove] skillId");
+        return;
+      }
+
+      int skillId = StringUtilities.parseInt(split[2]);
+
+      if (split[1].equals("add")) {
+        KoLCharacter.addAvailableSkill(skillId);
+      } else if (split[1].equals("remove")) {
+        KoLCharacter.removeAvailableSkill(skillId);
+      }
       return;
     }
 
@@ -673,6 +714,51 @@ public class TestCommand extends AbstractCommand {
             KoLCharacter.getAdjustedMoxie(), stat);
         KoLCharacter.updateStatus();
       }
+      return;
+    }
+
+    if (command.equals("toggle")) {
+      if (split.length >= 2) {
+        int index = parameters.indexOf(" ");
+        String thing = parameters.substring(index + 1).trim();
+        boolean old = false;
+        switch (thing) {
+          case "hardcore":
+            old = KoLCharacter.isHardcore();
+            KoLCharacter.setHardcore(!old);
+            break;
+          case "ronin":
+            old = KoLCharacter.inRonin();
+            KoLCharacter.setRonin(!old);
+            break;
+        }
+        RequestLogger.printLine(thing + ": " + old + " -> " + !old);
+      }
+      return;
+    }
+
+    if (command.equals("vintner")) {
+      if (TestCommand.contents != null) {
+        ItemDatabase.parseVampireVintnerWine(TestCommand.contents);
+        TestCommand.contents = null;
+      } else {
+        ItemDatabase.parseVampireVintnerWine();
+      }
+
+      String name = Preferences.getString("vintnerWineName");
+      String effect = Preferences.getString("vintnerWineEffect");
+      int level = Preferences.getInteger("vintnerWineLevel");
+      String type = Preferences.getString("vintnerWineType");
+
+      if (level > 0) {
+        RequestLogger.printLine(name + " is a level " + level + " " + type + " wine.");
+        RequestLogger.printLine("It grants 12 turns of the '" + effect + "' effect:");
+        RequestLogger.printLine(
+            Modifiers.getStringModifier("Effect", effect, "Evaluated Modifiers"));
+      } else {
+        RequestLogger.printLine("You currently have no access to a 1950 Vampire Vintner wine");
+      }
+
       return;
     }
 
@@ -780,6 +866,7 @@ public class TestCommand extends AbstractCommand {
     if (command.equals("beach")) {
       BeachManager.parseBeachMap(TestCommand.contents);
       TestCommand.contents = null;
+      return;
     }
 
     if (command.equals("charpane")) {

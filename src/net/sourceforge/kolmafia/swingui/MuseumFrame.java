@@ -3,6 +3,7 @@ package net.sourceforge.kolmafia.swingui;
 import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.util.ArrayList;
 import java.util.List;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
@@ -22,7 +23,6 @@ import net.sourceforge.kolmafia.swingui.panel.OverlapPanel;
 import net.sourceforge.kolmafia.swingui.panel.ScrollableFilteredPanel;
 import net.sourceforge.kolmafia.swingui.panel.ScrollablePanel;
 import net.sourceforge.kolmafia.swingui.widget.ShowDescriptionList;
-import net.sourceforge.kolmafia.utilities.AdventureResultArray;
 import net.sourceforge.kolmafia.utilities.InputFieldUtilities;
 
 public class MuseumFrame extends GenericFrame {
@@ -50,7 +50,7 @@ public class MuseumFrame extends GenericFrame {
 
   private class DisplayCaseMatchPanel extends OverlapPanel {
     public DisplayCaseMatchPanel() {
-      super("display", "help", (SortedListModel) KoLConstants.collection, true);
+      super("display", "help", (SortedListModel<AdventureResult>) KoLConstants.collection, true);
     }
 
     @Override
@@ -60,7 +60,7 @@ public class MuseumFrame extends GenericFrame {
       AdventureResult[] display = new AdventureResult[KoLConstants.collection.size()];
       KoLConstants.collection.toArray(display);
 
-      AdventureResultArray items = new AdventureResultArray();
+      List<AdventureResult> items = new ArrayList<>();
 
       for (int i = 0; i < display.length; ++i) {
         AdventureResult item = display[i];
@@ -74,7 +74,8 @@ public class MuseumFrame extends GenericFrame {
         return;
       }
 
-      RequestThread.postRequest(new DisplayCaseRequest(items.toArray(), true));
+      RequestThread.postRequest(
+          new DisplayCaseRequest(items.toArray(new AdventureResult[0]), true));
     }
 
     @Override
@@ -89,7 +90,8 @@ public class MuseumFrame extends GenericFrame {
    * items from the display.
    */
   private class AddRemovePanel extends JPanel {
-    private final ScrollablePanel inventoryPanel, displayPanel;
+    private final ScrollablePanel<ShowDescriptionList<AdventureResult>> inventoryPanel,
+        displayPanel;
 
     public AddRemovePanel() {
       this.setLayout(new GridLayout(2, 1, 10, 10));
@@ -128,16 +130,16 @@ public class MuseumFrame extends GenericFrame {
       return selection;
     }
 
-    private class OutsideDisplayPanel extends ScrollableFilteredPanel {
-      private final ShowDescriptionList elementList;
+    private class OutsideDisplayPanel extends ScrollableFilteredPanel<AdventureResult> {
+      private final ShowDescriptionList<AdventureResult> elementList;
 
       public OutsideDisplayPanel() {
         super(
             "Inventory",
             "add all",
             "add some",
-            new ShowDescriptionList((SortedListModel) KoLConstants.inventory));
-        this.elementList = (ShowDescriptionList) this.scrollComponent;
+            new ShowDescriptionList<>((SortedListModel<AdventureResult>) KoLConstants.inventory));
+        this.elementList = this.scrollComponent;
       }
 
       private void move(final boolean moveAll) {
@@ -158,16 +160,16 @@ public class MuseumFrame extends GenericFrame {
       }
     }
 
-    private class InsideDisplayPanel extends ScrollableFilteredPanel {
-      private final ShowDescriptionList elementList;
+    private class InsideDisplayPanel extends ScrollableFilteredPanel<AdventureResult> {
+      private final ShowDescriptionList<AdventureResult> elementList;
 
       public InsideDisplayPanel() {
         super(
             "Display Case",
             "take all",
             "take some",
-            new ShowDescriptionList((SortedListModel) KoLConstants.collection));
-        this.elementList = (ShowDescriptionList) this.scrollComponent;
+            new ShowDescriptionList<>((SortedListModel<AdventureResult>) KoLConstants.collection));
+        this.elementList = this.scrollComponent;
       }
 
       private void move(final boolean moveAll) {
@@ -196,7 +198,8 @@ public class MuseumFrame extends GenericFrame {
 
     @Override
     public PanelListCell constructPanelListCell(final Object value, final int index) {
-      MuseumShelfPanel toConstruct = new MuseumShelfPanel(index, (SortedListModel) value);
+      MuseumShelfPanel toConstruct =
+          new MuseumShelfPanel(index, (SortedListModel<AdventureResult>) value);
       return toConstruct;
     }
 
@@ -206,34 +209,35 @@ public class MuseumFrame extends GenericFrame {
     }
   }
 
-  public class MuseumShelfPanel extends ScrollablePanel implements PanelListCell {
+  public class MuseumShelfPanel extends ScrollablePanel<ShowDescriptionList<AdventureResult>>
+      implements PanelListCell {
     private final int index;
     private final ShowDescriptionList<AdventureResult> elementList;
 
-    public MuseumShelfPanel(final int index, final SortedListModel value) {
+    public MuseumShelfPanel(final int index, final SortedListModel<AdventureResult> value) {
       super(
           DisplayCaseManager.getHeader(index),
           "move",
           "remove",
-          new ShowDescriptionList(value),
+          new ShowDescriptionList<>(value),
           false);
 
       this.index = index;
-      this.elementList = (ShowDescriptionList) this.scrollComponent;
+      this.elementList = this.scrollComponent;
     }
 
     @Override
     public void actionConfirmed() {
-      List<String> headers = DisplayCaseManager.getHeaders();
+      String[] headerArray = DisplayCaseManager.getHeaders().toArray(new String[0]);
 
-      String selectedValue = InputFieldUtilities.input("Moving to this shelf...", headers);
+      String selectedValue = InputFieldUtilities.input("Moving to this shelf...", headerArray);
 
       if (selectedValue == null) {
         return;
       }
 
-      for (int i = 0; i < headers.size(); ++i) {
-        if (selectedValue.equals(headers.get(i))) {
+      for (int i = 0; i < headerArray.length; ++i) {
+        if (selectedValue.equals(headerArray[i])) {
           DisplayCaseManager.move(this.elementList.getSelectedValuesList(), this.index, i);
           break;
         }
@@ -247,12 +251,16 @@ public class MuseumFrame extends GenericFrame {
       RequestThread.postRequest(new DisplayCaseRequest());
     }
 
+    @Override
     public void updateDisplay(final PanelList list, final Object value, final int index) {}
   }
 
-  public class OrderingPanel extends ItemListManagePanel {
+  public class OrderingPanel extends ItemListManagePanel<String> {
+    @SuppressWarnings("unchecked")
+    // LockableListModel (the type of getHeaders())'s clone() method still claims to return an
+    // Object, but we know its internal list has the same elements, so their types definitely match
     public OrderingPanel() {
-      super(new LockableListModel<String>(DisplayCaseManager.getHeaders()));
+      super((LockableListModel<String>) DisplayCaseManager.getHeaders().clone());
 
       this.setButtons(
           false,
@@ -264,13 +272,14 @@ public class MuseumFrame extends GenericFrame {
     }
 
     private class MoveUpListener implements ActionListener {
+      @Override
       public void actionPerformed(final ActionEvent e) {
         int selectedIndex = OrderingPanel.this.getElementList().getSelectedIndex();
         if (selectedIndex < 1) {
           return;
         }
 
-        Object removed = OrderingPanel.this.elementModel.remove(selectedIndex);
+        String removed = OrderingPanel.this.elementModel.remove(selectedIndex);
         OrderingPanel.this.elementModel.add(selectedIndex - 1, removed);
         OrderingPanel.this.getElementList().setSelectedIndex(selectedIndex - 1);
       }
@@ -282,13 +291,14 @@ public class MuseumFrame extends GenericFrame {
     }
 
     private class MoveDownListener implements ActionListener {
+      @Override
       public void actionPerformed(final ActionEvent e) {
         int selectedIndex = OrderingPanel.this.getElementList().getSelectedIndex();
         if (selectedIndex < 0 || selectedIndex == OrderingPanel.this.elementModel.size() - 1) {
           return;
         }
 
-        Object removed = OrderingPanel.this.elementModel.remove(selectedIndex);
+        String removed = OrderingPanel.this.elementModel.remove(selectedIndex);
         OrderingPanel.this.elementModel.add(selectedIndex + 1, removed);
         OrderingPanel.this.getElementList().setSelectedIndex(selectedIndex + 1);
       }

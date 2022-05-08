@@ -3,7 +3,8 @@ package net.sourceforge.kolmafia.objectpool;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
-import net.java.dev.spellcast.utilities.SortedListModel;
+import java.util.Set;
+import java.util.TreeSet;
 import net.sourceforge.kolmafia.AdventureResult;
 import net.sourceforge.kolmafia.KoLCharacter;
 import net.sourceforge.kolmafia.KoLConstants;
@@ -28,6 +29,7 @@ import net.sourceforge.kolmafia.utilities.StringUtilities;
  * actually make the item.
  */
 public class Concoction implements Comparable<Concoction> {
+
   public static final int FOOD_PRIORITY = 1;
   public static final int BOOZE_PRIORITY = 2;
   public static final int SPLEEN_PRIORITY = 3;
@@ -82,6 +84,9 @@ public class Concoction implements Comparable<Concoction> {
   private String effectName;
   private double mainstatGain;
 
+  private static final Set<String> steelOrgans =
+      Set.of("steel margarita", "steel lasagna", "steel-scented air freshener");
+
   public Concoction(
       final AdventureResult concoction,
       final CraftingType mixingMethod,
@@ -123,17 +128,13 @@ public class Concoction implements Comparable<Concoction> {
       this.setEffectName();
     }
 
-    this.ingredients = new ArrayList<AdventureResult>();
+    this.ingredients = new ArrayList<>();
     this.ingredientArray = new AdventureResult[0];
 
     this.price = -1;
     this.property = null;
     this.special = false;
-    this.steelOrgan =
-        this.name != null
-            && (this.name.equals("steel margarita")
-                || this.name.equals("steel lasagna")
-                || this.name.equals("steel-scented air freshener"));
+    this.steelOrgan = steelOrgans.contains(this.name);
 
     this.resetCalculations();
   }
@@ -202,7 +203,7 @@ public class Concoction implements Comparable<Concoction> {
   }
 
   public void setStatGain() {
-    String range = "+0.0";
+    final String range;
     switch (KoLCharacter.mainStat()) {
       case MUSCLE:
         range = ConsumablesDatabase.getMuscleRange(this.name);
@@ -213,13 +214,16 @@ public class Concoction implements Comparable<Concoction> {
       case MOXIE:
         range = ConsumablesDatabase.getMoxieRange(this.name);
         break;
+      default:
+        range = "+0.0";
+        break;
     }
     this.mainstatGain = StringUtilities.parseDouble(range);
   }
 
   public boolean usesIngredient(int itemId) {
-    for (int i = 0; i < this.ingredientArray.length; ++i) {
-      if (this.ingredientArray[i].getItemId() == itemId) {
+    for (AdventureResult adventureResult : this.ingredientArray) {
+      if (adventureResult.getItemId() == itemId) {
         return true;
       }
     }
@@ -319,7 +323,22 @@ public class Concoction implements Comparable<Concoction> {
       return false;
     }
 
-    return this.name.equalsIgnoreCase(other.name);
+    return nameCheckEquals(other);
+  }
+
+  private boolean nameCheckEquals(Concoction other) {
+    boolean names = this.name.equalsIgnoreCase(other.name);
+    boolean id = this.getItemId() == other.getItemId();
+    return names && id;
+  }
+
+  private int nameCheckCompare(Concoction other) {
+    int cname = this.name.compareToIgnoreCase(other.name);
+    if (cname != 0) {
+      return cname;
+    } else {
+      return Integer.compare(this.getItemId(), other.getItemId());
+    }
   }
 
   /*
@@ -383,6 +402,7 @@ public class Concoction implements Comparable<Concoction> {
     zero or positive.
   */
 
+  @Override
   public int compareTo(final Concoction o) {
     // Note that null is not an instance of any class, and
     // e.compareTo(null) should throw a NullPointerException even
@@ -390,15 +410,6 @@ public class Concoction implements Comparable<Concoction> {
 
     if (o == null) {
       throw new NullPointerException();
-    }
-
-    // If the object we are comparing to is not a Concoction, punt
-    // and let it decide on the ordering.
-    //
-    // Given the signature of this method, this shouldn't happen.
-
-    if (!(o instanceof Concoction)) {
-      return -o.compareTo(this);
     }
 
     if (this.name == null) {
@@ -414,18 +425,18 @@ public class Concoction implements Comparable<Concoction> {
     }
 
     if (this.sortOrder == NO_PRIORITY) {
-      return this.name.compareToIgnoreCase(o.name);
+      return nameCheckCompare(o);
     }
 
     // Sort steel organs to the top.
     if (this.steelOrgan) {
-      return o.steelOrgan ? this.name.compareToIgnoreCase(o.name) : -1;
+      return o.steelOrgan ? nameCheckCompare(o) : -1;
     } else if (o.steelOrgan) {
       return 1;
     }
 
     if (Preferences.getBoolean("sortByRoom")) {
-      int limit = 0;
+      int limit;
       boolean thisCantConsume = false;
       boolean oCantConsume = false;
 
@@ -497,7 +508,7 @@ public class Concoction implements Comparable<Concoction> {
       return gain2 > gain1 ? 1 : -1;
     }
 
-    return this.name.compareToIgnoreCase(o.name);
+    return nameCheckCompare(o);
   }
 
   public AdventureResult getItem() {
@@ -582,7 +593,7 @@ public class Concoction implements Comparable<Concoction> {
     for (int j = 0; j < ingredients.length && foundMatch; ++j) {
       foundMatch = false;
       for (int k = 0; k < ingredientTestIds.length && !foundMatch; ++k) {
-        foundMatch |= ingredients[j].getItemId() == ingredientTestIds[k];
+        foundMatch = ingredients[j].getItemId() == ingredientTestIds[k];
         if (foundMatch) {
           ingredientTestIds[k] = -1;
         }
@@ -683,8 +694,7 @@ public class Concoction implements Comparable<Concoction> {
 
     int mult = this.getYield();
     int icount = (overAmount + (mult - 1)) / mult;
-    for (int i = 0; i < this.ingredientArray.length; ++i) {
-      AdventureResult ingredient = this.ingredientArray[i];
+    for (AdventureResult ingredient : this.ingredientArray) {
       Concoction c = ConcoctionPool.get(ingredient);
       if (c == null) {
         continue;
@@ -694,9 +704,9 @@ public class Concoction implements Comparable<Concoction> {
 
     // Recipes that yield multiple units might result in
     // extra product which can be used for other recipes.
-
-    int excess = mult * icount - overAmount;
-    if (excess > 0) {}
+    // Commented out code could start to handle that
+    // int excess = mult * icount - overAmount;
+    // if (excess > 0) {}
   }
 
   public static int getAvailableMeat() {
@@ -765,10 +775,10 @@ public class Concoction implements Comparable<Concoction> {
   public void addIngredient(final AdventureResult ingredient) {
     int itemId = ingredient.getItemId();
     if (itemId >= 0) {
-      SortedListModel<AdventureResult> uses = ConcoctionDatabase.knownUses.get(itemId);
+      Set<AdventureResult> uses = ConcoctionDatabase.knownUses.get(itemId);
       if (uses == null) {
-        uses = new SortedListModel<AdventureResult>();
-        ConcoctionDatabase.knownUses.set(ingredient.getItemId(), uses);
+        uses = new TreeSet<>();
+        ConcoctionDatabase.knownUses.put(ingredient.getItemId(), uses);
       }
 
       uses.add(this.concoction);
@@ -819,7 +829,7 @@ public class Concoction implements Comparable<Concoction> {
     int maxSuccess = this.initial;
     int minFailure = Integer.MAX_VALUE;
     int guess = maxSuccess + 1;
-    ArrayList<Concoction> visited = new ArrayList<Concoction>();
+    ArrayList<Concoction> visited = new ArrayList<>();
 
     if (id == Concoction.debugId) {
       Concoction.debug = true;
@@ -880,11 +890,10 @@ public class Concoction implements Comparable<Concoction> {
       return;
     }
 
-    int id = this.getItemId();
     int maxSuccess = this.initial;
     int minFailure = Integer.MAX_VALUE;
     int guess = maxSuccess + 1;
-    ArrayList<Concoction> visited = new ArrayList<Concoction>();
+    ArrayList<Concoction> visited = new ArrayList<>();
 
     while (true) {
       int res = this.canMake(guess, visited, true);
@@ -1114,7 +1123,7 @@ public class Concoction implements Comparable<Concoction> {
     int advs = ConcoctionDatabase.getAdventureUsage(this.mixingMethod);
     if (minMake > 0 && advs != 0) {
       // Free crafting turns are counted as implicit adventures in this step.
-      Concoction c = null;
+      Concoction c;
       if (this.mixingMethod == CraftingType.SMITH || this.mixingMethod == CraftingType.SSMITH) {
         c =
             (turnFreeOnly
@@ -1175,7 +1184,6 @@ public class Concoction implements Comparable<Concoction> {
                 + this.name
                 + (lastMinMake == minMake ? " not limited" : " limited to " + minMake)
                 + " by terminal extrudes");
-        lastMinMake = minMake;
       }
     }
 
@@ -1185,7 +1193,7 @@ public class Concoction implements Comparable<Concoction> {
             || KoLCharacter.hasEquipped(this.concoction)) {
           return alreadyHave;
         } else {
-          return Math.min(1, minMake);
+          return 1;
         }
       }
 
@@ -1218,8 +1226,8 @@ public class Concoction implements Comparable<Concoction> {
     // levels in the creation tree.
 
     int runningTotal = create;
-    for (int i = 0; i < this.ingredientArray.length; ++i) {
-      Concoction ingredient = ConcoctionPool.get(this.ingredientArray[i]);
+    for (AdventureResult adventureResult : this.ingredientArray) {
+      Concoction ingredient = ConcoctionPool.get(adventureResult);
 
       runningTotal += ingredient.getMeatPasteNeeded(create);
     }
@@ -1266,8 +1274,8 @@ public class Concoction implements Comparable<Concoction> {
 
     // Count adventures from all levels in the creation tree.
 
-    for (int i = 0; i < this.ingredientArray.length; ++i) {
-      Concoction ingredient = ConcoctionPool.get(this.ingredientArray[i]);
+    for (AdventureResult adventureResult : this.ingredientArray) {
+      Concoction ingredient = ConcoctionPool.get(adventureResult);
 
       if (ingredient == null) {
         return 0;

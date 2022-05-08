@@ -1,10 +1,13 @@
 package net.sourceforge.kolmafia.webui;
 
+import static net.sourceforge.kolmafia.KoLConstants.HUMAN_READABLE_FORMAT;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import net.sourceforge.kolmafia.AdventureResult;
+import net.sourceforge.kolmafia.AscensionClass;
 import net.sourceforge.kolmafia.FamiliarData;
 import net.sourceforge.kolmafia.KoLCharacter;
 import net.sourceforge.kolmafia.KoLConstants;
@@ -62,8 +65,7 @@ public class CharPaneDecorator {
     {"birdformRoc", "<span title=\"Talon Slash/Wing Buffet->roc->adventures\">", "/15</span>, "},
   };
 
-  private static final Pattern ROLLOVER_PATTERN =
-      Pattern.compile("rollover = (\\d+).*?rightnow = (\\d+)", Pattern.DOTALL);
+  private CharPaneDecorator() {}
 
   public static final void decorate(final StringBuffer buffer) {
     // If you are playing Spelunky or Batfellow, the charpane is
@@ -117,17 +119,6 @@ public class CharPaneDecorator {
         buffer,
         "</body>",
         "<center><font size=1>[<a href=\"charpane.php\">refresh</a>]</font></center></body>");
-
-    // debug rollover timer
-    if (false) {
-      Matcher matcher = CharPaneDecorator.ROLLOVER_PATTERN.matcher(buffer);
-      if (matcher.find()) {
-        StringUtilities.singleStringReplace(
-            buffer,
-            matcher.group(1),
-            String.valueOf(StringUtilities.parseLong(matcher.group(2)) + 120));
-      }
-    }
   }
 
   private static void decorateStatus(final StringBuffer buffer) {
@@ -648,6 +639,36 @@ public class CharPaneDecorator {
           buffer.append(phylum.equals("") ? "(none)" : phylum);
           return buffer;
         }
+
+      case FamiliarPool.MELODRAMEDARY:
+        {
+          int spit = Preferences.getInteger("camelSpit");
+          buffer.append(spit).append("% charged");
+
+          if (spit < 100) {
+            double spitPerTurn = 10 / 3.0;
+            AdventureResult helmet = ItemPool.get(ItemPool.DROMEDARY_DRINKING_HELMENT, 1);
+            boolean wearingHelmet =
+                EquipmentManager.getEquipment(EquipmentManager.FAMILIAR).equals(helmet);
+
+            if (wearingHelmet) {
+              spitPerTurn += 1;
+            }
+
+            double turnsRemaining = Math.max((100 - spit) / spitPerTurn, 1.0);
+            boolean estimate = wearingHelmet && turnsRemaining > 1;
+
+            buffer
+                .append("<br>(")
+                .append(estimate ? "~" : "")
+                .append(HUMAN_READABLE_FORMAT.format(turnsRemaining))
+                .append(" combat")
+                .append(turnsRemaining > 1 ? "s" : "")
+                .append(")");
+          }
+
+          return buffer;
+        }
     }
 
     if (familiar.hasDrop()) {
@@ -682,7 +703,7 @@ public class CharPaneDecorator {
     }
   }
 
-  private static void decorateEffects(final StringBuffer buffer) {
+  protected static StringBuffer decorateEffects(final StringBuffer buffer) {
     String effectText = CharPaneDecorator.getEffectText(buffer);
     String moodText = CharPaneDecorator.getMoodText();
     int counters = TurnCounter.count();
@@ -690,7 +711,7 @@ public class CharPaneDecorator {
     // If there are no effects on the charpane, no active mood, and
     // no active counters, nothing to do.
     if (effectText == null && moodText == null && counters == 0) {
-      return;
+      return buffer;
     }
 
     // Otherwise, make a buffer to manipulate effect text in
@@ -735,6 +756,8 @@ public class CharPaneDecorator {
       int index = CharPaneDecorator.chooseEffectTableIndex(buffer);
       buffer.insert(index, effects.toString());
     }
+
+    return buffer;
   }
 
   private static int getIntrinsicIndex(final StringBuffer buffer) {
@@ -927,7 +950,7 @@ public class CharPaneDecorator {
     // Insert any effects which are in your maintenance list which
     // have already run out.
 
-    List missingEffects = MoodManager.getMissingEffects();
+    List<AdventureResult> missingEffects = MoodManager.getMissingEffects();
 
     // If the player has at least one effect, then go ahead and add
     // all of their missing effects.
@@ -940,7 +963,7 @@ public class CharPaneDecorator {
       AdventureResult currentEffect;
 
       for (int i = 0; i < missingEffects.size(); ++i) {
-        currentEffect = (AdventureResult) missingEffects.get(i);
+        currentEffect = missingEffects.get(i);
 
         String effectName = currentEffect.getName();
         int effectId = currentEffect.getEffectId();
@@ -1042,13 +1065,14 @@ public class CharPaneDecorator {
           buffer.append("</font></nobr></td>");
         }
 
-        nextAppendIndex = text.indexOf("<td>(", startingIndex) + 5;
+        nextAppendIndex = text.indexOf("<td>(", startingIndex) + 4;
       } else {
-        nextAppendIndex = text.lastIndexOf("(", text.indexOf("</font", startingIndex)) + 1;
+        nextAppendIndex = text.lastIndexOf("(", text.indexOf("</font", startingIndex));
       }
 
       buffer.append(text, lastAppendIndex, nextAppendIndex);
-      lastAppendIndex = nextAppendIndex;
+      buffer.append("<span style='white-space:nowrap;'>(");
+      lastAppendIndex = nextAppendIndex + 1;
 
       String upkeepAction = MoodManager.getDefaultAction("lose_effect", effectName);
 
@@ -1068,7 +1092,7 @@ public class CharPaneDecorator {
       boolean needsCocoa = UneffectRequest.needsCocoa(effectName);
       boolean isTimer = effectName.startsWith("Timer ");
       boolean isCowrruption = effectName.equals("Cowrruption");
-      boolean isCowpuncher = KoLCharacter.getClassType() == KoLCharacter.COWPUNCHER;
+      boolean isCowpuncher = KoLCharacter.getAscensionClass() == AscensionClass.COWPUNCHER;
       int duration = effect.getCount();
       boolean isIntrinsic = duration == Integer.MAX_VALUE;
 
@@ -1140,8 +1164,8 @@ public class CharPaneDecorator {
         buffer.append(">");
       }
 
-      nextAppendIndex = text.indexOf(")", lastAppendIndex) + 1;
-      buffer.append(text, lastAppendIndex, nextAppendIndex - 1);
+      nextAppendIndex = text.indexOf(")", lastAppendIndex);
+      buffer.append(text, lastAppendIndex, nextAppendIndex);
       lastAppendIndex = nextAppendIndex;
 
       if (isShruggable || !removeAction.equals("")) {
@@ -1149,8 +1173,10 @@ public class CharPaneDecorator {
       }
 
       buffer.append(")");
+      lastAppendIndex++;
 
       if (isIntrinsic) {
+        buffer.append("</span>");
         continue;
       }
 
@@ -1179,6 +1205,8 @@ public class CharPaneDecorator {
 
         buffer.append("up.gif\" border=0></a>");
       }
+
+      buffer.append("</span>");
     }
 
     buffer.append(text.substring(lastAppendIndex));
@@ -1281,8 +1309,7 @@ public class CharPaneDecorator {
       buffer.append("</a>)");
       buffer.append(m.group(3));
       buffer.append("</td></tr>");
-    } else // !compact
-    {
+    } else { // !compact
       // Extra <td></td> fixes layout when KoL buff arrows are enabled and doesn't
       // break anything when they are disabled
       buffer.append("<tr><td></td><td>");
@@ -1311,12 +1338,12 @@ public class CharPaneDecorator {
     }
   }
 
-  private static void decorateIntrinsics(final StringBuffer buffer) {
+  protected static StringBuffer decorateIntrinsics(final StringBuffer buffer) {
     String intrinsicsText = CharPaneDecorator.getIntrinsicsText(buffer);
 
     // If there are no intrinsics on the charpane, nothing to do.
     if (intrinsicsText == null || !Preferences.getBoolean("relayAddsUpArrowLinks")) {
-      return;
+      return buffer;
     }
 
     // Otherwise, make a buffer to manipulate intrinsic text in
@@ -1327,6 +1354,8 @@ public class CharPaneDecorator {
 
     // Replace existing effects table with what we generated
     StringUtilities.singleStringReplace(buffer, intrinsicsText, intrinsics.toString());
+
+    return buffer;
   }
 
   public static final void updateFromPreferences() {

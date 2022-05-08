@@ -42,7 +42,9 @@ public class ChatFormatter {
 
   private static final String DEFAULT_TIMESTAMP_COLOR = "#7695B4";
 
-  private static final HashMap chatColors = new HashMap();
+  private static final HashMap<String, String> chatColors = new HashMap<>();
+
+  private ChatFormatter() {}
 
   public static final String formatInternalMessage(final String originalContent) {
     // This is called once for all of the lines that arrive in a single response
@@ -273,7 +275,7 @@ public class ChatFormatter {
 
   public static final String getChatColor(final String sender) {
     if (ChatFormatter.chatColors.containsKey(sender)) {
-      return (String) ChatFormatter.chatColors.get(sender);
+      return ChatFormatter.chatColors.get(sender);
     }
 
     if (sender.startsWith("/")) {
@@ -282,16 +284,16 @@ public class ChatFormatter {
 
     if (sender.equalsIgnoreCase(KoLCharacter.getUserName())
         && ChatFormatter.chatColors.containsKey("chatcolorself")) {
-      return (String) ChatFormatter.chatColors.get("chatcolorself");
+      return ChatFormatter.chatColors.get("chatcolorself");
     }
 
     if (ContactManager.isMailContact(sender.toLowerCase())
         && ChatFormatter.chatColors.containsKey("chatcolorcontacts")) {
-      return (String) ChatFormatter.chatColors.get("chatcolorcontacts");
+      return ChatFormatter.chatColors.get("chatcolorcontacts");
     }
 
     if (ChatFormatter.chatColors.containsKey("chatcolorothers")) {
-      return (String) ChatFormatter.chatColors.get("chatcolorothers");
+      return ChatFormatter.chatColors.get("chatcolorothers");
     }
 
     return "black";
@@ -344,7 +346,7 @@ public class ChatFormatter {
    * like to remove. Note that only one highlight at a time can be removed with this method.
    */
   public static final void removeHighlighting() {
-    List<String> patterns = StyledChatBuffer.searchStrings;
+    String[] patterns = StyledChatBuffer.searchStrings.toArray(new String[0]);
 
     if (patterns.isEmpty()) {
       InputFieldUtilities.alert("No active highlights.");

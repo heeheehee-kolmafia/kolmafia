@@ -6,6 +6,8 @@ import java.util.List;
 import net.sourceforge.kolmafia.KoLConstants;
 
 public class KoLDatabase {
+  private KoLDatabase() {}
+
   private static class ItemCounter implements Comparable<ItemCounter> {
     private final int count;
     private final String name;
@@ -15,6 +17,7 @@ public class KoLDatabase {
       this.count = count;
     }
 
+    @Override
     public int compareTo(final ItemCounter o) {
 
       if (this.count != o.count) {

@@ -5,6 +5,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import net.sourceforge.kolmafia.AdventureResult;
 import net.sourceforge.kolmafia.AdventureResult.AdventureLongCountResult;
+import net.sourceforge.kolmafia.AscensionClass;
 import net.sourceforge.kolmafia.BuffBotHome;
 import net.sourceforge.kolmafia.KoLCharacter;
 import net.sourceforge.kolmafia.KoLConstants;
@@ -152,36 +153,37 @@ public class UseSkillRequest extends GenericRequest implements Comparable<UseSki
 
   public static final BuffTool[] THIEF_TOOLS =
       new BuffTool[] {
-        new BuffTool(ItemPool.TRICKSTER_TRIKITIXA, 15, false, KoLCharacter.ACCORDION_THIEF),
-        new BuffTool(ItemPool.ZOMBIE_ACCORDION, 15, false, KoLCharacter.ACCORDION_THIEF),
-        new BuffTool(ItemPool.ALARM_ACCORDION, 15, false, KoLCharacter.ACCORDION_THIEF),
-        new BuffTool(ItemPool.PEACE_ACCORDION, 14, false, KoLCharacter.ACCORDION_THIEF),
-        new BuffTool(ItemPool.ACCORDIONOID_ROCCA, 13, false, KoLCharacter.ACCORDION_THIEF),
-        new BuffTool(ItemPool.PYGMY_CONCERTINETTE, 12, false, KoLCharacter.ACCORDION_THIEF),
-        new BuffTool(ItemPool.GHOST_ACCORDION, 11, false, KoLCharacter.ACCORDION_THIEF),
-        new BuffTool(ItemPool.SQUEEZEBOX_OF_THE_AGES, 10, false, KoLCharacter.ACCORDION_THIEF),
+        new BuffTool(ItemPool.TRICKSTER_TRIKITIXA, 15, false, AscensionClass.ACCORDION_THIEF),
+        new BuffTool(ItemPool.ZOMBIE_ACCORDION, 15, false, AscensionClass.ACCORDION_THIEF),
+        new BuffTool(ItemPool.ALARM_ACCORDION, 15, false, AscensionClass.ACCORDION_THIEF),
+        new BuffTool(ItemPool.PEACE_ACCORDION, 14, false, AscensionClass.ACCORDION_THIEF),
+        new BuffTool(ItemPool.ACCORDIONOID_ROCCA, 13, false, AscensionClass.ACCORDION_THIEF),
+        new BuffTool(ItemPool.PYGMY_CONCERTINETTE, 12, false, AscensionClass.ACCORDION_THIEF),
+        new BuffTool(ItemPool.GHOST_ACCORDION, 11, false, AscensionClass.ACCORDION_THIEF),
+        new BuffTool(ItemPool.SQUEEZEBOX_OF_THE_AGES, 10, false, AscensionClass.ACCORDION_THIEF),
         new BuffTool(
-            ItemPool.SHAKESPEARES_SISTERS_ACCORDION, 10, false, KoLCharacter.ACCORDION_THIEF),
-        new BuffTool(ItemPool.AUTOCALLIOPE, 10, false, KoLCharacter.ACCORDION_THIEF),
-        new BuffTool(ItemPool.NON_EUCLIDEAN_NON_ACCORDION, 10, false, KoLCharacter.ACCORDION_THIEF),
-        new BuffTool(ItemPool.ACCORDION_OF_JORDION, 9, false, KoLCharacter.ACCORDION_THIEF),
-        new BuffTool(ItemPool.PENTATONIC_ACCORDION, 7, false, KoLCharacter.ACCORDION_THIEF),
-        new BuffTool(ItemPool.BONE_BANDONEON, 6, false, KoLCharacter.ACCORDION_THIEF),
-        new BuffTool(ItemPool.AEROGEL_ACCORDION, 5, false, null),
+            ItemPool.SHAKESPEARES_SISTERS_ACCORDION, 10, false, AscensionClass.ACCORDION_THIEF),
+        new BuffTool(ItemPool.AUTOCALLIOPE, 10, false, AscensionClass.ACCORDION_THIEF),
+        new BuffTool(
+            ItemPool.NON_EUCLIDEAN_NON_ACCORDION, 10, false, AscensionClass.ACCORDION_THIEF),
+        new BuffTool(ItemPool.ACCORDION_OF_JORDION, 9, false, AscensionClass.ACCORDION_THIEF),
+        new BuffTool(ItemPool.PENTATONIC_ACCORDION, 7, false, AscensionClass.ACCORDION_THIEF),
+        new BuffTool(ItemPool.BONE_BANDONEON, 6, false, AscensionClass.ACCORDION_THIEF),
         new BuffTool(ItemPool.ANTIQUE_ACCORDION, 5, true, null),
-        new BuffTool(ItemPool.ACCORD_ION, 5, false, KoLCharacter.ACCORDION_THIEF),
-        new BuffTool(ItemPool.ACCORDION_FILE, 5, false, KoLCharacter.ACCORDION_THIEF),
-        new BuffTool(ItemPool.BAL_MUSETTE_ACCORDION, 5, false, KoLCharacter.ACCORDION_THIEF),
-        new BuffTool(ItemPool.CAJUN_ACCORDION, 5, false, KoLCharacter.ACCORDION_THIEF),
-        new BuffTool(ItemPool.QUIRKY_ACCORDION, 5, false, KoLCharacter.ACCORDION_THIEF),
-        new BuffTool(ItemPool.SKIPPERS_ACCORDION, 5, false, KoLCharacter.ACCORDION_THIEF),
-        new BuffTool(ItemPool.ROCK_N_ROLL_LEGEND, 5, false, KoLCharacter.ACCORDION_THIEF),
-        new BuffTool(ItemPool.GUANCERTINA, 4, false, KoLCharacter.ACCORDION_THIEF),
-        new BuffTool(ItemPool.MAMAS_SQUEEZEBOX, 3, false, KoLCharacter.ACCORDION_THIEF),
-        new BuffTool(ItemPool.BARITONE_ACCORDION, 2, false, KoLCharacter.ACCORDION_THIEF),
-        new BuffTool(ItemPool.CALAVERA_CONCERTINA, 2, false, KoLCharacter.ACCORDION_THIEF),
-        new BuffTool(ItemPool.BEER_BATTERED_ACCORDION, 1, false, KoLCharacter.ACCORDION_THIEF),
-        new BuffTool(ItemPool.STOLEN_ACCORDION, 0, false, KoLCharacter.ACCORDION_THIEF),
+        new BuffTool(ItemPool.AEROGEL_ACCORDION, 5, false, null),
+        new BuffTool(ItemPool.ACCORD_ION, 5, false, AscensionClass.ACCORDION_THIEF),
+        new BuffTool(ItemPool.ACCORDION_FILE, 5, false, AscensionClass.ACCORDION_THIEF),
+        new BuffTool(ItemPool.BAL_MUSETTE_ACCORDION, 5, false, AscensionClass.ACCORDION_THIEF),
+        new BuffTool(ItemPool.CAJUN_ACCORDION, 5, false, AscensionClass.ACCORDION_THIEF),
+        new BuffTool(ItemPool.QUIRKY_ACCORDION, 5, false, AscensionClass.ACCORDION_THIEF),
+        new BuffTool(ItemPool.SKIPPERS_ACCORDION, 5, false, AscensionClass.ACCORDION_THIEF),
+        new BuffTool(ItemPool.ROCK_N_ROLL_LEGEND, 5, false, AscensionClass.ACCORDION_THIEF),
+        new BuffTool(ItemPool.GUANCERTINA, 4, false, AscensionClass.ACCORDION_THIEF),
+        new BuffTool(ItemPool.MAMAS_SQUEEZEBOX, 3, false, AscensionClass.ACCORDION_THIEF),
+        new BuffTool(ItemPool.BARITONE_ACCORDION, 2, false, AscensionClass.ACCORDION_THIEF),
+        new BuffTool(ItemPool.CALAVERA_CONCERTINA, 2, false, AscensionClass.ACCORDION_THIEF),
+        new BuffTool(ItemPool.BEER_BATTERED_ACCORDION, 1, false, AscensionClass.ACCORDION_THIEF),
+        new BuffTool(ItemPool.STOLEN_ACCORDION, 0, false, AscensionClass.ACCORDION_THIEF),
         new BuffTool(ItemPool.PARAFFIN_PSEUDOACCORDION, 0, false, null),
         new BuffTool(ItemPool.TOY_ACCORDION, 0, false, null),
       };
@@ -436,6 +438,7 @@ public class UseSkillRequest extends GenericRequest implements Comparable<UseSki
     this.buffCount = buffCount;
   }
 
+  @Override
   public int compareTo(final UseSkillRequest o) {
     if (!(o instanceof UseSkillRequest)) {
       return -1;
@@ -468,8 +471,7 @@ public class UseSkillRequest extends GenericRequest implements Comparable<UseSki
   public long getMaximumCast() {
     long maximumCast = Long.MAX_VALUE;
 
-    boolean canCastHoboSong =
-        KoLCharacter.getClassType() == KoLCharacter.ACCORDION_THIEF && KoLCharacter.getLevel() > 14;
+    boolean canCastHoboSong = KoLCharacter.isAccordionThief() && KoLCharacter.getLevel() > 14;
 
     if (KoLCharacter.inGLover() && !KoLCharacter.hasGs(this.getSkillName())) {
       return 0;
@@ -709,27 +711,25 @@ public class UseSkillRequest extends GenericRequest implements Comparable<UseSki
         break;
 
       case SkillPool.EGGMAN:
-        boolean haveEgg = KoLConstants.inventory.contains(ItemPool.get(ItemPool.COSMIC_EGG, 1));
+        boolean haveEgg = InventoryManager.getCount(ItemPool.COSMIC_EGG) > 0;
         boolean eggActive = KoLCharacter.getCompanion() == Companion.EGGMAN;
         maximumCast = (haveEgg && !eggActive) ? 1 : 0;
         break;
 
       case SkillPool.RADISH_HORSE:
-        boolean haveVeggie =
-            KoLConstants.inventory.contains(ItemPool.get(ItemPool.COSMIC_VEGETABLE, 1));
+        boolean haveVeggie = InventoryManager.getCount(ItemPool.COSMIC_VEGETABLE) > 0;
         boolean radishActive = KoLCharacter.getCompanion() == Companion.RADISH;
         maximumCast = (haveVeggie && !radishActive) ? 1 : 0;
         break;
 
       case SkillPool.HIPPOTATO:
-        boolean havePotato =
-            KoLConstants.inventory.contains(ItemPool.get(ItemPool.COSMIC_POTATO, 1));
+        boolean havePotato = InventoryManager.getCount(ItemPool.COSMIC_POTATO) > 0;
         boolean hippoActive = KoLCharacter.getCompanion() == Companion.HIPPO;
         maximumCast = (havePotato && !hippoActive) ? 1 : 0;
         break;
 
       case SkillPool.CREAMPUFF:
-        boolean haveCream = KoLConstants.inventory.contains(ItemPool.get(ItemPool.COSMIC_CREAM, 1));
+        boolean haveCream = InventoryManager.getCount(ItemPool.COSMIC_CREAM) > 0;
         boolean creampuffActive = KoLCharacter.getCompanion() == Companion.CREAM;
         maximumCast = (haveCream && !creampuffActive) ? 1 : 0;
         break;
@@ -1003,6 +1003,10 @@ public class UseSkillRequest extends GenericRequest implements Comparable<UseSki
 
       case SkillPool.FEEL_PEACEFUL:
         maximumCast = Math.max(0, 3 - Preferences.getInteger("_feelPeacefulUsed"));
+        break;
+
+      case SkillPool.MEATIFY_MATTER:
+        maximumCast = Preferences.getBoolean("_meatifyMatterUsed") ? 0 : 1;
         break;
     }
 
@@ -1784,7 +1788,8 @@ public class UseSkillRequest extends GenericRequest implements Comparable<UseSki
       for (BuffTool tool : options) {
         // If we have the tool, we are good to go
         if (tool.hasItem(false)
-            && (!tool.isClassLimited() || KoLCharacter.getClassType() == tool.getClassType())) {
+            && (!tool.isClassLimited()
+                || KoLCharacter.getAscensionClass() == tool.getAscensionClass())) {
           // If it is not equipped, get it into inventory
           if (!tool.hasEquipped()) {
             tool.retrieveItem();
@@ -1817,7 +1822,8 @@ public class UseSkillRequest extends GenericRequest implements Comparable<UseSki
 
     for (BuffTool tool : options) {
       if (tool.hasItem(false)
-          && (!tool.isClassLimited() || (KoLCharacter.getClassType() == tool.getClassType()))) {
+          && (!tool.isClassLimited()
+              || (KoLCharacter.getAscensionClass() == tool.getAscensionClass()))) {
         bestTool = tool;
         break;
       }
@@ -2811,14 +2817,17 @@ public class UseSkillRequest extends GenericRequest implements Comparable<UseSki
     final AdventureResult item;
     final int bonusTurns;
     final boolean def;
-    final String classType;
+    final AscensionClass ascensionClass;
 
     public BuffTool(
-        final int itemId, final int bonusTurns, final boolean def, final String classType) {
+        final int itemId,
+        final int bonusTurns,
+        final boolean def,
+        final AscensionClass ascensionClass) {
       this.item = ItemPool.get(itemId, 1);
       this.bonusTurns = bonusTurns;
       this.def = def;
-      this.classType = classType;
+      this.ascensionClass = ascensionClass;
     }
 
     public final AdventureResult getItem() {
@@ -2830,11 +2839,11 @@ public class UseSkillRequest extends GenericRequest implements Comparable<UseSki
     }
 
     public final boolean isClassLimited() {
-      return this.classType != null;
+      return this.ascensionClass != null;
     }
 
-    public final String getClassType() {
-      return this.classType;
+    public final AscensionClass getAscensionClass() {
+      return this.ascensionClass;
     }
 
     public final boolean isDefault() {

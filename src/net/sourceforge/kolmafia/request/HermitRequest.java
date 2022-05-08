@@ -12,7 +12,6 @@ import net.sourceforge.kolmafia.KoLConstants;
 import net.sourceforge.kolmafia.KoLConstants.MafiaState;
 import net.sourceforge.kolmafia.KoLmafia;
 import net.sourceforge.kolmafia.RequestThread;
-import net.sourceforge.kolmafia.objectpool.IntegerPool;
 import net.sourceforge.kolmafia.objectpool.ItemPool;
 import net.sourceforge.kolmafia.persistence.ItemDatabase;
 import net.sourceforge.kolmafia.preferences.Preferences;
@@ -55,8 +54,8 @@ public class HermitRequest extends CoinMasterRequest {
 
   private static final Pattern CLOVER_PATTERN = Pattern.compile("(\\d+) left in stock for today");
 
-  public static final AdventureResult CLOVER = ItemPool.get(ItemPool.TEN_LEAF_CLOVER, 1);
-  public static final String CLOVER_FIELD = "whichitem=" + ItemPool.TEN_LEAF_CLOVER;
+  public static final AdventureResult CLOVER = ItemPool.get(ItemPool.ELEVEN_LEAF_CLOVER, 1);
+  public static final String CLOVER_FIELD = "whichitem=" + ItemPool.ELEVEN_LEAF_CLOVER;
 
   public static final AdventureResult PERMIT = ItemPool.get(ItemPool.HERMIT_PERMIT, 1);
 
@@ -68,7 +67,7 @@ public class HermitRequest extends CoinMasterRequest {
   public static final AdventureResult SUMMON_SCROLL = ItemPool.get(ItemPool.ELITE_SCROLL, 1);
 
   private static boolean checkedForClovers = false;
-  private static final Integer ONE = IntegerPool.get(1);
+  private static final Integer ONE = 1;
 
   /**
    * Constructs a new <code>HermitRequest</code> that simply checks what items the hermit has
@@ -118,11 +117,11 @@ public class HermitRequest extends CoinMasterRequest {
     HermitRequest.registerHermitItem(ItemPool.KETCHUP, PurchaseRequest.MAX_QUANTITY);
     HermitRequest.registerHermitItem(ItemPool.CATSUP, PurchaseRequest.MAX_QUANTITY);
     HermitRequest.registerHermitItem(ItemPool.VOLLEYBALL, PurchaseRequest.MAX_QUANTITY);
-    if (KoLCharacter.getClassType().equals(KoLCharacter.SEAL_CLUBBER)) {
+    if (KoLCharacter.isSealClubber()) {
       HermitRequest.registerHermitItem(ItemPool.ANCIENT_SEAL, PurchaseRequest.MAX_QUANTITY);
     }
 
-    HermitRequest.registerHermitItem(ItemPool.TEN_LEAF_CLOVER, -1);
+    HermitRequest.registerHermitItem(ItemPool.ELEVEN_LEAF_CLOVER, -1);
 
     HermitRequest.resetPurchaseRequests();
   }
@@ -143,9 +142,23 @@ public class HermitRequest extends CoinMasterRequest {
     }
 
     int count = 0;
-    for (int i = 0; i < this.attachments.length; ++i) {
-      AdventureResult attachment = this.attachments[i];
+    for (AdventureResult attachment : this.attachments) {
       count += attachment.getCount();
+    }
+
+    return count;
+  }
+
+  private int cloversNeeded() {
+    if (this.attachments == null) {
+      return 0;
+    }
+
+    int count = 0;
+    for (AdventureResult attachment : this.attachments) {
+      if (attachment.getItemId() == ItemPool.ELEVEN_LEAF_CLOVER) {
+        count += attachment.getCount();
+      }
     }
 
     return count;
@@ -161,6 +174,19 @@ public class HermitRequest extends CoinMasterRequest {
     // If we are simply visiting, we need no worthless items
     if (this.attachments == null) {
       super.run();
+      return;
+    }
+
+    int cloversWanted = this.cloversNeeded();
+    int cloversAvailable = HermitRequest.cloverCount();
+    if (cloversWanted > cloversAvailable) {
+      KoLmafia.updateDisplay(
+          MafiaState.ERROR,
+          "Asking for "
+              + cloversWanted
+              + " 11-leaf clover, but "
+              + cloversAvailable
+              + " left today.");
       return;
     }
 
@@ -347,7 +373,7 @@ public class HermitRequest extends CoinMasterRequest {
 
     int index = KoLConstants.hermitItems.indexOf(CLOVER);
     if (index < 0) {
-      HermitRequest.registerHermitItem(ItemPool.TEN_LEAF_CLOVER, count);
+      HermitRequest.registerHermitItem(ItemPool.ELEVEN_LEAF_CLOVER, count);
     } else {
       AdventureResult old = KoLConstants.hermitItems.get(index);
       int oldCount = old.getCount();
@@ -425,7 +451,7 @@ public class HermitRequest extends CoinMasterRequest {
       AdventureResult clover = KoLConstants.hermitItems.get(index);
       KoLConstants.hermitItems.set(index, HermitRequest.CLOVER.getInstance(clover.getCount() + 1));
     } else {
-      HermitRequest.registerHermitItem(ItemPool.TEN_LEAF_CLOVER, 1);
+      HermitRequest.registerHermitItem(ItemPool.ELEVEN_LEAF_CLOVER, 1);
     }
   }
 

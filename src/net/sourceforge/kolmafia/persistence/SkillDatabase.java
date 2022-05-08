@@ -1,11 +1,11 @@
 package net.sourceforge.kolmafia.persistence;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.util.*;
 import java.util.Map.Entry;
 import net.sourceforge.kolmafia.*;
 import net.sourceforge.kolmafia.objectpool.EffectPool;
-import net.sourceforge.kolmafia.objectpool.IntegerPool;
 import net.sourceforge.kolmafia.objectpool.ItemPool;
 import net.sourceforge.kolmafia.objectpool.SkillPool;
 import net.sourceforge.kolmafia.preferences.Preferences;
@@ -52,7 +52,7 @@ public class SkillDatabase {
   private static final String AVATAR_OF_JARLSBERG = "Avatar of Jarlsberg";
   private static final String AVATAR_OF_SNEAKY_PETE = "Avatar of Sneaky Pete";
   private static final String HEAVY_RAINS = "Heavy Rains";
-  private static final String ED = "Ed";
+  private static final String ED = "Ed the Undying";
   private static final String COWPUNCHER = "Cow Puncher";
   private static final String BEANSLINGER = "Beanslinger";
   private static final String SNAKE_OILER = "Snake Oiler";
@@ -61,6 +61,7 @@ public class SkillDatabase {
   private static final String GELATINOUS_NOOB = "Gelatinous Noob";
   private static final String VAMPYRE = "Vampyre";
   private static final String PLUMBER = "Plumber";
+  private static final String GREY_YOU = "Grey You";
   private static final String[] CATEGORIES =
       new String[] {
         SkillDatabase.UNCATEGORIZED,
@@ -89,6 +90,8 @@ public class SkillDatabase {
         SkillDatabase.GELATINOUS_NOOB, // 23xxx
         SkillDatabase.VAMPYRE, // 24xxx
         SkillDatabase.PLUMBER, // 25xxx
+        "26XXX", // 26xxx
+        SkillDatabase.GREY_YOU, // 27xxx
         // The following are convenience categories, not implied by skill id
         SkillDatabase.GNOME_SKILLS,
         SkillDatabase.BAD_MOON
@@ -101,6 +104,8 @@ public class SkillDatabase {
   static {
     SkillDatabase.reset();
   }
+
+  private SkillDatabase() {}
 
   public static final String skillTypeToTypeName(final int type) {
     return type == PASSIVE
@@ -156,31 +161,25 @@ public class SkillDatabase {
       SkillDatabase.skillsByCategory.put(category, new ArrayList<>());
     }
 
-    BufferedReader reader =
-        FileUtilities.getVersionedReader("classskills.txt", KoLConstants.CLASSSKILLS_VERSION);
-    String[] data;
+    try (BufferedReader reader =
+        FileUtilities.getVersionedReader("classskills.txt", KoLConstants.CLASSSKILLS_VERSION)) {
+      String[] data;
 
-    while ((data = FileUtilities.readData(reader)) != null) {
-      if (data.length < 6) {
-        continue;
+      while ((data = FileUtilities.readData(reader)) != null) {
+        if (data.length < 6) {
+          continue;
+        }
+
+        Integer skillId = Integer.valueOf(data[0]);
+        String name = data[1];
+        String image = data[2];
+        Integer type = Integer.valueOf(data[3]);
+        Long mp = Long.valueOf(data[4]);
+        Integer duration = Integer.valueOf(data[5]);
+        Integer level = (data.length > 6) ? Integer.valueOf(data[6]) : null;
+        SkillDatabase.addSkill(skillId, name, image, type, mp, duration, level);
       }
-
-      Integer skillId = Integer.valueOf(data[0]);
-      String name = data[1];
-      String image = data[2];
-      Integer type = Integer.valueOf(data[3]);
-      Long mp = Long.valueOf(data[4]);
-      Integer duration = Integer.valueOf(data[5]);
-      Integer level = (data.length > 6) ? Integer.valueOf(data[6]) : null;
-      SkillDatabase.addSkill(skillId, name, image, type, mp, duration, level);
-    }
-
-    try {
-      reader.close();
-    } catch (Exception e) {
-      // This should not happen.  Therefore, print
-      // a stack trace for debug purposes.
-
+    } catch (IOException e) {
       StaticEntity.printStackTrace(e);
     }
 
@@ -235,9 +234,12 @@ public class SkillDatabase {
       SkillDatabase.levelById.put(skillId, level);
     }
 
-    String category;
     int categoryId = skillId.intValue() / 1000;
+    if (categoryId >= SkillDatabase.CATEGORIES.length) {
+      return;
+    }
 
+    String category;
     switch (skillId.intValue()) {
       case SkillPool.SMILE_OF_MR_A:
       case SkillPool.SNOWCONE:
@@ -294,26 +296,27 @@ public class SkillDatabase {
     SkillDatabase.skillCategoryById.put(skillId, category);
     SkillDatabase.skillsByCategory.get(category).add(name);
 
-    SkillDatabase.castsById.put(skillId, IntegerPool.get(0));
+    SkillDatabase.castsById.put(skillId, 0);
   }
 
-  public static final List getSkillsByCategory(String category) {
+  public static final List<String> getSkillsByCategory(String category) {
     if (category == null) {
-      return new ArrayList();
+      return new ArrayList<>();
     }
 
-    List categoryMatches = StringUtilities.getMatchingNames(SkillDatabase.CATEGORIES, category);
+    List<String> categoryMatches =
+        StringUtilities.getMatchingNames(SkillDatabase.CATEGORIES, category);
 
     if (categoryMatches.size() != 1) {
-      return new ArrayList();
+      return new ArrayList<>();
     }
 
-    category = (String) categoryMatches.get(0);
+    category = categoryMatches.get(0);
 
-    List skills = SkillDatabase.skillsByCategory.get(category);
+    List<String> skills = SkillDatabase.skillsByCategory.get(category);
 
     if (skills == null) {
-      return new ArrayList();
+      return new ArrayList<>();
     }
 
     return skills;
@@ -326,7 +329,7 @@ public class SkillDatabase {
    * @return The name of the corresponding skill
    */
   public static final String getSkillName(final int skillId) {
-    return SkillDatabase.nameById.get(IntegerPool.get(skillId));
+    return SkillDatabase.nameById.get(skillId);
   }
 
   public static final String getSkillDataName(final String skillName) {
@@ -485,7 +488,7 @@ public class SkillDatabase {
    * @return The level of the corresponding skill
    */
   public static final int getSkillLevel(final int skillId) {
-    Integer level = SkillDatabase.levelById.get(IntegerPool.get(skillId));
+    Integer level = SkillDatabase.levelById.get(skillId);
     return level == null ? -1 : level;
   }
 
@@ -531,61 +534,8 @@ public class SkillDatabase {
   }
 
   public static final int classSkillsBase() {
-    String name = KoLCharacter.getClassType();
-
-    if (name.equals(KoLCharacter.SEAL_CLUBBER)) {
-      return 1000;
-    }
-    if (name.equals(KoLCharacter.TURTLE_TAMER)) {
-      return 2000;
-    }
-    if (name.equals(KoLCharacter.PASTAMANCER)) {
-      return 3000;
-    }
-    if (name.equals(KoLCharacter.SAUCEROR)) {
-      return 4000;
-    }
-    if (name.equals(KoLCharacter.DISCO_BANDIT)) {
-      return 5000;
-    }
-    if (name.equals(KoLCharacter.ACCORDION_THIEF)) {
-      return 6000;
-    }
-    if (name.equals(KoLCharacter.AVATAR_OF_BORIS)) {
-      return 11000;
-    }
-    if (name.equals(KoLCharacter.ZOMBIE_MASTER)) {
-      return 12000;
-    }
-    if (name.equals(KoLCharacter.AVATAR_OF_JARLSBERG)) {
-      return 14000;
-    }
-    if (name.equals(KoLCharacter.AVATAR_OF_SNEAKY_PETE)) {
-      return 15000;
-    }
-    if (name.equals(KoLCharacter.ED)) {
-      return 17000;
-    }
-    if (name.equals(KoLCharacter.COWPUNCHER)) {
-      return 18000;
-    }
-    if (name.equals(KoLCharacter.BEANSLINGER)) {
-      return 19000;
-    }
-    if (name.equals(KoLCharacter.SNAKE_OILER)) {
-      return 20000;
-    }
-    if (name.equals(KoLCharacter.GELATINOUS_NOOB)) {
-      return 23000;
-    }
-    if (name.equals(KoLCharacter.VAMPYRE)) {
-      return 24000;
-    }
-    if (name.equals(KoLCharacter.PLUMBER)) {
-      return 25000;
-    }
-
-    return 0;
+    AscensionClass ascensionClass = KoLCharacter.getAscensionClass();
+    return ascensionClass == null ? 0 : ascensionClass.getSkillBase();
   }
 
   /**
@@ -595,12 +545,12 @@ public class SkillDatabase {
    * @return The type of the corresponding skill
    */
   public static final int getSkillType(final int skillId) {
-    Integer skillType = SkillDatabase.skillTypeById.get(IntegerPool.get(skillId));
+    Integer skillType = SkillDatabase.skillTypeById.get(skillId);
     return skillType == null ? -1 : skillType.intValue();
   }
 
   public static final String getSkillTypeName(final int skillId) {
-    Integer skillType = SkillDatabase.skillTypeById.get(IntegerPool.get(skillId));
+    Integer skillType = SkillDatabase.skillTypeById.get(skillId);
     if (skillType == null) {
       return "unknown";
     }
@@ -609,7 +559,7 @@ public class SkillDatabase {
   }
 
   public static final String getSkillCategory(final int skillId) {
-    String cat = SkillDatabase.skillCategoryById.get(IntegerPool.get(skillId));
+    String cat = SkillDatabase.skillCategoryById.get(skillId);
     return cat == null ? "" : cat;
   }
 
@@ -620,7 +570,7 @@ public class SkillDatabase {
    * @return The type of the corresponding skill
    */
   public static final String getSkillImage(final int skillId) {
-    return SkillDatabase.imageById.get(IntegerPool.get(skillId));
+    return SkillDatabase.imageById.get(skillId);
   }
 
   /**
@@ -634,7 +584,7 @@ public class SkillDatabase {
       return libramSkillMPConsumption();
     }
 
-    String classType = null;
+    AscensionClass classType = null;
     boolean thrallReduced = false;
     boolean isCombat =
         (SkillDatabase.isCombat(skillId) && !SkillDatabase.isNonCombat(skillId))
@@ -643,25 +593,25 @@ public class SkillDatabase {
 
     switch (skillId) {
       case SkillPool.CLOBBER:
-        classType = KoLCharacter.SEAL_CLUBBER;
+        classType = AscensionClass.SEAL_CLUBBER;
         break;
       case SkillPool.TOSS:
-        classType = KoLCharacter.TURTLE_TAMER;
+        classType = AscensionClass.TURTLE_TAMER;
         break;
       case SkillPool.SPAGHETTI_SPEAR:
-        classType = KoLCharacter.PASTAMANCER;
+        classType = AscensionClass.PASTAMANCER;
         break;
       case SkillPool.SALSABALL:
-        classType = KoLCharacter.SAUCEROR;
+        classType = AscensionClass.SAUCEROR;
         break;
       case SkillPool.SUCKERPUNCH:
-        classType = KoLCharacter.DISCO_BANDIT;
+        classType = AscensionClass.DISCO_BANDIT;
         break;
       case SkillPool.SING:
-        classType = KoLCharacter.ACCORDION_THIEF;
+        classType = AscensionClass.ACCORDION_THIEF;
         break;
       case SkillPool.MILD_CURSE:
-        classType = KoLCharacter.ED;
+        classType = AscensionClass.ED;
         break;
 
       case SkillPool.MAGIC_MISSILE:
@@ -698,7 +648,7 @@ public class SkillDatabase {
     }
 
     if (classType != null) {
-      return KoLCharacter.getClassType().equals(classType)
+      return KoLCharacter.getAscensionClass() == classType
           ? 0
           : Math.max(1 + KoLCharacter.getManaCostAdjustment(), 1);
     }
@@ -711,7 +661,7 @@ public class SkillDatabase {
       return 0;
     }
 
-    Long mpConsumption = SkillDatabase.mpConsumptionById.get(IntegerPool.get(skillId));
+    Long mpConsumption = SkillDatabase.mpConsumptionById.get(skillId);
 
     if (mpConsumption == null) {
       return 0;
@@ -917,7 +867,7 @@ public class SkillDatabase {
    * @return The duration of effect the cast gives
    */
   public static final int getEffectDuration(final int skillId) {
-    Integer duration = SkillDatabase.durationById.get(IntegerPool.get(skillId));
+    Integer duration = SkillDatabase.durationById.get(skillId);
     if (duration == null) {
       return 0;
     }
@@ -942,7 +892,7 @@ public class SkillDatabase {
         case SkillPool.WAR_BLESSING:
         case SkillPool.SHE_WHO_WAS_BLESSING:
         case SkillPool.STORM_BLESSING:
-          if (!KoLCharacter.getClassType().equals(KoLCharacter.TURTLE_TAMER)) {
+          if (!KoLCharacter.isTurtleTamer()) {
             return 10;
           }
           break;
@@ -954,7 +904,7 @@ public class SkillDatabase {
         case SkillPool.BIND_PENNE_DREADFUL:
         case SkillPool.BIND_LASAGMBIE:
         case SkillPool.BIND_SPICE_GHOST:
-          if (!KoLCharacter.getClassType().equals(KoLCharacter.PASTAMANCER)) {
+          if (!KoLCharacter.isPastamancer()) {
             return 10;
           }
           break;
@@ -997,7 +947,8 @@ public class SkillDatabase {
       }
 
       if ((tool.hasEquipped() || KoLConstants.inventory.contains(tool.getItem()))
-          && (!tool.isClassLimited() || KoLCharacter.getClassType().equals(tool.getClassType()))) {
+          && (!tool.isClassLimited()
+              || KoLCharacter.getAscensionClass() == tool.getAscensionClass())) {
         inventoryDuration = current;
       }
     }
@@ -1011,7 +962,7 @@ public class SkillDatabase {
    * @return <code>true</code> if the skill is a normal skill
    */
   public static final boolean isNormal(final int skillId) {
-    Integer skillType = SkillDatabase.skillTypeById.get(IntegerPool.get(skillId));
+    Integer skillType = SkillDatabase.skillTypeById.get(skillId);
     if (skillType == null) return false;
     int type = skillType.intValue();
     return type == SUMMON
@@ -1115,7 +1066,7 @@ public class SkillDatabase {
 
   /** Utility method used to determine if the given skill is of the appropriate type. */
   private static boolean isType(final int skillId, final int type) {
-    Integer skillType = SkillDatabase.skillTypeById.get(IntegerPool.get(skillId));
+    Integer skillType = SkillDatabase.skillTypeById.get(skillId);
     return skillType != null && skillType.intValue() == type;
   }
 
@@ -1446,6 +1397,7 @@ public class SkillDatabase {
       case 23: // Gelatinous Noob skills
       case 24: // Vampyre skills
       case 25: // Plumber skills
+      case 27: // Grey Goo skills
         return false;
     }
 
@@ -1583,28 +1535,28 @@ public class SkillDatabase {
   }
 
   public static final void generateSkillList(final StringBuffer buffer, final boolean appendHTML) {
-    ArrayList<String>[] categories = new ArrayList[SkillDatabase.CATEGORIES.length];
+    List<List<String>> categories = new ArrayList<>(SkillDatabase.CATEGORIES.length);
 
     if (SkillDatabase.skillNames.isEmpty()) {
       SkillDatabase.skillNames.addAll(SkillDatabase.skillIdSetByName.keySet());
     }
 
-    for (int i = 0; i < categories.length; ++i) {
-      categories[i] = new ArrayList<>();
-      categories[i].addAll(SkillDatabase.skillsByCategory.get(SkillDatabase.CATEGORIES[i]));
+    for (int i = 0; i < SkillDatabase.CATEGORIES.length; ++i) {
+      categories.add(new ArrayList<>());
+      categories.get(i).addAll(SkillDatabase.skillsByCategory.get(SkillDatabase.CATEGORIES[i]));
 
-      for (int j = 0; j < categories[i].size(); ++j) {
+      for (int j = 0; j < categories.get(i).size(); ++j) {
         if (!KoLConstants.availableSkills.contains(
-            UseSkillRequest.getUnmodifiedInstance(categories[i].get(j)))) {
-          categories[i].remove(j--);
+            UseSkillRequest.getUnmodifiedInstance(categories.get(i).get(j)))) {
+          categories.get(i).remove(j--);
         }
       }
     }
 
     boolean printedList = false;
 
-    for (int i = 0; i < categories.length; ++i) {
-      if (categories[i].isEmpty()) {
+    for (int i = 0; i < categories.size(); ++i) {
+      if (categories.get(i).isEmpty()) {
         continue;
       }
 
@@ -1620,7 +1572,7 @@ public class SkillDatabase {
           buffer,
           appendHTML,
           StringUtilities.toTitleCase(SkillDatabase.CATEGORIES[i]),
-          categories[i]);
+          categories.get(i));
       printedList = true;
     }
   }
@@ -1629,7 +1581,7 @@ public class SkillDatabase {
       final StringBuffer buffer,
       final boolean appendHTML,
       final String listName,
-      final ArrayList<String> list) {
+      final List<String> list) {
     if (list.isEmpty()) {
       return;
     }
@@ -1757,12 +1709,12 @@ public class SkillDatabase {
 
   /** Method that is called when we need to update the number of casts for a given skill. */
   public static void registerCasts(int skillId, int count) {
-    Integer oldCasts = SkillDatabase.castsById.get(IntegerPool.get(skillId));
+    Integer oldCasts = SkillDatabase.castsById.get(skillId);
     if (oldCasts == null) {
-      oldCasts = IntegerPool.get(0);
+      oldCasts = 0;
     }
     int newCasts = oldCasts.intValue() + count;
-    SkillDatabase.castsById.put(IntegerPool.get(skillId), IntegerPool.get(newCasts));
+    SkillDatabase.castsById.put(skillId, newCasts);
   }
 
   public static String skillString(
@@ -1818,10 +1770,6 @@ public class SkillDatabase {
 
     String image = DebugDatabase.parseImage(text);
 
-    // Detach name and image from being substrings
-    skillName = skillName;
-    image = image;
-
     String typeString = DebugDatabase.parseSkillType(text);
     int type =
         typeString.equals("Passive")
@@ -1869,7 +1817,7 @@ public class SkillDatabase {
    * Utility method used to get the number of times a skill has been cast in the current session.
    */
   public static int getCasts(int skillId) {
-    Integer casts = SkillDatabase.castsById.get(IntegerPool.get(skillId));
+    Integer casts = SkillDatabase.castsById.get(skillId);
 
     if (casts == null) {
       return 0;

@@ -16,14 +16,13 @@ import net.sourceforge.kolmafia.preferences.Preferences;
 import net.sourceforge.kolmafia.session.ContactManager;
 import net.sourceforge.kolmafia.session.DisplayCaseManager;
 import net.sourceforge.kolmafia.session.ResultProcessor;
-import net.sourceforge.kolmafia.utilities.AdventureResultArray;
 import net.sourceforge.kolmafia.utilities.StringUtilities;
 
 public abstract class TransferItemRequest extends GenericRequest {
   public static final Pattern ITEMID_PATTERN = Pattern.compile("item[^=&]*\\d*=([-\\d]+)");
 
   public static final Pattern HOWMANY_PATTERN = Pattern.compile("howmany\\d*=(\\d+)");
-  public static final Pattern QTY_PATTERN = Pattern.compile("qty\\d*=([\\d]+)");
+  public static final Pattern QTY_PATTERN = Pattern.compile("qty\\d*=(\\d+)");
   public static final Pattern QUANTITY_PATTERN = Pattern.compile("quantity\\d*=([\\d,]+)");
 
   public static final Pattern RECIPIENT_PATTERN = Pattern.compile("towho=([^=&]+)");
@@ -79,6 +78,11 @@ public abstract class TransferItemRequest extends GenericRequest {
     return false;
   }
 
+  /** Whether to send a request with no meat or items. */
+  public boolean sendEmpty() {
+    return true;
+  }
+
   public abstract String getItemField();
 
   public abstract String getQuantityField();
@@ -114,7 +118,7 @@ public abstract class TransferItemRequest extends GenericRequest {
   }
 
   public ArrayList<TransferItemRequest> generateSubInstances() {
-    ArrayList<TransferItemRequest> subinstances = new ArrayList<TransferItemRequest>();
+    ArrayList<TransferItemRequest> subinstances = new ArrayList<>();
 
     if (KoLmafia.refusesContinue()) {
       return subinstances;
@@ -130,7 +134,7 @@ public abstract class TransferItemRequest extends GenericRequest {
 
     long meatAttachment = 0;
 
-    AdventureResultArray nextAttachments = new AdventureResultArray();
+    List<AdventureResult> nextAttachments = new ArrayList<>();
     int index = 0;
 
     while (index < this.attachments.length) {
@@ -140,6 +144,10 @@ public abstract class TransferItemRequest extends GenericRequest {
         AdventureResult item = this.attachments[index++];
 
         if (item == null) {
+          continue;
+        }
+
+        if (item.getCount() == 0) {
           continue;
         }
 
@@ -181,13 +189,14 @@ public abstract class TransferItemRequest extends GenericRequest {
       // which has the appropriate data to post.
 
       if (!nextAttachments.isEmpty()) {
-        TransferItemRequest subinstance = this.getSubInstance(nextAttachments.toArray());
+        TransferItemRequest subinstance =
+            this.getSubInstance(nextAttachments.toArray(new AdventureResult[0]));
         subinstance.isSubInstance = true;
         subinstances.add(subinstance);
       }
     }
 
-    if (subinstances.size() == 0) {
+    if (subinstances.size() == 0 && (this.sendEmpty() || meatAttachment > 0)) {
       // This can only happen if we are sending no items
       this.isSubInstance = true;
       subinstances.add(this);
@@ -242,7 +251,7 @@ public abstract class TransferItemRequest extends GenericRequest {
 
     for (int i = 1; i <= this.attachments.length; ++i) {
       AdventureResult it = this.attachments[i - 1];
-      if (it != null && it.isItem()) {
+      if (it != null && it.isItem() && it.getCount() > 0) {
         this.attachItem(it, i);
       }
     }
@@ -269,8 +278,7 @@ public abstract class TransferItemRequest extends GenericRequest {
       return;
     }
 
-    for (int i = 0; i < this.attachments.length; ++i) {
-      AdventureResult item = this.attachments[i];
+    for (AdventureResult item : this.attachments) {
       KoLmafia.updateDisplay(MafiaState.ERROR, "Transfer failed for " + item.toString());
     }
 
@@ -282,15 +290,15 @@ public abstract class TransferItemRequest extends GenericRequest {
 
   public abstract boolean parseTransfer();
 
-  public static final boolean hadSendMessageFailure() {
+  public static boolean hadSendMessageFailure() {
     return TransferItemRequest.hadSendMessageFailure;
   }
 
-  public static final boolean willUpdateDisplayOnFailure() {
+  public static boolean willUpdateDisplayOnFailure() {
     return TransferItemRequest.updateDisplayOnFailure;
   }
 
-  public static final void setUpdateDisplayOnFailure(final boolean shouldUpdate) {
+  public static void setUpdateDisplayOnFailure(final boolean shouldUpdate) {
     TransferItemRequest.updateDisplayOnFailure = shouldUpdate;
   }
 
@@ -310,7 +318,7 @@ public abstract class TransferItemRequest extends GenericRequest {
     return false;
   }
 
-  public static final void transferItems(
+  public static void transferItems(
       final String urlString,
       final List<AdventureResult> source,
       final List<AdventureResult> destination,
@@ -324,14 +332,14 @@ public abstract class TransferItemRequest extends GenericRequest {
         defaultQuantity);
   }
 
-  public static final void transferItems(
+  public static void transferItems(
       final String urlString,
       final Pattern itemPattern,
       final Pattern quantityPattern,
       final List<AdventureResult> source,
       final List<AdventureResult> destination,
       final int defaultQuantity) {
-    AdventureResultArray itemList =
+    List<AdventureResult> itemList =
         TransferItemRequest.getItemList(
             urlString, itemPattern, quantityPattern, source, defaultQuantity);
 
@@ -342,13 +350,12 @@ public abstract class TransferItemRequest extends GenericRequest {
     TransferItemRequest.transferItems(itemList, source, destination);
   }
 
-  public static final int transferItems(
-      AdventureResultArray itemList,
+  public static int transferItems(
+      final List<AdventureResult> itemList,
       final List<AdventureResult> source,
       final List<AdventureResult> destination) {
     int count = 0;
-    for (int i = 0; i < itemList.size(); ++i) {
-      AdventureResult item = itemList.get(i);
+    for (AdventureResult item : itemList) {
       count += item.getCount();
       if (source != null) {
         AdventureResult remove = item.getNegation();
@@ -361,7 +368,7 @@ public abstract class TransferItemRequest extends GenericRequest {
 
       if (destination == KoLConstants.collection) {
         if (!KoLConstants.collection.contains(item)) {
-          List shelf = (List) DisplayCaseManager.getShelves().get(0);
+          List<AdventureResult> shelf = DisplayCaseManager.getShelves().get(0);
           if (shelf != null) {
             shelf.add(item);
           }
@@ -378,13 +385,13 @@ public abstract class TransferItemRequest extends GenericRequest {
     return count;
   }
 
-  public static final AdventureResultArray getItemList(
+  public static List<AdventureResult> getItemList(
       final String urlString,
       final Pattern itemPattern,
       final Pattern quantityPattern,
       final List<AdventureResult> source,
       final int defaultQuantity) {
-    AdventureResultArray itemList = new AdventureResultArray();
+    List<AdventureResult> itemList = new ArrayList<>();
 
     Matcher itemMatcher = itemPattern.matcher(urlString);
     Matcher quantityMatcher = quantityPattern == null ? null : quantityPattern.matcher(urlString);
@@ -418,14 +425,14 @@ public abstract class TransferItemRequest extends GenericRequest {
     return itemList;
   }
 
-  public static final AdventureResultArray getItemList(
+  public static List<AdventureResult> getItemList(
       final String urlString,
       final Pattern itemPattern,
       final Pattern quantityPattern,
       final List<AdventureResult> source) {
     // Return only items that are on the source list - no default
 
-    AdventureResultArray itemList = new AdventureResultArray();
+    List<AdventureResult> itemList = new ArrayList<>();
 
     Matcher itemMatcher = itemPattern.matcher(urlString);
     Matcher quantityMatcher = quantityPattern == null ? null : quantityPattern.matcher(urlString);
@@ -462,12 +469,12 @@ public abstract class TransferItemRequest extends GenericRequest {
     return itemList;
   }
 
-  public static final void transferItems(
+  public static void transferItems(
       final String responseText,
       final Pattern itemPattern,
       final List<AdventureResult> source,
       final List<AdventureResult> destination) {
-    AdventureResultArray itemList = TransferItemRequest.getItemList(responseText, itemPattern);
+    List<AdventureResult> itemList = TransferItemRequest.getItemList(responseText, itemPattern);
 
     if (itemList.isEmpty()) {
       return;
@@ -479,7 +486,7 @@ public abstract class TransferItemRequest extends GenericRequest {
   public static final Pattern ITEM_PATTERN1 = Pattern.compile("(.*?) \\((\\d+)\\)");
   public static final Pattern ITEM_PATTERN2 = Pattern.compile("^(\\d+) ([^,]*)");
 
-  public static final AdventureResultArray getItemList(
+  public static List<AdventureResult> getItemList(
       final String responseText, final Pattern itemPattern) {
     return TransferItemRequest.getItemList(
         responseText,
@@ -488,12 +495,12 @@ public abstract class TransferItemRequest extends GenericRequest {
         TransferItemRequest.ITEM_PATTERN2);
   }
 
-  public static final AdventureResultArray getItemList(
+  public static List<AdventureResult> getItemList(
       final String responseText,
       final Pattern outerPattern,
       final Pattern innerPattern1,
       final Pattern innerPattern2) {
-    AdventureResultArray itemList = new AdventureResultArray();
+    List<AdventureResult> itemList = new ArrayList<>();
     Matcher itemMatcher = outerPattern.matcher(responseText);
 
     while (itemMatcher.find()) {
@@ -505,8 +512,7 @@ public abstract class TransferItemRequest extends GenericRequest {
     return itemList;
   }
 
-  public static final void getItemCount(
-      AdventureResultArray list, String text, final Pattern pattern) {
+  public static void getItemCount(List<AdventureResult> list, String text, final Pattern pattern) {
     if (pattern == null) {
       return;
     }
@@ -521,8 +527,7 @@ public abstract class TransferItemRequest extends GenericRequest {
     }
   }
 
-  public static final void getCountItem(
-      AdventureResultArray list, String text, final Pattern pattern) {
+  public static void getCountItem(List<AdventureResult> list, String text, final Pattern pattern) {
     if (pattern == null) {
       return;
     }
@@ -537,7 +542,7 @@ public abstract class TransferItemRequest extends GenericRequest {
     }
   }
 
-  public static final long transferredMeat(final String urlString, final String field) {
+  public static long transferredMeat(final String urlString, final String field) {
     if (field == null) {
       return 0;
     }
@@ -551,7 +556,7 @@ public abstract class TransferItemRequest extends GenericRequest {
     return StringUtilities.parseLong(matcher.group(1));
   }
 
-  public static final boolean registerRequest(
+  public static boolean registerRequest(
       final String command,
       final String urlString,
       final List<AdventureResult> source,
@@ -559,7 +564,7 @@ public abstract class TransferItemRequest extends GenericRequest {
     return TransferItemRequest.registerRequest(command, urlString, source, defaultQuantity, null);
   }
 
-  public static final boolean registerRequest(
+  public static boolean registerRequest(
       final String command,
       final String urlString,
       final List<AdventureResult> source,
@@ -575,7 +580,7 @@ public abstract class TransferItemRequest extends GenericRequest {
         meatField);
   }
 
-  public static final boolean registerRequest(
+  public static boolean registerRequest(
       final String command,
       final String urlString,
       final Pattern itemPattern,
@@ -586,7 +591,7 @@ public abstract class TransferItemRequest extends GenericRequest {
         command, urlString, itemPattern, quantityPattern, source, defaultQuantity, null);
   }
 
-  public static final boolean registerRequest(
+  public static boolean registerRequest(
       final String command,
       final String urlString,
       final Pattern itemPattern,
@@ -596,7 +601,7 @@ public abstract class TransferItemRequest extends GenericRequest {
       final String meatField) {
     Matcher recipientMatcher = TransferItemRequest.RECIPIENT_PATTERN.matcher(urlString);
     boolean recipients = recipientMatcher.find();
-    AdventureResultArray itemList =
+    List<AdventureResult> itemList =
         TransferItemRequest.getItemList(
             urlString, itemPattern, quantityPattern, source, defaultQuantity);
     long meat = TransferItemRequest.transferredMeat(urlString, meatField);
@@ -618,8 +623,7 @@ public abstract class TransferItemRequest extends GenericRequest {
     }
 
     boolean addedItem = false;
-    for (int i = 0; i < itemList.size(); ++i) {
-      AdventureResult item = itemList.get(i);
+    for (AdventureResult item : itemList) {
       String name = item.getName();
       int quantity = item.getCount();
 

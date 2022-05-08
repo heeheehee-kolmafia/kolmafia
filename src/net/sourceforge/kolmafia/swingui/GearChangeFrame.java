@@ -20,7 +20,6 @@ import javax.swing.SwingUtilities;
 import javax.swing.border.EtchedBorder;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
-import net.java.dev.spellcast.utilities.ActionVerifyPanel.HideableVerifiableElement;
 import net.java.dev.spellcast.utilities.LockableListModel;
 import net.java.dev.spellcast.utilities.SortedListModel;
 import net.sourceforge.kolmafia.AdventureResult;
@@ -34,7 +33,6 @@ import net.sourceforge.kolmafia.SpecialOutfit;
 import net.sourceforge.kolmafia.listener.Listener;
 import net.sourceforge.kolmafia.listener.NamedListenerRegistry;
 import net.sourceforge.kolmafia.objectpool.FamiliarPool;
-import net.sourceforge.kolmafia.objectpool.IntegerPool;
 import net.sourceforge.kolmafia.objectpool.ItemPool;
 import net.sourceforge.kolmafia.persistence.EquipmentDatabase;
 import net.sourceforge.kolmafia.persistence.ItemDatabase;
@@ -62,7 +60,7 @@ public class GearChangeFrame extends GenericFrame {
   private JRadioButton[] offhandTypes;
 
   private final EquipmentComboBox[] equipment;
-  private final SortedListModel<AdventureResult>[] equipmentModels;
+  private final List<SortedListModel<AdventureResult>> equipmentModels;
 
   private final SortedListModel<FamiliarData> familiars = new SortedListModel<>();
   private final SortedListModel<FamiliarData> crownFamiliars = new SortedListModel<>();
@@ -83,9 +81,9 @@ public class GearChangeFrame extends GenericFrame {
     super("Gear Changer");
 
     this.equipment = new EquipmentComboBox[EquipmentManager.ALL_SLOTS];
-    this.equipmentModels = new SortedListModel[EquipmentManager.ALL_SLOTS];
+    this.equipmentModels = new ArrayList<>(EquipmentManager.ALL_SLOTS);
 
-    List<AdventureResult>[] lists = EquipmentManager.getEquipmentLists();
+    List<List<AdventureResult>> lists = EquipmentManager.getEquipmentLists();
 
     for (int i = 0; i < this.equipment.length; ++i) {
       LockableListModel<AdventureResult> list;
@@ -105,10 +103,12 @@ public class GearChangeFrame extends GenericFrame {
         case EquipmentManager.BOOTSKIN:
         case EquipmentManager.BOOTSPUR:
         case EquipmentManager.HOLSTER:
-          list = this.equipmentModels[i] = new SortedListModel<>();
+          list = new SortedListModel<>();
+          this.equipmentModels.add((SortedListModel<AdventureResult>) list);
           break;
         default:
-          list = (LockableListModel<AdventureResult>) lists[i];
+          list = (LockableListModel<AdventureResult>) lists.get(i);
+          this.equipmentModels.add(null);
           break;
       }
 
@@ -247,6 +247,13 @@ public class GearChangeFrame extends GenericFrame {
               }
               break;
             }
+          case ItemPool.UNBREAKABLE_UMBRELLA:
+            {
+              newMods.add(
+                  Modifiers.getModifiers(
+                      "UnbreakableUmbrella", Preferences.getString("umbrellaState")));
+              break;
+            }
           case ItemPool.VAMPYRIC_CLOAKE:
             newMods.applyVampyricCloakeModifiers();
         }
@@ -364,7 +371,6 @@ public class GearChangeFrame extends GenericFrame {
       super("change gear", "save as outfit", new Dimension(120, 20), new Dimension(320, 20));
 
       ArrayList<VerifiableElement> rows = new ArrayList<>();
-      VerifiableElement element;
 
       rows.add(new VerifiableElement("Hat:", GearChangeFrame.this.equipment[EquipmentManager.HAT]));
       rows.add(
@@ -801,7 +807,7 @@ public class GearChangeFrame extends GenericFrame {
       return;
     }
 
-    LockableListModel<AdventureResult> model = GearChangeFrame.INSTANCE.equipmentModels[slot];
+    LockableListModel<AdventureResult> model = GearChangeFrame.INSTANCE.equipmentModels.get(slot);
     if (model == null) {
       return;
     }
@@ -827,7 +833,7 @@ public class GearChangeFrame extends GenericFrame {
     }
 
     for (int slot = 0; slot < EquipmentManager.ALL_SLOTS; ++slot) {
-      LockableListModel<AdventureResult> model = GearChangeFrame.INSTANCE.equipmentModels[slot];
+      LockableListModel<AdventureResult> model = GearChangeFrame.INSTANCE.equipmentModels.get(slot);
       if (model != null) {
         model.clear();
       }
@@ -928,6 +934,7 @@ public class GearChangeFrame extends GenericFrame {
       this.update();
     }
 
+    @Override
     public void update() {
       FamiliarData enthronedFamiliar = KoLCharacter.getEnthroned();
       FamiliarData selectedThroneFamiliar = (FamiliarData) this.getSelectedItem();
@@ -944,6 +951,7 @@ public class GearChangeFrame extends GenericFrame {
       this.update();
     }
 
+    @Override
     public void update() {
       FamiliarData bjornedFamiliar = KoLCharacter.getBjorned();
       FamiliarData selectedBjornFamiliar = (FamiliarData) this.getSelectedItem();
@@ -1018,8 +1026,8 @@ public class GearChangeFrame extends GenericFrame {
     }
   }
 
-  private List<AdventureResult>[] populateEquipmentLists() {
-    List<AdventureResult>[] lists = new ArrayList[EquipmentManager.ALL_SLOTS];
+  private List<List<AdventureResult>> populateEquipmentLists() {
+    List<List<AdventureResult>> lists = new ArrayList<>(EquipmentManager.ALL_SLOTS);
 
     // Create all equipment lists
     for (int slot = 0; slot < EquipmentManager.ALL_SLOTS; ++slot) {
@@ -1030,7 +1038,7 @@ public class GearChangeFrame extends GenericFrame {
         items.add(EquipmentRequest.UNEQUIP);
       }
 
-      lists[slot] = items;
+      lists.add(items);
     }
 
     // Certain familiars can carry non-familiar-items
@@ -1045,58 +1053,56 @@ public class GearChangeFrame extends GenericFrame {
       switch (consumption) {
         case KoLConstants.EQUIP_WEAPON:
           if (this.shouldAddItem(item, consumption, EquipmentManager.WEAPON)) {
-            lists[EquipmentManager.WEAPON].add(item);
+            lists.get(EquipmentManager.WEAPON).add(item);
           }
           if (this.shouldAddItem(item, consumption, EquipmentManager.OFFHAND)) {
-            lists[EquipmentManager.OFFHAND].add(item);
+            lists.get(EquipmentManager.OFFHAND).add(item);
           }
           break;
 
         case KoLConstants.EQUIP_ACCESSORY:
           if (this.shouldAddItem(item, consumption, slot)) {
-            lists[EquipmentManager.ACCESSORY1].add(item);
-            lists[EquipmentManager.ACCESSORY2].add(item);
-            lists[EquipmentManager.ACCESSORY3].add(item);
+            lists.get(EquipmentManager.ACCESSORY1).add(item);
+            lists.get(EquipmentManager.ACCESSORY2).add(item);
+            lists.get(EquipmentManager.ACCESSORY3).add(item);
           }
           break;
 
           /*
           case KoLConstants.CONSUME_STICKER:
-            if ( this.shouldAddItem( item, consumption, slot ) )
-            {
-              lists[ EquipmentManager.STICKER1 ].add( item );
-              lists[ EquipmentManager.STICKER2 ].add( item );
-              lists[ EquipmentManager.STICKER3 ].add( item );
+            if (this.shouldAddItem(item, consumption, slot)) {
+              lists.get(EquipmentManager.STICKER1).add(item);
+              lists.get(EquipmentManager.STICKER2).add(item);
+              lists.get(EquipmentManager.STICKER3).add(item);
             }
             break;
 
           case KoLConstants.CONSUME_FOLDER:
-            if ( this.shouldAddItem( item, consumption, slot ) )
-            {
-              lists[ EquipmentManager.FOLDER1 ].add( item );
-              lists[ EquipmentManager.FOLDER2 ].add( item );
-              lists[ EquipmentManager.FOLDER3 ].add( item );
-              lists[ EquipmentManager.FOLDER4 ].add( item );
-              lists[ EquipmentManager.FOLDER5 ].add( item );
+            if (this.shouldAddItem(item, consumption, slot)) {
+              lists.get(EquipmentManager.FOLDER1).add(item);
+              lists.get(EquipmentManager.FOLDER2).add(item);
+              lists.get(EquipmentManager.FOLDER3).add(item);
+              lists.get(EquipmentManager.FOLDER4).add(item);
+              lists.get(EquipmentManager.FOLDER5).add(item);
             }
             break;
           */
 
         default:
           if (this.shouldAddItem(item, consumption, slot)) {
-            lists[slot].add(item);
+            lists.get(slot).add(item);
           }
           break;
       }
 
       if (specialFamiliar && (consumption == specialFamiliarType) && myFamiliar.canEquip(item)) {
-        lists[EquipmentManager.FAMILIAR].add(item);
+        lists.get(EquipmentManager.FAMILIAR).add(item);
       }
     }
 
     // Add current equipment
     for (int slot = 0; slot < EquipmentManager.ALL_SLOTS; ++slot) {
-      List<AdventureResult> items = lists[slot];
+      List<AdventureResult> items = lists.get(slot);
       if (items == null) {
         continue;
       }
@@ -1120,7 +1126,7 @@ public class GearChangeFrame extends GenericFrame {
 
     // Add stealable familiar equipment
     if (myFamiliar != FamiliarData.NO_FAMILIAR) {
-      List<AdventureResult> items = lists[EquipmentManager.FAMILIAR];
+      List<AdventureResult> items = lists.get(EquipmentManager.FAMILIAR);
       for (FamiliarData familiar : KoLCharacter.familiars) {
         if (familiar == myFamiliar) {
           continue;
@@ -1206,8 +1212,9 @@ public class GearChangeFrame extends GenericFrame {
         return this.weaponTypes[1].isSelected();
       case RANGED:
         return this.weaponTypes[2].isSelected();
+      default:
+        return false;
     }
-    return false;
   }
 
   private boolean filterOffhand(final AdventureResult offhand, int consumption) {
@@ -1306,10 +1313,10 @@ public class GearChangeFrame extends GenericFrame {
     currentItems.setSelectedItem(equippedItem);
   }
 
-  private void updateEquipmentModelsInternal(final List<AdventureResult>[] equipmentLists) {
+  private void updateEquipmentModelsInternal(final List<List<AdventureResult>> equipmentLists) {
     // For all the slots that we maintain a custom list, update the model specially
     for (int slot = 0; slot < EquipmentManager.ALL_SLOTS; ++slot) {
-      LockableListModel<AdventureResult> model = equipmentModels[slot];
+      LockableListModel<AdventureResult> model = equipmentModels.get(slot);
       if (model == null) {
         continue;
       }
@@ -1321,9 +1328,9 @@ public class GearChangeFrame extends GenericFrame {
         }
       }
 
-      List<AdventureResult> items = equipmentLists[slot];
+      List<AdventureResult> items = equipmentLists.get(slot);
       AdventureResult selectedItem = this.currentOrSelectedItem(slot);
-      this.updateEquipmentList(model, items, selectedItem);
+      GearChangeFrame.updateEquipmentList(model, items, selectedItem);
       this.equipment[slot].setEnabled(this.isEnabled && !Limitmode.limitSlot(slot));
 
       if (slot == EquipmentManager.WEAPON) {
@@ -1336,7 +1343,7 @@ public class GearChangeFrame extends GenericFrame {
     }
   }
 
-  private void updateEquipmentModels(final List<AdventureResult>[] equipmentLists) {
+  private void updateEquipmentModels(final List<List<AdventureResult>> equipmentLists) {
     if (SwingUtilities.isEventDispatchThread()) {
       updateEquipmentModelsInternal(equipmentLists);
     } else {
@@ -1354,7 +1361,7 @@ public class GearChangeFrame extends GenericFrame {
     }
 
     // Calculate all the AdventureResult lists
-    List<AdventureResult>[] equipmentLists = this.populateEquipmentLists();
+    List<List<AdventureResult>> equipmentLists = this.populateEquipmentLists();
 
     // Update the models in the Swing Thread
     this.updateEquipmentModels(equipmentLists);
@@ -1489,18 +1496,19 @@ public class GearChangeFrame extends GenericFrame {
       this.update();
     }
 
+    @Override
     public void stateChanged(final ChangeEvent e) {
       int maximum = this.availableFakeHands;
       if (maximum == 0) {
-        this.setValue(IntegerPool.get(0));
+        this.setValue(0);
         return;
       }
 
       int desired = InputFieldUtilities.getValue(this, maximum);
       if (desired == maximum + 1) {
-        this.setValue(IntegerPool.get(0));
+        this.setValue(0);
       } else if (desired < 0 || desired > maximum) {
-        this.setValue(IntegerPool.get(maximum));
+        this.setValue(maximum);
       }
     }
 
@@ -1508,11 +1516,12 @@ public class GearChangeFrame extends GenericFrame {
       return this.availableFakeHands;
     }
 
+    @Override
     public void update() {
       int available = EquipmentManager.FAKE_HAND.getCount(KoLConstants.inventory);
       this.currentFakeHands = EquipmentManager.getFakeHands();
       this.availableFakeHands = this.currentFakeHands + available;
-      this.setValue(IntegerPool.get(this.currentFakeHands));
+      this.setValue(this.currentFakeHands);
     }
   }
 
@@ -1531,6 +1540,7 @@ public class GearChangeFrame extends GenericFrame {
       }
     }
 
+    @Override
     public void update() {
       this.setSelected(EquipmentManager.familiarItemLocked());
       this.setEnabled(this.isEnabled());

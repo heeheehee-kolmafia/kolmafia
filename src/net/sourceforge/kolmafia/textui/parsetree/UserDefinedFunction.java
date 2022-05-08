@@ -7,17 +7,21 @@ import java.util.Stack;
 import net.sourceforge.kolmafia.StaticEntity;
 import net.sourceforge.kolmafia.textui.AshRuntime;
 import net.sourceforge.kolmafia.textui.RuntimeLibrary;
+import org.eclipse.lsp4j.Location;
 
 public class UserDefinedFunction extends Function {
   private Scope scope;
   private final Stack<ArrayList<Value>> callStack;
 
   public UserDefinedFunction(
-      final String name, final Type type, final List<VariableReference> variableReferences) {
-    super(name, type, variableReferences);
+      final String name,
+      final Type type,
+      final List<VariableReference> variableReferences,
+      final Location location) {
+    super(name, type, variableReferences, location);
 
     this.scope = null;
-    this.callStack = new Stack<ArrayList<Value>>();
+    this.callStack = new Stack<>();
   }
 
   public void setScope(final Scope s) {
@@ -33,7 +37,7 @@ public class UserDefinedFunction extends Function {
       return;
     }
 
-    ArrayList<Value> values = new ArrayList<Value>();
+    ArrayList<Value> values = new ArrayList<>();
 
     for (BasicScope next : this.scope.getScopes()) {
       for (Variable current : next.getVariables()) {
@@ -96,7 +100,8 @@ public class UserDefinedFunction extends Function {
     Function[] functions = RuntimeLibrary.functions.findFunctions(this.name);
 
     for (Function function : functions) {
-      if (this.paramsMatch(function)) {
+      // Match base types. We don't want an user to override a library function through a typedef.
+      if (this.paramsMatch(function, true)) {
         return true;
       }
     }

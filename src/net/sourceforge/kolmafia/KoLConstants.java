@@ -7,10 +7,11 @@ import java.text.DecimalFormatSymbols;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.IdentityHashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Random;
+import java.util.Set;
 import java.util.regex.Pattern;
 import net.java.dev.spellcast.utilities.UtilityConstants;
 import net.sourceforge.kolmafia.chat.StyledChatBuffer;
@@ -49,6 +50,7 @@ public interface KoLConstants extends UtilityConstants {
   DecimalFormat ROUNDED_MODIFIER_FORMAT =
       new DecimalFormat("+#0.00;-#0.00", new DecimalFormatSymbols(Locale.US));
   DecimalFormat CHAT_LASTSEEN_FORMAT = new DecimalFormat("0000000000");
+  DecimalFormat HUMAN_READABLE_FORMAT = new DecimalFormat("#.##");
 
   SimpleDateFormat DAILY_FORMAT = new SimpleDateFormat("yyyyMMdd", Locale.US);
   SimpleDateFormat WEEKLY_FORMAT = new SimpleDateFormat("yyyyMM_'w'W", Locale.US);
@@ -112,7 +114,7 @@ public interface KoLConstants extends UtilityConstants {
   List<File> scripts = LockableListFactory.getInstance(File.class);
   List<String> bookmarks = LockableListFactory.getInstance(String.class);
 
-  ArrayList<String> disabledScripts = new ArrayList<String>();
+  ArrayList<String> disabledScripts = new ArrayList<>();
   ScriptMRUList scriptMList = new ScriptMRUList("scriptMRUList", "scriptMRULength");
   PartialMRUList maximizerMList =
       new PartialMRUList("maximizerMRUList", "maximizerMRUSize", "maximizerList");
@@ -161,7 +163,6 @@ public interface KoLConstants extends UtilityConstants {
     "fullness.txt",
     "inebriety.txt",
     "items.txt",
-    "mallprices.txt",
     "modifiers.txt",
     "monsters.txt",
     "nonfilling.txt",
@@ -220,7 +221,7 @@ public interface KoLConstants extends UtilityConstants {
   int MALLPRICES_VERSION = 0xF00D5;
 
   // The current versioned name of each KoLmafia-supplied relay file
-  String AFTERLIFE_ASH = "afterlife.ash";
+  String AFTERLIFE_ASH = "afterlife.1.ash";
   String BARREL_SOUNDS_JS = "barrel_sounds.js";
   String BASEMENT_JS = "basement.js";
   String BASICS_CSS = "basics.1.css";
@@ -576,17 +577,16 @@ public interface KoLConstants extends UtilityConstants {
   List<UseSkillRequest> expressionSkills = LockableListFactory.getInstance(UseSkillRequest.class);
   List<UseSkillRequest> walkSkills = LockableListFactory.getInstance(UseSkillRequest.class);
   List<UseSkillRequest> availableSkills = LockableListFactory.getInstance(UseSkillRequest.class);
-  IdentityHashMap<UseSkillRequest, Object> availableSkillsMap =
-      new IdentityHashMap<UseSkillRequest, Object>();
-  List<UseSkillRequest> availableCombatSkills =
-      LockableListFactory.getInstance(UseSkillRequest.class);
-  IdentityHashMap<UseSkillRequest, Object> availableCombatSkillsMap =
-      new IdentityHashMap<UseSkillRequest, Object>();
+  Set<Integer> availableSkillsSet = new HashSet<>();
+  // The list of combat skills displayed in skills dropdown from the current (last) fight.php
+  List<Integer> availableCombatSkillsList = new ArrayList<>();
+  Set<Integer> availableCombatSkillsSet = new HashSet<>();
   List<UseSkillRequest> permedSkills = LockableListFactory.getInstance(UseSkillRequest.class);
+  Set<Integer> hardcorePermedSkills = new HashSet<>();
   List<UseSkillRequest> combatSkills = LockableListFactory.getInstance(UseSkillRequest.class);
 
   List<AdventureResult> activeEffects = LockableListFactory.getInstance(AdventureResult.class);
-  ArrayList<AdventureResult> recentEffects = new ArrayList<AdventureResult>();
+  ArrayList<AdventureResult> recentEffects = new ArrayList<>();
 
   List<AdventureResult> hermitItems = LockableListFactory.getInstance(AdventureResult.class);
   List<String> restaurantItems = LockableListFactory.getInstance(String.class);
@@ -606,7 +606,8 @@ public interface KoLConstants extends UtilityConstants {
   StyledChatBuffer commandBuffer = new StyledChatBuffer("", "blue", false);
 
   Comparator<String> ignoreCaseComparator =
-      new Comparator<String>() {
+      new Comparator<>() {
+        @Override
         public int compare(String s1, String s2) {
           return s1.compareToIgnoreCase(s2);
         }

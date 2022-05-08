@@ -26,9 +26,10 @@ import net.sourceforge.kolmafia.KoLConstants;
 import net.sourceforge.kolmafia.KoLmafia;
 import net.sourceforge.kolmafia.RequestThread;
 import net.sourceforge.kolmafia.listener.Listener;
+import net.sourceforge.kolmafia.listener.NamedListenerRegistry;
 import net.sourceforge.kolmafia.listener.PreferenceListenerRegistry;
-import net.sourceforge.kolmafia.objectpool.IntegerPool;
 import net.sourceforge.kolmafia.persistence.ConcoctionDatabase;
+import net.sourceforge.kolmafia.persistence.ConcoctionDatabase.ConcoctionType;
 import net.sourceforge.kolmafia.persistence.ItemDatabase;
 import net.sourceforge.kolmafia.preferences.Preferences;
 import net.sourceforge.kolmafia.request.ClosetRequest;
@@ -51,8 +52,6 @@ import net.sourceforge.kolmafia.swingui.panel.UseItemEnqueuePanel;
 import net.sourceforge.kolmafia.swingui.panel.UseItemPanel;
 import net.sourceforge.kolmafia.swingui.widget.AutoHighlightSpinner;
 import net.sourceforge.kolmafia.swingui.widget.AutoHighlightTextField;
-import net.sourceforge.kolmafia.swingui.widget.ListCellRendererFactory;
-import net.sourceforge.kolmafia.swingui.widget.ShowDescriptionTable;
 import net.sourceforge.kolmafia.textui.command.AutoMallCommand;
 import net.sourceforge.kolmafia.textui.command.CleanupJunkRequest;
 import net.sourceforge.kolmafia.utilities.InputFieldUtilities;
@@ -88,12 +87,12 @@ public class ItemManageFrame extends GenericFrame {
     queueTabs = null;
 
     if (Preferences.getBoolean("addCreationQueue")) {
-      dequeuePanel = new UseItemDequeuePanel(true, false, false);
+      dequeuePanel = new UseItemDequeuePanel(ConcoctionType.FOOD);
       foodPanel.add(dequeuePanel, BorderLayout.NORTH);
       queueTabs = dequeuePanel.getQueueTabs();
     }
 
-    foodPanel.add(new UseItemEnqueuePanel(true, false, false, queueTabs), BorderLayout.CENTER);
+    foodPanel.add(new UseItemEnqueuePanel(ConcoctionType.FOOD, queueTabs), BorderLayout.CENTER);
 
     selectorPanel.addPanel(" - Food", foodPanel);
 
@@ -102,12 +101,12 @@ public class ItemManageFrame extends GenericFrame {
     queueTabs = null;
 
     if (Preferences.getBoolean("addCreationQueue")) {
-      dequeuePanel = new UseItemDequeuePanel(false, true, false);
+      dequeuePanel = new UseItemDequeuePanel(ConcoctionType.BOOZE);
       boozePanel.add(dequeuePanel, BorderLayout.NORTH);
       queueTabs = dequeuePanel.getQueueTabs();
     }
 
-    boozePanel.add(new UseItemEnqueuePanel(false, true, false, queueTabs), BorderLayout.CENTER);
+    boozePanel.add(new UseItemEnqueuePanel(ConcoctionType.BOOZE, queueTabs), BorderLayout.CENTER);
 
     selectorPanel.addPanel(" - Booze", boozePanel);
 
@@ -116,12 +115,12 @@ public class ItemManageFrame extends GenericFrame {
     queueTabs = null;
 
     if (Preferences.getBoolean("addCreationQueue")) {
-      dequeuePanel = new UseItemDequeuePanel(false, false, true);
+      dequeuePanel = new UseItemDequeuePanel(ConcoctionType.SPLEEN);
       spleenPanel.add(dequeuePanel, BorderLayout.NORTH);
       queueTabs = dequeuePanel.getQueueTabs();
     }
 
-    spleenPanel.add(new UseItemEnqueuePanel(false, false, true, queueTabs), BorderLayout.CENTER);
+    spleenPanel.add(new UseItemEnqueuePanel(ConcoctionType.SPLEEN, queueTabs), BorderLayout.CENTER);
 
     selectorPanel.addPanel(" - Spleen", spleenPanel);
 
@@ -130,12 +129,12 @@ public class ItemManageFrame extends GenericFrame {
     queueTabs = null;
 
     if (Preferences.getBoolean("addCreationQueue")) {
-      dequeuePanel = new UseItemDequeuePanel(false, false, false);
+      dequeuePanel = new UseItemDequeuePanel(ConcoctionType.POTION);
       potionPanel.add(dequeuePanel, BorderLayout.NORTH);
       queueTabs = dequeuePanel.getQueueTabs();
     }
 
-    potionPanel.add(new UseItemEnqueuePanel(false, false, false, queueTabs), BorderLayout.CENTER);
+    potionPanel.add(new UseItemEnqueuePanel(ConcoctionType.POTION, queueTabs), BorderLayout.CENTER);
 
     selectorPanel.addPanel(" - Potions", potionPanel);
 
@@ -144,16 +143,21 @@ public class ItemManageFrame extends GenericFrame {
     selectorPanel.addSeparator();
 
     selectorPanel.addPanel(
-        "General", new InventoryPanel((SortedListModel) KoLConstants.inventory, false));
+        "General",
+        new InventoryPanel<>((SortedListModel<AdventureResult>) KoLConstants.inventory, false));
     selectorPanel.addPanel(
-        " - Recent", new InventoryPanel((SortedListModel) KoLConstants.tally, false));
+        " - Recent",
+        new InventoryPanel<>((SortedListModel<AdventureResult>) KoLConstants.tally, false));
     selectorPanel.addPanel(
-        " - Closet", new InventoryPanel((SortedListModel) KoLConstants.closet, false));
+        " - Closet",
+        new InventoryPanel<>((SortedListModel<AdventureResult>) KoLConstants.closet, false));
     selectorPanel.addPanel(" - Storage", new HagnkStoragePanel(false));
     selectorPanel.addPanel(
-        " - Unlimited", new ViewOnlyPanel((SortedListModel) KoLConstants.unlimited));
+        " - Unlimited",
+        new ViewOnlyPanel((SortedListModel<AdventureResult>) KoLConstants.unlimited));
     selectorPanel.addPanel(" - Free Pulls", new FreePullsPanel());
-    selectorPanel.addPanel(" - No Pull", new ViewOnlyPanel((SortedListModel) KoLConstants.nopulls));
+    selectorPanel.addPanel(
+        " - No Pull", new ViewOnlyPanel((SortedListModel<AdventureResult>) KoLConstants.nopulls));
 
     selectorPanel.addSeparator();
 
@@ -166,7 +170,8 @@ public class ItemManageFrame extends GenericFrame {
     selectorPanel.addSeparator();
 
     selectorPanel.addPanel(
-        "Equipment", new InventoryPanel((SortedListModel) KoLConstants.inventory, true));
+        "Equipment",
+        new InventoryPanel<>((SortedListModel<AdventureResult>) KoLConstants.inventory, true));
     selectorPanel.addPanel(
         " - Storage ",
         new HagnkStoragePanel(
@@ -207,17 +212,14 @@ public class ItemManageFrame extends GenericFrame {
           s = s.substring(3);
         }
         builder.append(s).append("|");
-        builder.append(
-            ((ShowDescriptionTable) ((InventoryPanel) comp).scrollComponent).collectHeaderStates());
+        builder.append(((InventoryPanel<?>) comp).scrollComponent.collectHeaderStates());
       } else if (comp instanceof RestorativeItemPanel) {
         String s = ItemManageFrame.selectorPanel.panelNames.get(i).toString();
         if (s.startsWith(" - ")) {
           s = s.substring(3);
         }
         builder.append(s).append("|");
-        builder.append(
-            ((ShowDescriptionTable) ((RestorativeItemPanel) comp).scrollComponent)
-                .collectHeaderStates());
+        builder.append(((RestorativeItemPanel) comp).scrollComponent.collectHeaderStates());
       }
     }
 
@@ -255,15 +257,14 @@ public class ItemManageFrame extends GenericFrame {
 
           if (s.contains(panelName)) {
             // set the header states.
-            ((ShowDescriptionTable) ((InventoryPanel) comp).scrollComponent).setHeaderStates(it);
+            ((InventoryPanel<?>) comp).scrollComponent.setHeaderStates(it);
             break;
           }
         } else if (comp instanceof RestorativeItemPanel) {
           String s = ItemManageFrame.selectorPanel.panelNames.get(i).toString();
           if (s.contains(panelName)) {
             // set the header states.
-            ((ShowDescriptionTable) ((RestorativeItemPanel) comp).scrollComponent)
-                .setHeaderStates(it);
+            ((RestorativeItemPanel) comp).scrollComponent.setHeaderStates(it);
             break;
           }
         }
@@ -294,14 +295,14 @@ public class ItemManageFrame extends GenericFrame {
   }
 
   public static void updatePullsBudgeted(final int pullsBudgeted) {
-    Integer value = IntegerPool.get(pullsBudgeted);
+    Integer value = pullsBudgeted;
     ItemManageFrame.pullBudgetSpinner1.setValue(value);
     ItemManageFrame.pullBudgetSpinner2.setValue(value);
   }
 
   private class JunkItemsPanel extends OverlapPanel {
     public JunkItemsPanel() {
-      super("cleanup", "help", (LockableListModel) KoLConstants.junkList, true);
+      super("cleanup", "help", (LockableListModel<AdventureResult>) KoLConstants.junkList, true);
     }
 
     @Override
@@ -318,7 +319,8 @@ public class ItemManageFrame extends GenericFrame {
 
   private class SingletonItemsPanel extends OverlapPanel {
     public SingletonItemsPanel() {
-      super("closet", "help", (LockableListModel) KoLConstants.singletonList, true);
+      super(
+          "closet", "help", (LockableListModel<AdventureResult>) KoLConstants.singletonList, true);
     }
 
     @Override
@@ -343,7 +345,7 @@ public class ItemManageFrame extends GenericFrame {
 
   private class MementoItemsPanel extends OverlapPanel {
     public MementoItemsPanel() {
-      super("closet", "help", (LockableListModel) KoLConstants.mementoList, true);
+      super("closet", "help", (LockableListModel<AdventureResult>) KoLConstants.mementoList, true);
     }
 
     @Override
@@ -367,7 +369,11 @@ public class ItemManageFrame extends GenericFrame {
 
   private class RestockPanel extends OverlapPanel {
     public RestockPanel() {
-      super("automall", "host sale", (LockableListModel) KoLConstants.profitableList, true);
+      super(
+          "automall",
+          "host sale",
+          (LockableListModel<AdventureResult>) KoLConstants.profitableList,
+          true);
 
       this.filters[4].setSelected(false);
       this.filters[4].setEnabled(false);
@@ -404,14 +410,15 @@ public class ItemManageFrame extends GenericFrame {
     }
   }
 
-  private class HagnkStoragePanel extends InventoryPanel {
+  private class HagnkStoragePanel extends InventoryPanel<AdventureResult> {
     private boolean isPullingForUse = false;
+    private final EmptyStorageButton emptyButton;
 
     public HagnkStoragePanel(final boolean isEquipmentOnly) {
       super(
           "pull item",
           isEquipmentOnly ? "pull & equip" : "put in closet",
-          (SortedListModel) KoLConstants.storage,
+          (SortedListModel<AdventureResult>) KoLConstants.storage,
           isEquipmentOnly);
 
       this.setButtons(new ActionListener[] {});
@@ -420,17 +427,16 @@ public class ItemManageFrame extends GenericFrame {
       JButton mallButton = new JButton(mallListener.toString());
       mallButton.addActionListener(mallListener);
 
+      // Disable if you are in Hardcore or Ronin, enable once you leave Ronin or free the king
+      emptyButton = new EmptyStorageButton();
+
       this.addButtons(
           new JButton[] {
-            this.confirmedButton,
-            this.cancelledButton,
-            mallButton,
-            new InvocationButton("empty", StorageRequest.class, "emptyStorage"),
+            this.confirmedButton, this.cancelledButton, mallButton, emptyButton,
           });
 
       this.addFilters();
       this.addMovers();
-      this.getElementList().setCellRenderer(ListCellRendererFactory.getStorageRenderer());
 
       Box box = Box.createVerticalBox();
       JLabel budget = new JLabel("Budget:");
@@ -467,9 +473,37 @@ public class ItemManageFrame extends GenericFrame {
     }
 
     @Override
+    public void setEnabled(final boolean isEnabled) {
+      if (isEnabled) {
+        this.emptyButton.update();
+      }
+    }
+
+    private class EmptyStorageButton extends InvocationButton implements Listener {
+      public EmptyStorageButton() {
+        super("empty", StorageRequest.class, "emptyStorage");
+        NamedListenerRegistry.registerNamedListener("(hardcore)", this);
+        NamedListenerRegistry.registerNamedListener("(ronin)", this);
+        this.update();
+      }
+
+      @Override
+      public void update() {
+        boolean enabled =
+            !KoLCharacter.isHardcore()
+                && !KoLCharacter.inRonin()
+                && !KoLConstants.storage.isEmpty();
+        this.setEnabled(enabled);
+      }
+    }
+
+    @Override
     public void addMovers() {
       if (!this.isEquipmentOnly) {
         super.addMovers();
+        if (KoLCharacter.inRonin()) {
+          this.movers[3].setSelected(true);
+        }
       }
     }
 
@@ -551,13 +585,16 @@ public class ItemManageFrame extends GenericFrame {
     }
   }
 
-  private class FreePullsPanel extends InventoryPanel {
+  private class FreePullsPanel extends InventoryPanel<AdventureResult> {
     public FreePullsPanel() {
-      super("pull item", "put in closet", (SortedListModel) KoLConstants.freepulls, false);
+      super(
+          "pull item",
+          "put in closet",
+          (SortedListModel<AdventureResult>) KoLConstants.freepulls,
+          false);
 
       this.addFilters();
       this.addMovers();
-      this.getElementList().setCellRenderer(ListCellRendererFactory.getFreePullsRenderer());
     }
 
     @Override
@@ -592,8 +629,8 @@ public class ItemManageFrame extends GenericFrame {
     }
   }
 
-  private class ViewOnlyPanel extends InventoryPanel {
-    public ViewOnlyPanel(final LockableListModel elementModel) {
+  private class ViewOnlyPanel extends InventoryPanel<AdventureResult> {
+    public ViewOnlyPanel(final LockableListModel<AdventureResult> elementModel) {
       super(elementModel);
     }
   }
@@ -608,6 +645,7 @@ public class ItemManageFrame extends GenericFrame {
       this.changing = false;
     }
 
+    @Override
     public void stateChanged(ChangeEvent e) {
       if (this.changing) {
         return;
@@ -630,12 +668,13 @@ public class ItemManageFrame extends GenericFrame {
       this.desired = desired;
     }
 
+    @Override
     public void run() {
       ConcoctionDatabase.refreshConcoctions();
     }
   }
 
-  public static class PrefPopup extends JComboBox implements ActionListener, Listener {
+  public static class PrefPopup extends JComboBox<String> implements Listener {
     private final String pref;
 
     public PrefPopup(String pref) {
@@ -650,6 +689,7 @@ public class ItemManageFrame extends GenericFrame {
       this.update();
     }
 
+    @Override
     public void update() {
       this.setSelectedItem(Preferences.getString(this.pref));
     }

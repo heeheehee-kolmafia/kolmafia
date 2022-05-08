@@ -15,7 +15,6 @@ import net.sourceforge.kolmafia.RequestEditorKit;
 import net.sourceforge.kolmafia.RequestLogger;
 import net.sourceforge.kolmafia.RequestThread;
 import net.sourceforge.kolmafia.objectpool.EffectPool;
-import net.sourceforge.kolmafia.objectpool.IntegerPool;
 import net.sourceforge.kolmafia.objectpool.ItemPool;
 import net.sourceforge.kolmafia.persistence.EquipmentDatabase;
 import net.sourceforge.kolmafia.persistence.ItemFinder;
@@ -514,7 +513,7 @@ public abstract class RabbitHoleManager {
     }
 
     @Override
-    public Object clone() {
+    public Board clone() {
       return new Board(this);
     }
 
@@ -645,7 +644,7 @@ public abstract class RabbitHoleManager {
         return new Integer[0];
       }
 
-      ArrayList list = new ArrayList();
+      ArrayList<Integer> list = new ArrayList<>();
 
       // Depending on type of piece, generate all moves
       // available on current board configuration
@@ -698,7 +697,7 @@ public abstract class RabbitHoleManager {
       return (Integer[]) list.toArray(array);
     }
 
-    private void addRookMoves(final ArrayList list, final int row, final int col) {
+    private void addRookMoves(final ArrayList<Integer> list, final int row, final int col) {
       // Go West. Quit when you hit a piece
       for (int i = col - 1; i >= 0; --i) {
         if (this.addMove(list, row, i)) {
@@ -725,7 +724,7 @@ public abstract class RabbitHoleManager {
       }
     }
 
-    private void addBishopMoves(final ArrayList list, final int row, final int col) {
+    private void addBishopMoves(final ArrayList<Integer> list, final int row, final int col) {
       // Go Northwest. Quit when you hit a piece
       for (int irow = row - 1, icol = col - 1; irow >= 0 && icol >= 0; --irow, --icol) {
         if (this.addMove(list, irow, icol)) {
@@ -752,7 +751,7 @@ public abstract class RabbitHoleManager {
       }
     }
 
-    private boolean addMove(final ArrayList list, final int row, final int col) {
+    private boolean addMove(final ArrayList<Integer> list, final int row, final int col) {
       // If the proposed move is off the board, fail
       if (row < 0 || row > 7 || col < 0 || col > 7) {
         return false;
@@ -765,7 +764,7 @@ public abstract class RabbitHoleManager {
       }
 
       // Otherwise, tally the move and succeed
-      list.add(IntegerPool.get(square));
+      list.add(square);
       return true;
     }
 
@@ -1034,7 +1033,7 @@ public abstract class RabbitHoleManager {
 
   private static Path solve(final Board board) {
     // Attempt to solve by moving the current piece
-    return RabbitHoleManager.solve((Board) board.clone(), new Path());
+    return RabbitHoleManager.solve(board.clone(), new Path());
   }
 
   private static Path solve(final Board board, final Path path) {
@@ -1099,14 +1098,14 @@ public abstract class RabbitHoleManager {
   }
 
   private static class Path {
-    private final ArrayList list;
+    private final ArrayList<Integer> list;
 
     public Path() {
-      list = new ArrayList();
+      list = new ArrayList<>();
     }
 
     public void add(final int square) {
-      list.add(IntegerPool.get(square));
+      list.add(square);
     }
 
     public void remove() {
@@ -1118,7 +1117,7 @@ public abstract class RabbitHoleManager {
     }
 
     public Integer[] toArray() {
-      Integer[] array = (Integer[]) list.toArray(new Integer[list.size()]);
+      Integer[] array = list.toArray(new Integer[list.size()]);
       return array;
     }
   }
@@ -1199,7 +1198,7 @@ public abstract class RabbitHoleManager {
     }
     index += 8;
 
-    List<AdventureResult> hats = EquipmentManager.getEquipmentLists()[EquipmentManager.HAT];
+    List<AdventureResult> hats = EquipmentManager.getEquipmentLists().get(EquipmentManager.HAT);
     AdventureResult curHat = EquipmentManager.getEquipment(EquipmentManager.HAT);
     TreeMap<Integer, String> options = new TreeMap<Integer, String>();
     for (AdventureResult hat : hats) {
@@ -1218,7 +1217,7 @@ public abstract class RabbitHoleManager {
       buf.append(": ");
       buf.append(RabbitHoleManager.getHatDescription(len));
       buf.append("</option>");
-      options.put(IntegerPool.get((len << 24) | hat.getItemId()), buf.toString());
+      options.put((len << 24) | hat.getItemId(), buf.toString());
     }
 
     String ending = buffer.substring(index);
@@ -1234,9 +1233,9 @@ public abstract class RabbitHoleManager {
     buffer.append(ending);
   }
 
-  private static TreeMap getHatMap() {
+  private static TreeMap<Integer, StringBuffer> getHatMap() {
     // Make a map of all hats indexed by length
-    List<AdventureResult> hats = EquipmentManager.getEquipmentLists()[EquipmentManager.HAT];
+    List<AdventureResult> hats = EquipmentManager.getEquipmentLists().get(EquipmentManager.HAT);
     FamiliarData current = KoLCharacter.getFamiliar();
 
     if (current.getItem() != null && EquipmentDatabase.isHat(current.getItem())) {
@@ -1256,7 +1255,7 @@ public abstract class RabbitHoleManager {
 
       String name = hat.getName();
 
-      Integer len = IntegerPool.get(hatLength(name));
+      Integer len = hatLength(name);
       StringBuffer buffer = lengths.get(len);
 
       if (buffer == null) {
@@ -1363,9 +1362,9 @@ public abstract class RabbitHoleManager {
 
   public static void getHatBuff(final int desiredHatLength) {
     if (RabbitHoleManager.hatLengthAvailable(desiredHatLength)) {
-      TreeMap lengths = getHatMap();
+      TreeMap<Integer, StringBuffer> lengths = getHatMap();
 
-      String hat = lengths.get(IntegerPool.get(desiredHatLength)).toString().split("\\|")[0];
+      String hat = lengths.get(desiredHatLength).toString().split("\\|")[0];
       RabbitHoleManager.getHatBuff(ItemFinder.getFirstMatchingItem(hat));
     } else {
       KoLmafia.updateDisplay(MafiaState.ERROR, "No matching hat length found.");
@@ -1373,13 +1372,13 @@ public abstract class RabbitHoleManager {
   }
 
   public static boolean hatLengthAvailable(int desiredHatLength) {
-    TreeMap lengths = getHatMap();
+    TreeMap<Integer, StringBuffer> lengths = getHatMap();
 
     if (lengths.size() == 0) {
       return false;
     }
 
-    if (lengths.containsKey(IntegerPool.get(desiredHatLength))) {
+    if (lengths.containsKey(desiredHatLength)) {
       return true;
     }
 

@@ -220,7 +220,7 @@ public class MushroomScriptPanel extends JPanel {
       return;
     }
 
-    String layout = InputFieldUtilities.input("Which mushroom plot?", names);
+    String layout = InputFieldUtilities.input("Which mushroom plot?", names.toArray(new String[0]));
     if (layout != null) {
       this.loadLayout(layout);
     }
@@ -313,6 +313,7 @@ public class MushroomScriptPanel extends JPanel {
       this.addActionListener(this);
     }
 
+    @Override
     public void actionPerformed(ActionEvent e) {
       if (this.dayIndex == MushroomScriptPanel.this.currentForecast - 1) {
         return;

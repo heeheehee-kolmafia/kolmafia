@@ -3,11 +3,13 @@ package net.sourceforge.kolmafia.textui.parsetree;
 import java.io.PrintStream;
 import java.util.List;
 import net.sourceforge.kolmafia.textui.AshRuntime;
+import org.eclipse.lsp4j.Location;
 
-public class VariableReference extends Value {
+public class VariableReference extends Evaluable implements Comparable<VariableReference> {
   public final Variable target;
 
-  public VariableReference(final Variable target) {
+  public VariableReference(final Location location, final Variable target) {
+    super(location);
     this.target = target;
   }
 
@@ -25,13 +27,13 @@ public class VariableReference extends Value {
     return this.target.getName();
   }
 
-  public List<Value> getIndices() {
+  public List<Evaluable> getIndices() {
     return null;
   }
 
   @Override
-  public int compareTo(final Value o) {
-    return this.target.getName().compareTo(((VariableReference) o).target.getName());
+  public int compareTo(final VariableReference o) {
+    return this.target.getName().compareTo(o.target.getName());
   }
 
   @Override
@@ -72,5 +74,13 @@ public class VariableReference extends Value {
   public void print(final PrintStream stream, final int indent) {
     AshRuntime.indentLine(stream, indent);
     stream.println("<VARREF> " + this.getName());
+  }
+
+  public static VariableReference badVariableReference(final Location location) {
+    return VariableReference.badVariableReference(location, new Type.BadType(null, null));
+  }
+
+  public static VariableReference badVariableReference(final Location location, final Type type) {
+    return new VariableReference(location, new Variable.BadVariable(null, type, null));
   }
 }

@@ -7,22 +7,25 @@ import net.sourceforge.kolmafia.textui.AshRuntime;
 import net.sourceforge.kolmafia.textui.DataTypes;
 import net.sourceforge.kolmafia.textui.Parser;
 import net.sourceforge.kolmafia.textui.ScriptRuntime;
+import org.eclipse.lsp4j.Location;
 
 public class SortBy extends Command {
   private final VariableReference aggregate;
   private final Variable indexvar, valuevar;
-  private final Value expr;
+  private final Evaluable expr;
 
   // For runtime error messages
   String fileName;
   int lineNumber;
 
   public SortBy(
+      final Location location,
       final VariableReference aggregate,
       final Variable indexvar,
       final Variable valuevar,
-      final Value expr,
+      final Evaluable expr,
       final Parser parser) {
+    super(location);
     this.aggregate = aggregate;
     this.indexvar = indexvar;
     this.valuevar = valuevar;
@@ -111,6 +114,7 @@ public class SortBy extends Command {
       this.value = value;
     }
 
+    @Override
     public int compareTo(Pair o) {
       return this.key.compareTo(o.key);
     }

@@ -1,8 +1,11 @@
 package net.sourceforge.kolmafia;
 
 import java.awt.Taskbar;
-import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.IntStream;
@@ -49,6 +52,7 @@ import net.sourceforge.kolmafia.request.QuantumTerrariumRequest;
 import net.sourceforge.kolmafia.request.RelayRequest;
 import net.sourceforge.kolmafia.request.SpelunkyRequest;
 import net.sourceforge.kolmafia.request.StandardRequest;
+import net.sourceforge.kolmafia.request.StorageRequest;
 import net.sourceforge.kolmafia.request.TelescopeRequest;
 import net.sourceforge.kolmafia.request.UseItemRequest;
 import net.sourceforge.kolmafia.request.UseSkillRequest;
@@ -57,18 +61,21 @@ import net.sourceforge.kolmafia.session.BatManager;
 import net.sourceforge.kolmafia.session.ChoiceManager;
 import net.sourceforge.kolmafia.session.ClanManager;
 import net.sourceforge.kolmafia.session.ContactManager;
+import net.sourceforge.kolmafia.session.CrystalBallManager;
 import net.sourceforge.kolmafia.session.DisplayCaseManager;
 import net.sourceforge.kolmafia.session.EquipmentManager;
 import net.sourceforge.kolmafia.session.EventManager;
 import net.sourceforge.kolmafia.session.GoalManager;
 import net.sourceforge.kolmafia.session.InventoryManager;
 import net.sourceforge.kolmafia.session.Limitmode;
+import net.sourceforge.kolmafia.session.LocketManager;
 import net.sourceforge.kolmafia.session.ResultProcessor;
 import net.sourceforge.kolmafia.session.StoreManager;
 import net.sourceforge.kolmafia.session.TurnCounter;
 import net.sourceforge.kolmafia.session.VioletFogManager;
 import net.sourceforge.kolmafia.session.VolcanoMazeManager;
 import net.sourceforge.kolmafia.session.WumpusManager;
+import net.sourceforge.kolmafia.session.YouRobotManager;
 import net.sourceforge.kolmafia.swingui.AdventureFrame;
 import net.sourceforge.kolmafia.swingui.GearChangeFrame;
 import net.sourceforge.kolmafia.swingui.MallSearchFrame;
@@ -88,174 +95,9 @@ import net.sourceforge.kolmafia.webui.DiscoCombatHelper;
  * extensibility.
  */
 public abstract class KoLCharacter {
-  private static final String NONE = "None";
-
-  // Classes
-  public static final String ASTRAL_SPIRIT = "Astral Spirit";
-  public static final String AVATAR_OF_BORIS = "Avatar of Boris";
-  public static final String ZOMBIE_MASTER = "Zombie Master";
-  public static final String AVATAR_OF_JARLSBERG = "Avatar of Jarlsberg";
-  public static final String AVATAR_OF_SNEAKY_PETE = "Avatar of Sneaky Pete";
-  public static final String ED = "Ed";
-  public static final String COWPUNCHER = "Cow Puncher";
-  public static final String BEANSLINGER = "Beanslinger";
-  public static final String SNAKE_OILER = "Snake Oiler";
-  public static final String GELATINOUS_NOOB = "Gelatinous Noob";
-  public static final String VAMPYRE = "Vampyre";
-  public static final String PLUMBER = "Plumber";
-
-  public static final String SEAL_CLUBBER = "Seal Clubber";
-  private static final List<String> SEAL_CLUBBER_RANKS = new ArrayList<String>();
-
-  static {
-    KoLCharacter.SEAL_CLUBBER_RANKS.add("Lemming Trampler");
-    KoLCharacter.SEAL_CLUBBER_RANKS.add("Tern Slapper");
-    KoLCharacter.SEAL_CLUBBER_RANKS.add("Puffin Intimidator");
-    KoLCharacter.SEAL_CLUBBER_RANKS.add("Ermine Thumper");
-    KoLCharacter.SEAL_CLUBBER_RANKS.add("Penguin Frightener");
-    KoLCharacter.SEAL_CLUBBER_RANKS.add("Malamute Basher");
-    KoLCharacter.SEAL_CLUBBER_RANKS.add("Narwhal Pummeler");
-    KoLCharacter.SEAL_CLUBBER_RANKS.add("Otter Crusher");
-    KoLCharacter.SEAL_CLUBBER_RANKS.add("Caribou Smacker");
-    KoLCharacter.SEAL_CLUBBER_RANKS.add("Moose Harasser");
-    KoLCharacter.SEAL_CLUBBER_RANKS.add("Reindeer Threatener");
-    KoLCharacter.SEAL_CLUBBER_RANKS.add("Ox Wrestler");
-    KoLCharacter.SEAL_CLUBBER_RANKS.add("Walrus Bludgeoner");
-    KoLCharacter.SEAL_CLUBBER_RANKS.add("Whale Boxer");
-    KoLCharacter.SEAL_CLUBBER_RANKS.add("Seal Clubber");
-  }
-
-  public static final String TURTLE_TAMER = "Turtle Tamer";
-  private static final List<String> TURTLE_TAMER_RANKS = new ArrayList<String>();
-
-  static {
-    KoLCharacter.TURTLE_TAMER_RANKS.add("Toad Coach");
-    KoLCharacter.TURTLE_TAMER_RANKS.add("Skink Trainer");
-    KoLCharacter.TURTLE_TAMER_RANKS.add("Frog Director");
-    KoLCharacter.TURTLE_TAMER_RANKS.add("Gecko Supervisor");
-    KoLCharacter.TURTLE_TAMER_RANKS.add("Newt Herder");
-    KoLCharacter.TURTLE_TAMER_RANKS.add("Frog Boss");
-    KoLCharacter.TURTLE_TAMER_RANKS.add("Iguana Driver");
-    KoLCharacter.TURTLE_TAMER_RANKS.add("Salamander Subduer");
-    KoLCharacter.TURTLE_TAMER_RANKS.add("Bullfrog Overseer");
-    KoLCharacter.TURTLE_TAMER_RANKS.add("Rattlesnake Chief");
-    KoLCharacter.TURTLE_TAMER_RANKS.add("Crocodile Lord");
-    KoLCharacter.TURTLE_TAMER_RANKS.add("Cobra Commander");
-    KoLCharacter.TURTLE_TAMER_RANKS.add("Alligator Subjugator");
-    KoLCharacter.TURTLE_TAMER_RANKS.add("Asp Master");
-    KoLCharacter.TURTLE_TAMER_RANKS.add("Turtle Tamer");
-  }
-
   public static final String WAR_BLESSING = "War";
   public static final String STORM_BLESSING = "Storm";
   public static final String SHE_WHO_WAS_BLESSING = "She-who-was";
-
-  public static final String PASTAMANCER = "Pastamancer";
-  private static final List<String> PASTAMANCER_RANKS = new ArrayList<String>();
-
-  static {
-    KoLCharacter.PASTAMANCER_RANKS.add("Dough Acolyte");
-    KoLCharacter.PASTAMANCER_RANKS.add("Yeast Scholar");
-    KoLCharacter.PASTAMANCER_RANKS.add("Noodle Neophyte");
-    KoLCharacter.PASTAMANCER_RANKS.add("Starch Savant");
-    KoLCharacter.PASTAMANCER_RANKS.add("Carbohydrate Cognoscenti");
-    KoLCharacter.PASTAMANCER_RANKS.add("Spaghetti Sage");
-    KoLCharacter.PASTAMANCER_RANKS.add("Macaroni Magician");
-    KoLCharacter.PASTAMANCER_RANKS.add("Vermicelli Enchanter");
-    KoLCharacter.PASTAMANCER_RANKS.add("Linguini Thaumaturge");
-    KoLCharacter.PASTAMANCER_RANKS.add("Ravioli Sorcerer");
-    KoLCharacter.PASTAMANCER_RANKS.add("Manicotti Magus");
-    KoLCharacter.PASTAMANCER_RANKS.add("Spaghetti Spellbinder");
-    KoLCharacter.PASTAMANCER_RANKS.add("Cannelloni Conjurer");
-    KoLCharacter.PASTAMANCER_RANKS.add("Angel-Hair Archmage");
-    KoLCharacter.PASTAMANCER_RANKS.add("Pastamancer");
-  }
-
-  public static final String SAUCEROR = "Sauceror";
-  private static final List<String> SAUCEROR_RANKS = new ArrayList<String>();
-
-  static {
-    KoLCharacter.SAUCEROR_RANKS.add("Allspice Acolyte");
-    KoLCharacter.SAUCEROR_RANKS.add("Cilantro Seer");
-    KoLCharacter.SAUCEROR_RANKS.add("Parsley Enchanter");
-    KoLCharacter.SAUCEROR_RANKS.add("Sage Sage");
-    KoLCharacter.SAUCEROR_RANKS.add("Rosemary Diviner");
-    KoLCharacter.SAUCEROR_RANKS.add("Thyme Wizard");
-    KoLCharacter.SAUCEROR_RANKS.add("Tarragon Thaumaturge");
-    KoLCharacter.SAUCEROR_RANKS.add("Oreganoccultist");
-    KoLCharacter.SAUCEROR_RANKS.add("Basillusionist");
-    KoLCharacter.SAUCEROR_RANKS.add("Coriander Conjurer");
-    KoLCharacter.SAUCEROR_RANKS.add("Bay Leaf Brujo");
-    KoLCharacter.SAUCEROR_RANKS.add("Sesame Soothsayer");
-    KoLCharacter.SAUCEROR_RANKS.add("Marinara Mage");
-    KoLCharacter.SAUCEROR_RANKS.add("Alfredo Archmage");
-    KoLCharacter.SAUCEROR_RANKS.add("Sauceror");
-  }
-
-  public static final String DISCO_BANDIT = "Disco Bandit";
-  private static final List<String> DISCO_BANDIT_RANKS = new ArrayList<String>();
-
-  static {
-    KoLCharacter.DISCO_BANDIT_RANKS.add("Funk Footpad");
-    KoLCharacter.DISCO_BANDIT_RANKS.add("Rhythm Rogue");
-    KoLCharacter.DISCO_BANDIT_RANKS.add("Chill Crook");
-    KoLCharacter.DISCO_BANDIT_RANKS.add("Jiggy Grifter");
-    KoLCharacter.DISCO_BANDIT_RANKS.add("Beat Snatcher");
-    KoLCharacter.DISCO_BANDIT_RANKS.add("Sample Swindler");
-    KoLCharacter.DISCO_BANDIT_RANKS.add("Move Buster");
-    KoLCharacter.DISCO_BANDIT_RANKS.add("Jam Horker");
-    KoLCharacter.DISCO_BANDIT_RANKS.add("Groove Filcher");
-    KoLCharacter.DISCO_BANDIT_RANKS.add("Vibe Robber");
-    KoLCharacter.DISCO_BANDIT_RANKS.add("Boogie Brigand");
-    KoLCharacter.DISCO_BANDIT_RANKS.add("Flow Purloiner");
-    KoLCharacter.DISCO_BANDIT_RANKS.add("Jive Pillager");
-    KoLCharacter.DISCO_BANDIT_RANKS.add("Rhymer and Stealer");
-    KoLCharacter.DISCO_BANDIT_RANKS.add("Disco Bandit");
-  }
-
-  public static final String ACCORDION_THIEF = "Accordion Thief";
-  private static final List<String> ACCORDION_THIEF_RANKS = new ArrayList<String>();
-
-  static {
-    KoLCharacter.ACCORDION_THIEF_RANKS.add("Polka Criminal");
-    KoLCharacter.ACCORDION_THIEF_RANKS.add("Mariachi Larcenist");
-    KoLCharacter.ACCORDION_THIEF_RANKS.add("Zydeco Rogue");
-    KoLCharacter.ACCORDION_THIEF_RANKS.add("Chord Horker");
-    KoLCharacter.ACCORDION_THIEF_RANKS.add("Chromatic Crook");
-    KoLCharacter.ACCORDION_THIEF_RANKS.add("Squeezebox Scoundrel");
-    KoLCharacter.ACCORDION_THIEF_RANKS.add("Concertina Con Artist");
-    KoLCharacter.ACCORDION_THIEF_RANKS.add("Button Box Burglar");
-    KoLCharacter.ACCORDION_THIEF_RANKS.add("Hurdy-Gurdy Hooligan");
-    KoLCharacter.ACCORDION_THIEF_RANKS.add("Sub-Sub-Apprentice Accordion Thief");
-    KoLCharacter.ACCORDION_THIEF_RANKS.add("Sub-Apprentice Accordion Thief");
-    KoLCharacter.ACCORDION_THIEF_RANKS.add("Pseudo-Apprentice Accordion Thief");
-    KoLCharacter.ACCORDION_THIEF_RANKS.add("Hemi-Apprentice Accordion Thief");
-    KoLCharacter.ACCORDION_THIEF_RANKS.add("Apprentice Accordion Thief");
-    KoLCharacter.ACCORDION_THIEF_RANKS.add("Accordion Thief");
-  }
-
-  public static final String[] ZODIACS =
-      new String[] {
-        "Mongoose",
-        "Wallaby",
-        "Vole",
-        "Platypus",
-        "Opossum",
-        "Marmot",
-        "Wombat",
-        "Blender",
-        "Packrat"
-      };
-
-  public static final String[] STANDARD_CLASSES =
-      new String[] {
-        KoLCharacter.SEAL_CLUBBER,
-        KoLCharacter.TURTLE_TAMER,
-        KoLCharacter.PASTAMANCER,
-        KoLCharacter.SAUCEROR,
-        KoLCharacter.DISCO_BANDIT,
-        KoLCharacter.ACCORDION_THIEF,
-      };
 
   public static final int MALE = -1;
   public static final int FEMALE = 1;
@@ -278,18 +120,13 @@ public abstract class KoLCharacter {
   private static boolean restricted = false;
 
   private static int ascensions = 0;
-  private static String ascensionSign = NONE;
-  private static int ascensionSignIndex = 0;
-  private static ZodiacType ascensionSignType = ZodiacType.NONE;
-  private static ZodiacZone ascensionSignZone = ZodiacZone.NONE;
+  private static ZodiacSign ascensionSign = ZodiacSign.NONE;
   private static Path ascensionPath = Path.NONE;
-  private static int consumptionRestriction = AscensionSnapshot.NOPATH;
 
   // Things which can change over the course of playing
 
-  private static String avatar = "";
-  private static String classname = "";
-  private static String classtype = null;
+  private static List<String> avatar = Collections.emptyList();
+  private static AscensionClass ascensionClass = null;
   private static int gender = 0;
   public static int AWOLtattoo = 0;
 
@@ -334,7 +171,7 @@ public abstract class KoLCharacter {
     resetTriggers();
   }
 
-  public static final SortedListModel<String> battleSkillNames = new SortedListModel<String>();
+  public static final SortedListModel<String> battleSkillNames = new SortedListModel<>();
 
   // Status pane data which is rendered whenever
   // the user issues a "status" type command.
@@ -369,7 +206,7 @@ public abstract class KoLCharacter {
 
   // Familiar data
 
-  public static final SortedListModel<FamiliarData> familiars = new SortedListModel<FamiliarData>();
+  public static final SortedListModel<FamiliarData> familiars = new SortedListModel<>();
   public static FamiliarData currentFamiliar = FamiliarData.NO_FAMILIAR;
   public static FamiliarData effectiveFamiliar = FamiliarData.NO_FAMILIAR;
   public static String currentFamiliarImage = null;
@@ -392,8 +229,7 @@ public abstract class KoLCharacter {
 
   // Pastamancer Pasta Thralls
 
-  public static final LockableListModel<PastaThrallData> pastaThralls =
-      new LockableListModel<PastaThrallData>();
+  public static final LockableListModel<PastaThrallData> pastaThralls = new LockableListModel<>();
   public static PastaThrallData currentPastaThrall = PastaThrallData.NO_THRALL;
 
   private static int stillsAvailable = 0;
@@ -450,8 +286,7 @@ public abstract class KoLCharacter {
   }
 
   public static final void reset(boolean newCharacter) {
-    KoLCharacter.classname = "";
-    KoLCharacter.classtype = null;
+    KoLCharacter.ascensionClass = null;
 
     KoLCharacter.gender = 0;
     KoLCharacter.currentLevel = 1;
@@ -468,6 +303,8 @@ public abstract class KoLCharacter {
     KoLCharacter.absorbs = 0;
 
     KoLCharacter.mask = null;
+
+    KoLCharacter.adventuresLeft = 0;
 
     KoLCharacter.attacksLeft = 0;
     KoLCharacter.adjustedStats = new int[3];
@@ -522,12 +359,8 @@ public abstract class KoLCharacter {
     KoLCharacter.AWOLtattoo = 0;
 
     KoLCharacter.ascensions = 0;
-    KoLCharacter.ascensionSign = NONE;
-    KoLCharacter.ascensionSignIndex = 0;
-    KoLCharacter.ascensionSignType = ZodiacType.NONE;
-    KoLCharacter.ascensionSignZone = ZodiacZone.NONE;
+    KoLCharacter.ascensionSign = ZodiacSign.NONE;
     KoLCharacter.ascensionPath = Path.NONE;
-    KoLCharacter.consumptionRestriction = AscensionSnapshot.NOPATH;
 
     KoLCharacter.mindControlLevel = 0;
     KoLCharacter.radSickness = 0;
@@ -548,14 +381,17 @@ public abstract class KoLCharacter {
     MicroBreweryRequest.reset();
     HellKitchenRequest.reset();
 
+    CrystalBallManager.reset();
     DisplayCaseManager.clearCache();
     DwarfFactoryRequest.reset();
     EquipmentManager.resetEquipment();
     EquipmentManager.resetCustomOutfits();
     GearChangeFrame.clearFamiliarList();
     InventoryManager.resetInventory();
+    LocketManager.clear();
     SkillDatabase.resetCasts();
     SpecialOutfit.forgetCheckpoints();
+    StorageRequest.resetRoninStoragePulls();
     VolcanoMazeManager.reset();
     VYKEACompanionData.initialize(true);
     WumpusManager.reset();
@@ -594,9 +430,8 @@ public abstract class KoLCharacter {
     KoLConstants.expressionSkills.clear();
     KoLConstants.walkSkills.clear();
     KoLConstants.availableSkills.clear();
-    KoLConstants.availableSkillsMap.clear();
-    KoLConstants.availableCombatSkills.clear();
-    KoLConstants.availableCombatSkillsMap.clear();
+    KoLConstants.availableSkillsSet.clear();
+    KoLConstants.availableCombatSkillsSet.clear();
     KoLConstants.combatSkills.clear();
 
     // All characters get the option to
@@ -650,6 +485,11 @@ public abstract class KoLCharacter {
 
   public static final int getFullnessLimit() {
     if (!KoLCharacter.canEat()) {
+      return 0;
+    }
+
+    if (KoLCharacter.inRobocore()) {
+      // Robots can eat size-0 magical sausages but have no fullness
       return 0;
     }
 
@@ -958,14 +798,42 @@ public abstract class KoLCharacter {
    * @param avatar The avatar for this character
    */
   public static final void setAvatar(final String avatar) {
-    KoLCharacter.avatar = avatar;
-    if (!avatar.equals("")) {
-      String prefix = KoLmafia.imageServerPath();
-      FileUtilities.downloadImage(prefix + KoLCharacter.avatar);
-    }
-    NamedListenerRegistry.fireChange("(avatar)");
+    KoLCharacter.setAvatar(Collections.singletonList(avatar));
+  }
 
-    if (avatar.endsWith("_f.gif")) {
+  public static final void setAvatar(final List<String> images) {
+    // Only set the avatar if the set of images has changed.
+    //
+    // Note that we assume that a "set" will do; the images will be overlaid
+    // upon each other, rather than being arranged in a specific order.
+
+    if (KoLCharacter.avatar.size() == images.size()) {
+      boolean changed = false;
+      Set<String> currentImages = new HashSet<>(KoLCharacter.avatar);
+      for (String image : images) {
+        if (!currentImages.contains(image)) {
+          changed = true;
+          break;
+        }
+      }
+      if (!changed) {
+        return;
+      }
+    }
+
+    KoLCharacter.avatar = images;
+
+    String prefix = KoLmafia.imageServerPath();
+    boolean female = false;
+
+    for (String image : images) {
+      if (image.endsWith("_f.gif")) {
+        female = true;
+      }
+      FileUtilities.downloadImage(prefix + image);
+    }
+
+    if (female) {
       KoLCharacter.setGender(KoLCharacter.FEMALE);
     } else {
       // Unfortunately, lack of '_f' in the avatar doesn't
@@ -973,6 +841,8 @@ public abstract class KoLCharacter {
       // avatar, or a special avatar such as Birdform that's unisex.
       KoLCharacter.setGender();
     }
+
+    NamedListenerRegistry.fireChange("(avatar)");
   }
 
   /**
@@ -980,7 +850,7 @@ public abstract class KoLCharacter {
    *
    * @return The avatar for this character
    */
-  public static final String getAvatar() {
+  public static final List<String> getAvatar() {
     return KoLCharacter.avatar;
   }
 
@@ -989,11 +859,11 @@ public abstract class KoLCharacter {
     // is meaningless), or are not logged in (ditto), nothing to do
     if (KoLCharacter.gender != 0
         || CharPaneRequest.inValhalla()
-        || GenericRequest.passwordHash.equals("")) {
+        || GenericRequest.passwordHash.isEmpty()) {
       return KoLCharacter.gender;
     }
 
-    // Can't tell?	Look at their vinyl boots!
+    // Can't tell? Look at their vinyl boots!
     String descId = ItemDatabase.getDescriptionId(ItemPool.VINYL_BOOTS);
     GenericRequest req = new GenericRequest("desc_item.php?whichitem=" + descId);
     RequestThread.postRequest(req);
@@ -1019,95 +889,7 @@ public abstract class KoLCharacter {
    * @return The index of the prime stat
    */
   public static final int getPrimeIndex() {
-    return KoLCharacter.getPrimeIndex(KoLCharacter.classtype);
-  }
-
-  public static final int getPrimeIndex(String classType) {
-    if (classType == null) {
-      return 0;
-    }
-
-    if (classType.equals(KoLCharacter.SEAL_CLUBBER)
-        || classType.equals(KoLCharacter.TURTLE_TAMER)
-        || classType.equals(KoLCharacter.AVATAR_OF_BORIS)
-        || classType.equals(KoLCharacter.ZOMBIE_MASTER)
-        || classType.equals(KoLCharacter.COWPUNCHER)) {
-      return 0;
-    }
-
-    if (classType.equals(KoLCharacter.SAUCEROR)
-        || classType.equals(KoLCharacter.PASTAMANCER)
-        || classType.equals(KoLCharacter.AVATAR_OF_JARLSBERG)
-        || classType.equals(KoLCharacter.ED)
-        || classType.equals(KoLCharacter.BEANSLINGER)
-        || classType.equals(KoLCharacter.VAMPYRE)) {
-      return 1;
-    }
-
-    if (classType.equals(KoLCharacter.DISCO_BANDIT)
-        || classType.equals(KoLCharacter.ACCORDION_THIEF)
-        || classType.equals(KoLCharacter.AVATAR_OF_SNEAKY_PETE)
-        || classType.equals(KoLCharacter.SNAKE_OILER)
-        || classType.equals(KoLCharacter.GELATINOUS_NOOB)) {
-      return 2;
-    }
-
-    if (classType.equals(KoLCharacter.PLUMBER)) {
-      long mus = KoLCharacter.totalSubpoints[0];
-      long mys = KoLCharacter.totalSubpoints[1];
-      long mox = KoLCharacter.totalSubpoints[2];
-      return (mus >= mys) ? (mus >= mox ? 0 : 2) : (mys >= mox) ? 1 : 2;
-    }
-
-    return 0;
-  }
-
-  public static final String getClassStun() {
-    return KoLCharacter.classtype == null
-        ? "none"
-        : KoLCharacter.classtype == KoLCharacter.SEAL_CLUBBER
-            ? "Club Foot"
-            : KoLCharacter.classtype == KoLCharacter.TURTLE_TAMER
-                ? "Shell Up"
-                : KoLCharacter.classtype == KoLCharacter.PASTAMANCER
-                    ? "Entangling Noodles"
-                    : KoLCharacter.classtype == KoLCharacter.SAUCEROR
-                        ? "Soul Bubble"
-                        : KoLCharacter.classtype == KoLCharacter.ACCORDION_THIEF
-                            ? "Accordion Bash"
-                            : KoLCharacter.classtype == KoLCharacter.AVATAR_OF_BORIS
-                                ? "Broadside"
-                                : KoLCharacter.classtype == KoLCharacter.ZOMBIE_MASTER
-                                    ? "Corpse Pile"
-                                    : KoLCharacter.classtype == KoLCharacter.AVATAR_OF_JARLSBERG
-                                        ? "Blend"
-                                        : KoLCharacter.classtype
-                                                == KoLCharacter.AVATAR_OF_SNEAKY_PETE
-                                            ? "Snap Fingers"
-                                            : KoLCharacter.classtype == KoLCharacter.ED
-                                                ? "Curse of Indecision"
-                                                : KoLCharacter.classtype == KoLCharacter.VAMPYRE
-                                                    ? "Chill of the Tomb"
-                                                    : Preferences.getBoolean(
-                                                            "considerShadowNoodles")
-                                                        ? "Shadow Noodles"
-                                                        : "none";
-  }
-
-  public static int getClassStarterWeapon() {
-    return KoLCharacter.classtype == KoLCharacter.SEAL_CLUBBER
-        ? ItemPool.SEAL_CLUB
-        : KoLCharacter.classtype == KoLCharacter.TURTLE_TAMER
-            ? ItemPool.TURTLE_TOTEM
-            : KoLCharacter.classtype == KoLCharacter.PASTAMANCER
-                ? ItemPool.PASTA_SPOON
-                : KoLCharacter.classtype == KoLCharacter.SAUCEROR
-                    ? ItemPool.SAUCEPAN
-                    : KoLCharacter.classtype == KoLCharacter.DISCO_BANDIT
-                        ? ItemPool.DISCO_BALL
-                        : KoLCharacter.classtype == KoLCharacter.ACCORDION_THIEF
-                            ? ItemPool.STOLEN_ACCORDION
-                            : -1;
+    return ascensionClass == null ? 0 : ascensionClass.getPrimeStatIndex();
   }
 
   /**
@@ -1145,8 +927,8 @@ public abstract class KoLCharacter {
   }
 
   public static final int getFuryLimit() {
-    // 0 if not Seal Clubber, 3 with only Wrath of the Wolverine, 5 with Ire of the Orca in additon
-    return (KoLCharacter.classtype != KoLCharacter.SEAL_CLUBBER
+    // 0 if not Seal Clubber, 3 with only Wrath of the Wolverine, 5 with Ire of the Orca in addition
+    return (ascensionClass != AscensionClass.SEAL_CLUBBER
             || !KoLCharacter.hasSkill("Wrath of the Wolverine"))
         ? 0
         : KoLCharacter.hasSkill("Ire of the Orca") ? 5 : 3;
@@ -1269,6 +1051,18 @@ public abstract class KoLCharacter {
 
   public static final void resetDiscoMomentum() {
     disco_momentum = 0;
+  }
+
+  public static final int getMaxSongs() {
+    return (currentBooleanModifier(Modifiers.FOUR_SONGS) ? 4 : 3)
+        + (int) currentNumericModifier(Modifiers.ADDITIONAL_SONG);
+  }
+
+  public static final int getSongs() {
+    return (int)
+        KoLConstants.activeEffects.stream()
+            .filter(e -> EffectDatabase.isSong(e.getEffectId()))
+            .count();
   }
 
   public static final int getAudience() {
@@ -1403,71 +1197,33 @@ public abstract class KoLCharacter {
   /**
    * Accessor method to set the character's class.
    *
-   * @param classtype The name of the character's class
+   * @param ascensionClass The name of the character's class
    */
-  public static final void setClassType(final int classtype) {
-    String classname =
-        classtype == 1
-            ? KoLCharacter.SEAL_CLUBBER
-            : classtype == 2
-                ? KoLCharacter.TURTLE_TAMER
-                : classtype == 3
-                    ? KoLCharacter.PASTAMANCER
-                    : classtype == 4
-                        ? KoLCharacter.SAUCEROR
-                        : classtype == 5
-                            ? KoLCharacter.DISCO_BANDIT
-                            : classtype == 6
-                                ? KoLCharacter.ACCORDION_THIEF
-                                : classtype == 11
-                                    ? KoLCharacter.AVATAR_OF_BORIS
-                                    : classtype == 12
-                                        ? KoLCharacter.ZOMBIE_MASTER
-                                        : classtype == 14
-                                            ? KoLCharacter.AVATAR_OF_JARLSBERG
-                                            : classtype == 15
-                                                ? KoLCharacter.AVATAR_OF_SNEAKY_PETE
-                                                : classtype == 17
-                                                    ? KoLCharacter.ED
-                                                    : classtype == 18
-                                                        ? KoLCharacter.COWPUNCHER
-                                                        : classtype == 19
-                                                            ? KoLCharacter.BEANSLINGER
-                                                            : classtype == 20
-                                                                ? KoLCharacter.SNAKE_OILER
-                                                                : classtype == 23
-                                                                    ? KoLCharacter.GELATINOUS_NOOB
-                                                                    : classtype == 24
-                                                                        ? KoLCharacter.VAMPYRE
-                                                                        : classtype == 25
-                                                                            ? KoLCharacter.PLUMBER
-                                                                            : "Unknown";
+  public static final void setAscensionClass(final AscensionClass ascensionClass) {
+    KoLCharacter.ascensionClass = ascensionClass;
 
-    KoLCharacter.classtype = classname;
-    KoLCharacter.classname = classname;
-  }
+    KoLCharacter.tripleReagent = isSauceror();
 
-  public static final void setClassName(final String classname) {
-    KoLCharacter.classname = classname;
-    KoLCharacter.classtype = getClassType();
-    KoLCharacter.tripleReagent = KoLCharacter.classtype == KoLCharacter.SAUCEROR;
-
-    if (KoLCharacter.classtype == KoLCharacter.ASTRAL_SPIRIT) {
+    if (ascensionClass == AscensionClass.ASTRAL_SPIRIT) {
       return;
     }
 
-    // If we have an actual class, we have a mainstat.
-    // Reset concoction mainstat gains to reflect this.
     ConcoctionDatabase.resetConcoctionStatGains();
 
     // Allow or disallow special fight actions
     FightRequest.initialize();
   }
 
+  public static final void setAscensionClass(final int classId) {
+    setAscensionClass(AscensionClass.find(classId));
+  }
+
+  public static final void setAscensionClass(final String className) {
+    setAscensionClass(AscensionClass.find(className));
+  }
+
   static final int getReagentPotionDuration() {
-    return 5
-        + (KoLCharacter.hasSkill("Impetuous Sauciness") ? 5 : 0)
-        + (KoLCharacter.classtype == KoLCharacter.SAUCEROR ? 5 : 0);
+    return 5 + (hasSkill("Impetuous Sauciness") ? 5 : 0) + (isSauceror() ? 5 : 0);
   }
 
   /**
@@ -1475,124 +1231,70 @@ public abstract class KoLCharacter {
    *
    * @return The name of the character's class
    */
-  public static final String getClassName() {
-    return KoLCharacter.classname;
+  public static final AscensionClass getAscensionClass() {
+    return ascensionClass;
   }
 
-  /**
-   * Accessor method to retrieve the type of the character's class.
-   *
-   * @return The type of the character's class
-   */
-  public static final String getClassType() {
-    if (KoLCharacter.classtype == null) {
-      KoLCharacter.classtype = KoLCharacter.getClassType(KoLCharacter.classname);
-    }
-
-    return KoLCharacter.classtype;
+  public static final String getAscensionClassName() {
+    return ascensionClass == null ? "none" : ascensionClass.getName();
   }
 
-  /**
-   * Accessor method to retrieve the type of the character's class.
-   *
-   * @return The type of the character's class
-   */
-  public static final String getClassType(final String classname) {
-    return classname.equals(KoLCharacter.AVATAR_OF_BORIS)
-        ? KoLCharacter.AVATAR_OF_BORIS
-        : classname.equals(KoLCharacter.ZOMBIE_MASTER)
-            ? KoLCharacter.ZOMBIE_MASTER
-            : classname.equals(KoLCharacter.AVATAR_OF_JARLSBERG)
-                ? KoLCharacter.AVATAR_OF_JARLSBERG
-                : classname.equals(KoLCharacter.AVATAR_OF_SNEAKY_PETE)
-                    ? KoLCharacter.AVATAR_OF_SNEAKY_PETE
-                    : classname.equals(KoLCharacter.ED)
-                        ? KoLCharacter.ED
-                        : classname.equals(KoLCharacter.COWPUNCHER)
-                            ? KoLCharacter.COWPUNCHER
-                            : classname.equals(KoLCharacter.BEANSLINGER)
-                                ? KoLCharacter.BEANSLINGER
-                                : classname.equals(KoLCharacter.SNAKE_OILER)
-                                    ? KoLCharacter.SNAKE_OILER
-                                    : classname.equals(KoLCharacter.GELATINOUS_NOOB)
-                                        ? KoLCharacter.GELATINOUS_NOOB
-                                        : classname.equals(KoLCharacter.VAMPYRE)
-                                            ? KoLCharacter.VAMPYRE
-                                            : classname.equals(KoLCharacter.PLUMBER)
-                                                ? KoLCharacter.PLUMBER
-                                                : KoLCharacter.SEAL_CLUBBER_RANKS.contains(
-                                                        classname)
-                                                    ? KoLCharacter.SEAL_CLUBBER
-                                                    : KoLCharacter.TURTLE_TAMER_RANKS.contains(
-                                                            classname)
-                                                        ? KoLCharacter.TURTLE_TAMER
-                                                        : KoLCharacter.PASTAMANCER_RANKS.contains(
-                                                                classname)
-                                                            ? KoLCharacter.PASTAMANCER
-                                                            : KoLCharacter.SAUCEROR_RANKS.contains(
-                                                                    classname)
-                                                                ? KoLCharacter.SAUCEROR
-                                                                : KoLCharacter.DISCO_BANDIT_RANKS
-                                                                        .contains(classname)
-                                                                    ? KoLCharacter.DISCO_BANDIT
-                                                                    : KoLCharacter
-                                                                            .ACCORDION_THIEF_RANKS
-                                                                            .contains(classname)
-                                                                        ? KoLCharacter
-                                                                            .ACCORDION_THIEF
-                                                                        : KoLCharacter
-                                                                            .ASTRAL_SPIRIT;
+  public static final boolean isSealClubber() {
+    return ascensionClass == AscensionClass.SEAL_CLUBBER;
+  }
+
+  public static final boolean isTurtleTamer() {
+    return ascensionClass == AscensionClass.TURTLE_TAMER;
+  }
+
+  public static final boolean isSauceror() {
+    return ascensionClass == AscensionClass.SAUCEROR;
+  }
+
+  public static final boolean isPastamancer() {
+    return ascensionClass == AscensionClass.PASTAMANCER;
+  }
+
+  public static final boolean isAccordionThief() {
+    return ascensionClass == AscensionClass.ACCORDION_THIEF;
+  }
+
+  public static final boolean isDiscoBandit() {
+    return ascensionClass == AscensionClass.DISCO_BANDIT;
   }
 
   public static final boolean isMuscleClass() {
-    return KoLCharacter.classtype == KoLCharacter.SEAL_CLUBBER
-        || KoLCharacter.classtype == KoLCharacter.TURTLE_TAMER
-        || KoLCharacter.classtype == KoLCharacter.AVATAR_OF_BORIS
-        || KoLCharacter.classtype == KoLCharacter.ZOMBIE_MASTER
-        || KoLCharacter.classtype == KoLCharacter.COWPUNCHER;
+    return ascensionClass != null && ascensionClass.getPrimeStatIndex() == 0;
   }
 
   public static final boolean isAvatarOfBoris() {
-    return KoLCharacter.classtype == KoLCharacter.AVATAR_OF_BORIS;
+    return ascensionClass == AscensionClass.AVATAR_OF_BORIS;
   }
 
   public static final boolean isZombieMaster() {
-    return KoLCharacter.classtype == KoLCharacter.ZOMBIE_MASTER;
+    return ascensionClass == AscensionClass.ZOMBIE_MASTER;
   }
 
   public static final boolean isMysticalityClass() {
-    return KoLCharacter.classtype == KoLCharacter.PASTAMANCER
-        || KoLCharacter.classtype == KoLCharacter.SAUCEROR
-        || KoLCharacter.classtype == KoLCharacter.AVATAR_OF_JARLSBERG
-        || KoLCharacter.classtype == KoLCharacter.ED
-        || KoLCharacter.classtype == KoLCharacter.BEANSLINGER
-        || KoLCharacter.classtype == KoLCharacter.VAMPYRE;
+    return ascensionClass != null && ascensionClass.getPrimeStatIndex() == 1;
   }
 
   public static final boolean isVampyre() {
-    return KoLCharacter.classtype == KoLCharacter.VAMPYRE;
+    return ascensionClass == AscensionClass.VAMPYRE;
   }
 
   public static final boolean isMoxieClass() {
-    return KoLCharacter.classtype == KoLCharacter.DISCO_BANDIT
-        || KoLCharacter.classtype == KoLCharacter.ACCORDION_THIEF
-        || KoLCharacter.classtype == KoLCharacter.AVATAR_OF_SNEAKY_PETE
-        || KoLCharacter.classtype == KoLCharacter.SNAKE_OILER
-        || KoLCharacter.classtype == KoLCharacter.GELATINOUS_NOOB;
+    return ascensionClass != null && ascensionClass.getPrimeStatIndex() == 2;
   }
 
   public static final boolean isAWoLClass() {
-    return KoLCharacter.getClassType() == KoLCharacter.COWPUNCHER
-        || KoLCharacter.getClassType() == KoLCharacter.BEANSLINGER
-        || KoLCharacter.getClassType() == KoLCharacter.SNAKE_OILER;
+    return ascensionClass == AscensionClass.COWPUNCHER
+        || ascensionClass == AscensionClass.BEANSLINGER
+        || ascensionClass == AscensionClass.SNAKE_OILER;
   }
 
   public static final Stat mainStat() {
-    return KoLCharacter.isMuscleClass()
-        ? Stat.MUSCLE
-        : KoLCharacter.isMysticalityClass()
-            ? Stat.MYSTICALITY
-            : KoLCharacter.isMoxieClass() ? Stat.MOXIE : Stat.NONE;
+    return ascensionClass == null ? Stat.NONE : ascensionClass.getMainStat();
   }
 
   public static final void setLimitmode(String limitmode) {
@@ -2161,7 +1863,7 @@ public abstract class KoLCharacter {
   }
 
   /**
-   * Accessor method to retrieve the total subpoints accumulted so far in muscle.
+   * Accessor method to retrieve the total subpoints accumulated so far in muscle.
    *
    * @return The total muscle subpoints so far
    */
@@ -2205,14 +1907,14 @@ public abstract class KoLCharacter {
   /**
    * Accessor method to retrieve the character's base value for mysticality.
    *
-   * @return The character's base value for muscle
+   * @return The character's base value for mysticality
    */
   public static final int getBaseMysticality() {
     return KoLCharacter.calculateBasePoints(KoLCharacter.totalSubpoints[1]);
   }
 
   /**
-   * Accessor method to retrieve the total subpoints accumulted so far in mysticality.
+   * Accessor method to retrieve the total subpoints accumulated so far in mysticality.
    *
    * @return The total mysticality subpoints so far
    */
@@ -2263,7 +1965,7 @@ public abstract class KoLCharacter {
   }
 
   /**
-   * Accessor method to retrieve the total subpoints accumulted so far in moxie.
+   * Accessor method to retrieve the total subpoints accumulated so far in moxie.
    *
    * @return The total moxie subpoints so far
    */
@@ -2342,8 +2044,9 @@ public abstract class KoLCharacter {
     if (adventuresLeft != KoLCharacter.adventuresLeft) {
       if (Taskbar.isTaskbarSupported()) {
         Taskbar taskbar = Taskbar.getTaskbar();
-        if (taskbar.isSupported(Taskbar.Feature.ICON_BADGE_TEXT)
-            || Preferences.getBoolean("useDockIconBadge")) {
+        if ((taskbar.isSupported(Taskbar.Feature.ICON_BADGE_TEXT)
+                || taskbar.isSupported(Taskbar.Feature.ICON_BADGE_NUMBER))
+            && Preferences.getBoolean("useDockIconBadge")) {
           taskbar.setIconBadge(String.valueOf(adventuresLeft));
         }
       }
@@ -2376,7 +2079,7 @@ public abstract class KoLCharacter {
         KoLCharacter.currentRun != currentRun && KoLCharacter.currentRun != 0 && currentRun != 0;
     KoLCharacter.currentRun = currentRun;
     if (changed) {
-      BanishManager.update();
+      BanishManager.recalculate();
     }
   }
 
@@ -2408,56 +2111,6 @@ public abstract class KoLCharacter {
 
   public static final void setCurrentDays(final int daycount) {
     KoLCharacter.daycount = daycount;
-  }
-
-  /** Accessor method to record the turn count when a semirare was found. */
-  public static final void registerSemirare() {
-    KoLCharacter.ensureUpdatedAscensionCounters();
-
-    Preferences.setInteger("semirareCounter", KoLCharacter.currentRun + 1);
-    KoLAdventure location = KoLAdventure.lastVisitedLocation();
-
-    String loc = (location == null) ? "" : location.getAdventureName();
-    Preferences.setString("semirareLocation", loc);
-
-    TurnCounter.stopCounting("Fortune Cookie");
-    TurnCounter.stopCounting("Semirare window begin");
-    TurnCounter.stopCounting("Semirare window end");
-
-    if (KoLCharacter.inLAR()) {
-      TurnCounter.startCounting(110, "Fortune Cookie", "fortune.gif");
-      return;
-    }
-
-    int begin = 160;
-    int end = 200;
-
-    if (KoLCharacter.getPath().equals("Oxygenarian")) {
-      begin = 100;
-      end = 120;
-    }
-
-    StringBuilder beginType = new StringBuilder();
-    beginType.append("Semirare window begin");
-
-    if (KoLCharacter.canInteract()) {
-      beginType.append(" loc=*");
-    }
-
-    TurnCounter.startCounting(begin + 1, beginType.toString(), "lparen.gif");
-    TurnCounter.startCounting(end + 1, "Semirare window end loc=*", "rparen.gif");
-  }
-
-  /** Accessor method to return how many turns have passed since the last semirare was found. */
-  public static final int turnsSinceLastSemirare() {
-    KoLCharacter.ensureUpdatedAscensionCounters();
-    int last = Preferences.getInteger("semirareCounter");
-    return KoLCharacter.currentRun - last;
-  }
-
-  public static final int lastSemirareTurn() {
-    KoLCharacter.ensureUpdatedAscensionCounters();
-    return Preferences.getInteger("semirareCounter");
   }
 
   /** Accessor method to retrieve the current value of a named modifier */
@@ -2545,8 +2198,7 @@ public abstract class KoLCharacter {
   /** Accessor method to retrieve the total current combat percent adjustment */
   public static final double getCombatRateAdjustment() {
     double rate = KoLCharacter.currentModifiers.get(Modifiers.COMBAT_RATE);
-    if (Modifiers.currentZone.contains("The Sea")
-        || Modifiers.currentLocation.equals("The Sunken Party Yacht")) {
+    if ("underwater".equals(AdventureDatabase.getEnvironment(Modifiers.currentLocation))) {
       rate += KoLCharacter.currentModifiers.get(Modifiers.UNDERWATER_COMBAT_RATE);
     }
     return rate;
@@ -2622,14 +2274,42 @@ public abstract class KoLCharacter {
     return (int) KoLCharacter.currentModifiers.get(Modifiers.POOL_SKILL);
   }
 
-  public static int estimatedPoolSkill() {
+  public static int estimatedPoolSkill(boolean verbose) {
+    int drunk = KoLCharacter.getInebriety();
+    int drunkBonus = drunk - (drunk > 10 ? (drunk - 10) * 3 : 0);
     int equip = KoLCharacter.getPoolSkill();
+    int poolsSharked = Preferences.getInteger("poolSharkCount");
+    int poolSharkBonus = 0;
+    if (poolsSharked > 25) {
+      poolSharkBonus = 10;
+    } else if (poolsSharked > 0) {
+      poolSharkBonus = (int) Math.floor(2 * Math.sqrt(poolsSharked));
+    }
     int training = Preferences.getInteger("poolSkill");
-    int semiRare = Preferences.getInteger("poolSharkCount");
-    int semiRareBonus = (int) Math.min(10, Math.floor(2 * Math.sqrt(semiRare)));
-    int inebriety = KoLCharacter.inebriety;
-    int inebrietyBonus = (inebriety > 10 ? 10 - 2 * (inebriety - 10) : inebriety);
-    return equip + training + semiRareBonus + inebrietyBonus;
+    int poolSkill = equip + training + poolSharkBonus + drunkBonus;
+
+    if (verbose) {
+      RequestLogger.printLine("Pool Skill is estimated at : " + poolSkill + ".");
+      RequestLogger.printLine(
+          equip
+              + " from equipment, "
+              + drunkBonus
+              + " from having "
+              + drunk
+              + " inebriety, "
+              + training
+              + " hustling training and "
+              + poolSharkBonus
+              + " learning from "
+              + poolsSharked
+              + " sharks.");
+    }
+
+    return poolSkill;
+  }
+
+  public static int estimatedPoolSkill() {
+    return estimatedPoolSkill(false);
   }
 
   /**
@@ -3140,59 +2820,32 @@ public abstract class KoLCharacter {
 
     Preferences.setBoolean("kingLiberated", true);
 
-    // Assign "points" to paths that grant them
     switch (oldPath) {
-      case AVATAR_OF_BORIS:
-        Preferences.increment("borisPoints", points);
-        break;
-      case AVATAR_OF_JARLSBERG:
-        Preferences.increment("jarlsbergPoints", points);
-        break;
-      case AVATAR_OF_SNEAKY_PETE:
-        Preferences.increment("sneakyPetePoints", points);
-        break;
-      case ACTUALLY_ED_THE_UNDYING:
-        Preferences.increment("edPoints", points);
-        break;
-      case ZOMBIE_SLAYER:
-        Preferences.increment("zombiePoints", points);
-        break;
       case AVATAR_OF_WEST_OF_LOATHING:
-        if (KoLCharacter.classtype == KoLCharacter.BEANSLINGER) {
-          Preferences.increment("awolPointsBeanslinger", points, 10, false);
-        } else if (KoLCharacter.classtype == KoLCharacter.COWPUNCHER) {
-          Preferences.increment("awolPointsCowpuncher", points, 10, false);
-        } else if (KoLCharacter.classtype == KoLCharacter.SNAKE_OILER) {
-          Preferences.increment("awolPointsSnakeoiler", points, 10, false);
+        final String pref;
+        switch (ascensionClass) {
+          case BEANSLINGER:
+            pref = "awolPointsBeanslinger";
+            break;
+          case COWPUNCHER:
+            pref = "awolPointsCowpuncher";
+            break;
+          case SNAKE_OILER:
+            pref = "awolPointsSnakeoiler";
+            break;
+          default:
+            pref = null;
+            break;
+        }
+        if (pref != null) {
+          Preferences.increment(pref, points, 10, false);
         }
         break;
-      case THE_SOURCE:
-        Preferences.increment("sourcePoints", points);
-        break;
-      case GELATINOUS_NOOB:
-        Preferences.increment("noobPoints", points, 20, false);
-        break;
-      case LICENSE_TO_ADVENTURE:
-        Preferences.increment("bondPoints", points, 24, false);
-        break;
       case GLOVER:
-        Preferences.increment("gloverPoints", points, 11, false);
-        break;
-      case DISGUISES_DELIMIT:
-        Preferences.increment("masksUnlocked", points, 25, false);
-        break;
-      case DARK_GYFFTE:
-        Preferences.increment("darkGyfftePoints", points, 23, false);
-        break;
-      case CRAZY_RANDOM_SUMMER_TWO:
-        TCRSDatabase.resetModifiers();
-        break;
-      case PATH_OF_THE_PLUMBER:
-        Preferences.increment("plumberPoints", points, 22, false);
-        KoLCharacter.removePlumberQuestItems();
-        break;
-      case QUANTUM:
-        Preferences.increment("quantumPoints", points, 11, false);
+        // Fall-through on purpose!
+        Preferences.increment("garlandUpgrades", 1, 10, false);
+      default:
+        oldPath.incrementPoints(points);
         break;
     }
 
@@ -3237,7 +2890,7 @@ public abstract class KoLCharacter {
       KoLCharacter.checkTelescope();
     }
 
-    // If we were in a path that grants skills only while on the path, rest them
+    // If we were in a path that grants skills only while on the path, reset them
     if (oldPath == Path.HEAVY_RAINS
         || oldPath == Path.NUCLEAR_AUTUMN
         || oldPath == Path.YOU_ROBOT) {
@@ -3317,6 +2970,17 @@ public abstract class KoLCharacter {
     FloristRequest.reset();
     RequestThread.postRequest(new FloristRequest());
 
+    // If you have the ItemManagerFrame open, there are four panels which
+    // display food, booze, spleen items, and potions. These enable buttons and
+    // filter what is shown based on character state: whether your character
+    // can eat or drink, whether items are out of standard, and so on.
+    //
+    // All of that is moot, now. Signal the various GUI panels to update.
+    NamedListenerRegistry.fireChange("(food)");
+    NamedListenerRegistry.fireChange("(booze)");
+    NamedListenerRegistry.fireChange("(spleen)");
+    NamedListenerRegistry.fireChange("(potions)");
+
     // Run a user-supplied script
     KoLmafiaCLI.DEFAULT_SHELL.executeLine(Preferences.getString("kingLiberatedScript"));
   }
@@ -3351,7 +3015,10 @@ public abstract class KoLCharacter {
 
   /** Accessor method which sets whether or not the player is currently in hardcore. */
   public static final void setHardcore(final boolean isHardcore) {
-    KoLCharacter.isHardcore = isHardcore;
+    if (KoLCharacter.isHardcore != isHardcore) {
+      KoLCharacter.isHardcore = isHardcore;
+      NamedListenerRegistry.fireChange("(hardcore)");
+    }
   }
 
   /** Returns whether or not the character is currently in casual. */
@@ -3364,7 +3031,7 @@ public abstract class KoLCharacter {
     KoLCharacter.isCasual = isCasual;
   }
 
-  /** Returns whether or not the character is currently in roin. */
+  /** Returns whether or not the character is currently in ronin. */
   public static final boolean inRonin() {
     return KoLCharacter.inRonin;
   }
@@ -3390,7 +3057,10 @@ public abstract class KoLCharacter {
 
   /** Accessor method which sets whether or not the player is currently in ronin. */
   public static final void setRonin(final boolean inRonin) {
-    KoLCharacter.inRonin = inRonin;
+    if (KoLCharacter.inRonin != inRonin) {
+      KoLCharacter.inRonin = inRonin;
+      NamedListenerRegistry.fireChange("(ronin)");
+    }
   }
 
   /**
@@ -3408,7 +3078,7 @@ public abstract class KoLCharacter {
    * @return String
    */
   public static final String getSign() {
-    return KoLCharacter.ascensionSign;
+    return KoLCharacter.ascensionSign.getName();
   }
 
   /**
@@ -3417,7 +3087,7 @@ public abstract class KoLCharacter {
    * @return String
    */
   public static final int getSignIndex() {
-    return KoLCharacter.ascensionSignIndex;
+    return KoLCharacter.ascensionSign.getId();
   }
 
   /**
@@ -3426,7 +3096,7 @@ public abstract class KoLCharacter {
    * @return int
    */
   public static final ZodiacType getSignStat() {
-    return KoLCharacter.ascensionSignType;
+    return KoLCharacter.ascensionSign.getType();
   }
 
   /**
@@ -3435,7 +3105,7 @@ public abstract class KoLCharacter {
    * @return int
    */
   public static final ZodiacZone getSignZone() {
-    return KoLCharacter.ascensionSignZone;
+    return KoLCharacter.ascensionSign.getZone();
   }
 
   /**
@@ -3472,56 +3142,16 @@ public abstract class KoLCharacter {
       ascensionSign = ascensionSign.substring(4);
     }
 
+    KoLCharacter.ascensionSign = ZodiacSign.find(ascensionSign);
+  }
+
+  /**
+   * Accessor method to set a character's zodiac sign
+   *
+   * @param ascensionSign the new sign
+   */
+  public static final void setSign(ZodiacSign ascensionSign) {
     KoLCharacter.ascensionSign = ascensionSign;
-
-    // Determine the sign "type" --> the stat that gets +10% XP bonus
-    // Determine the sign "zone" --> the NPC area available for shopping
-
-    if (ascensionSign.equals("Mongoose")) {
-      KoLCharacter.ascensionSignIndex = 1;
-      KoLCharacter.ascensionSignType = ZodiacType.MUSCLE;
-      KoLCharacter.ascensionSignZone = ZodiacZone.KNOLL;
-    } else if (ascensionSign.equals("Platypus")) {
-      KoLCharacter.ascensionSignIndex = 4;
-      KoLCharacter.ascensionSignType = ZodiacType.MUSCLE;
-      KoLCharacter.ascensionSignZone = ZodiacZone.CANADIA;
-    } else if (ascensionSign.equals("Wombat")) {
-      KoLCharacter.ascensionSignIndex = 7;
-      KoLCharacter.ascensionSignType = ZodiacType.MUSCLE;
-      KoLCharacter.ascensionSignZone = ZodiacZone.GNOMADS;
-    } else if (ascensionSign.equals("Wallaby")) {
-      KoLCharacter.ascensionSignIndex = 2;
-      KoLCharacter.ascensionSignType = ZodiacType.MYSTICALITY;
-      KoLCharacter.ascensionSignZone = ZodiacZone.KNOLL;
-    } else if (ascensionSign.equals("Opossum")) {
-      KoLCharacter.ascensionSignIndex = 5;
-      KoLCharacter.ascensionSignType = ZodiacType.MYSTICALITY;
-      KoLCharacter.ascensionSignZone = ZodiacZone.CANADIA;
-    } else if (ascensionSign.equals("Blender")) {
-      KoLCharacter.ascensionSignIndex = 8;
-      KoLCharacter.ascensionSignType = ZodiacType.MYSTICALITY;
-      KoLCharacter.ascensionSignZone = ZodiacZone.GNOMADS;
-    } else if (ascensionSign.equals("Vole")) {
-      KoLCharacter.ascensionSignIndex = 3;
-      KoLCharacter.ascensionSignType = ZodiacType.MOXIE;
-      KoLCharacter.ascensionSignZone = ZodiacZone.KNOLL;
-    } else if (ascensionSign.equals("Marmot")) {
-      KoLCharacter.ascensionSignIndex = 6;
-      KoLCharacter.ascensionSignType = ZodiacType.MOXIE;
-      KoLCharacter.ascensionSignZone = ZodiacZone.CANADIA;
-    } else if (ascensionSign.equals("Packrat")) {
-      KoLCharacter.ascensionSignIndex = 9;
-      KoLCharacter.ascensionSignType = ZodiacType.MOXIE;
-      KoLCharacter.ascensionSignZone = ZodiacZone.GNOMADS;
-    } else if (ascensionSign.equals("Bad Moon")) {
-      KoLCharacter.ascensionSignIndex = 10;
-      KoLCharacter.ascensionSignType = ZodiacType.BAD_MOON;
-      KoLCharacter.ascensionSignZone = ZodiacZone.NONE;
-    } else {
-      KoLCharacter.ascensionSignIndex = 0;
-      KoLCharacter.ascensionSignType = ZodiacType.NONE;
-      KoLCharacter.ascensionSignZone = ZodiacZone.NONE;
-    }
   }
 
   /**
@@ -3683,6 +3313,10 @@ public abstract class KoLCharacter {
     return KoLCharacter.ascensionPath == Path.WILDFIRE;
   }
 
+  public static final boolean inGreyYou() {
+    return KoLCharacter.ascensionPath == Path.GREY_YOU;
+  }
+
   public static final boolean isUnarmed() {
     AdventureResult weapon = EquipmentManager.getEquipment(EquipmentManager.WEAPON);
     AdventureResult offhand = EquipmentManager.getEquipment(EquipmentManager.OFFHAND);
@@ -3701,27 +3335,7 @@ public abstract class KoLCharacter {
   }
 
   public static final void setPath(final Path path) {
-    KoLCharacter.ascensionPath = path;
-    int restriction =
-        path == Path.OXYGENARIAN
-            ? AscensionSnapshot.OXYGENARIAN
-            : path == Path.BOOZETAFARIAN
-                ? AscensionSnapshot.BOOZETAFARIAN
-                : path == Path.TEETOTALER ? AscensionSnapshot.TEETOTALER : AscensionSnapshot.NOPATH;
-    KoLCharacter.consumptionRestriction = restriction;
-  }
-
-  /**
-   * Accessor method for the character's consumption restrictions
-   *
-   * @return String
-   */
-  public static final int getConsumptionRestriction() {
-    return KoLCharacter.consumptionRestriction;
-  }
-
-  public static final void setConsumptionRestriction(final int consumptionRestriction) {
-    KoLCharacter.consumptionRestriction = consumptionRestriction;
+    ascensionPath = path;
   }
 
   public static final boolean canEat() {
@@ -3733,12 +3347,15 @@ public abstract class KoLCharacter {
       return false;
     }
 
-    if (KoLCharacter.inNoobcore() || KoLCharacter.inBondcore() || KoLCharacter.inRobocore()) {
+    if (KoLCharacter.inNoobcore() || KoLCharacter.inBondcore()) {
       return false;
     }
 
-    return KoLCharacter.consumptionRestriction == AscensionSnapshot.NOPATH
-        || KoLCharacter.consumptionRestriction == AscensionSnapshot.TEETOTALER;
+    if (ascensionPath == Path.OXYGENARIAN || ascensionPath == Path.BOOZETAFARIAN) {
+      return false;
+    }
+
+    return true;
   }
 
   public static final boolean canDrink() {
@@ -3750,20 +3367,35 @@ public abstract class KoLCharacter {
       return false;
     }
 
-    if (KoLCharacter.inNoobcore()) {
+    if (KoLCharacter.inNoobcore() || KoLCharacter.isPlumber() || KoLCharacter.inRobocore()) {
       return false;
     }
 
-    if (KoLCharacter.isPlumber()) {
+    if (ascensionPath == Path.OXYGENARIAN || ascensionPath == Path.TEETOTALER) {
       return false;
     }
 
+    return true;
+  }
+
+  public static final boolean canSpleen() {
+    if (Limitmode.limitSpleening()) {
+      return false;
+    }
+
+    if (KoLCharacter.inNoobcore() || KoLCharacter.inRobocore()) {
+      return false;
+    }
+
+    return true;
+  }
+
+  public static final boolean canUsePotions() {
     if (KoLCharacter.inRobocore()) {
-      return false;
+      return YouRobotManager.canUsePotions();
     }
 
-    return KoLCharacter.consumptionRestriction == AscensionSnapshot.NOPATH
-        || KoLCharacter.consumptionRestriction == AscensionSnapshot.BOOZETAFARIAN;
+    return true;
   }
 
   /**
@@ -3891,7 +3523,7 @@ public abstract class KoLCharacter {
    * @return <code>true</code> if the character is in a Muscle sign
    */
   public static final boolean inMuscleSign() {
-    return KoLCharacter.ascensionSignType == ZodiacType.MUSCLE;
+    return KoLCharacter.getSignStat() == ZodiacType.MUSCLE;
   }
 
   /**
@@ -3903,7 +3535,7 @@ public abstract class KoLCharacter {
    * @return <code>true</code> if the character is in a Mysticality sign
    */
   public static final boolean inMysticalitySign() {
-    return KoLCharacter.ascensionSignType == ZodiacType.MYSTICALITY;
+    return KoLCharacter.getSignStat() == ZodiacType.MYSTICALITY;
   }
 
   /**
@@ -3914,7 +3546,7 @@ public abstract class KoLCharacter {
    * @return <code>true</code> if the character is in a Moxie sign
    */
   public static final boolean inMoxieSign() {
-    return KoLCharacter.ascensionSignType == ZodiacType.MOXIE;
+    return KoLCharacter.getSignStat() == ZodiacType.MOXIE;
   }
 
   /**
@@ -3925,7 +3557,7 @@ public abstract class KoLCharacter {
    * @return <code>true</code> if the character is in Bad Moon
    */
   public static final boolean inBadMoon() {
-    return KoLCharacter.ascensionSignType == ZodiacType.BAD_MOON;
+    return KoLCharacter.getSignStat() == ZodiacType.BAD_MOON;
   }
 
   /**
@@ -3939,7 +3571,7 @@ public abstract class KoLCharacter {
    * @return <code>true</code> if the character Can go inside Degrassi Knoll
    */
   public static final boolean knollAvailable() {
-    return KoLCharacter.ascensionSignZone == ZodiacZone.KNOLL
+    return KoLCharacter.getSignZone() == ZodiacZone.KNOLL
         && !Limitmode.limitZone("MusSign")
         && !KoLCharacter.isKingdomOfExploathing()
         && !KoLCharacter.inGoocore();
@@ -3955,7 +3587,7 @@ public abstract class KoLCharacter {
    * @return <code>true</code> if the character can go to Little Canadia
    */
   public static final boolean canadiaAvailable() {
-    return KoLCharacter.ascensionSignZone == ZodiacZone.CANADIA
+    return KoLCharacter.getSignZone() == ZodiacZone.CANADIA
         && !Limitmode.limitZone("Little Canadia")
         && !KoLCharacter.isKingdomOfExploathing();
   }
@@ -3969,7 +3601,7 @@ public abstract class KoLCharacter {
    * @return <code>true</code> if the character can go to the Gnomish Gnomads Camp
    */
   public static final boolean gnomadsAvailable() {
-    return (KoLCharacter.ascensionSignZone == ZodiacZone.GNOMADS)
+    return (KoLCharacter.getSignZone() == ZodiacZone.GNOMADS)
         && KoLCharacter.desertBeachAccessible()
         && !KoLCharacter.isKingdomOfExploathing();
   }
@@ -3980,7 +3612,7 @@ public abstract class KoLCharacter {
    * @return <code>true</code> if the character can potentially change monster level
    */
   public static final boolean mcdAvailable() {
-    switch (KoLCharacter.ascensionSignZone) {
+    switch (KoLCharacter.getSignZone()) {
       case CANADIA:
         // Direct access to the Mind Control Device
         return KoLCharacter.canadiaAvailable();
@@ -4004,10 +3636,10 @@ public abstract class KoLCharacter {
 
     // Temporary code to allow Mafia to catch up with the fact that unlock is a flag
     if (Preferences.getInteger("lastDesertUnlock") != KoLCharacter.getAscensions()) {
-      if (KoLConstants.inventory.contains(ItemPool.get(ItemPool.BITCHIN_MEATCAR, 1))
-          || KoLConstants.inventory.contains(ItemPool.get(ItemPool.DESERT_BUS_PASS, 1))
-          || KoLConstants.inventory.contains(ItemPool.get(ItemPool.PUMPKIN_CARRIAGE, 1))
-          || KoLConstants.inventory.contains(ItemPool.get(ItemPool.TIN_LIZZIE, 1))
+      if (InventoryManager.getCount(ItemPool.BITCHIN_MEATCAR) > 0
+          || InventoryManager.getCount(ItemPool.DESERT_BUS_PASS) > 0
+          || InventoryManager.getCount(ItemPool.PUMPKIN_CARRIAGE) > 0
+          || InventoryManager.getCount(ItemPool.TIN_LIZZIE) > 0
           || Preferences.getString("peteMotorbikeGasTank").equals("Large Capacity Tank")
           || Preferences.getString("questG01Meatcar").equals("finished")
           || KoLCharacter.kingLiberated()
@@ -4068,9 +3700,13 @@ public abstract class KoLCharacter {
   public static final void setPermedSkills(final List<UseSkillRequest> newSkillSet) {
     KoLConstants.permedSkills.clear();
 
-    for (UseSkillRequest skill : newSkillSet) {
-      KoLConstants.permedSkills.add(skill);
-    }
+    KoLConstants.permedSkills.addAll(newSkillSet);
+  }
+
+  public static final void setHardcorePermedSkills(final Set<Integer> newSkillSet) {
+    KoLConstants.hardcorePermedSkills.clear();
+
+    KoLConstants.hardcorePermedSkills.addAll(newSkillSet);
   }
 
   /** Adds a single skill to the list of known skills possessed by this character. */
@@ -4082,14 +3718,14 @@ public abstract class KoLCharacter {
     KoLCharacter.addAvailableSkill(UseSkillRequest.getUnmodifiedInstance(skillId), checkTrendy);
   }
 
-  public static final void addAvailableSkill(final String name) {
+  public static final void addAvailableSkill(final String skillName) {
     // *** Skills can have ambiguous names. Best to use the methods that deal with skill id
-    KoLCharacter.addAvailableSkill(name, false);
+    KoLCharacter.addAvailableSkill(skillName, false);
   }
 
-  public static final void addAvailableSkill(final String name, final boolean checkTrendy) {
+  public static final void addAvailableSkill(final String skillName, final boolean checkTrendy) {
     // *** Skills can have ambiguous names. Best to use the methods that deal with skill id
-    KoLCharacter.addAvailableSkill(UseSkillRequest.getUnmodifiedInstance(name), checkTrendy);
+    KoLCharacter.addAvailableSkill(SkillDatabase.getSkillId(skillName), checkTrendy);
   }
 
   public static final void addAvailableSkill(final UseSkillRequest skill) {
@@ -4101,7 +3737,8 @@ public abstract class KoLCharacter {
       return;
     }
 
-    if (KoLConstants.availableSkillsMap.containsKey(skill)) {
+    int skillId = skill.getSkillId();
+    if (KoLConstants.availableSkillsSet.contains(skillId)) {
       return;
     }
 
@@ -4126,13 +3763,13 @@ public abstract class KoLCharacter {
     }
 
     KoLConstants.availableSkills.add(skill);
-    KoLConstants.availableSkillsMap.put(skill, null);
+    KoLConstants.availableSkillsSet.add(skillId);
     PreferenceListenerRegistry.firePreferenceChanged("(skill)");
 
-    switch (SkillDatabase.getSkillType(skill.getSkillId())) {
+    switch (SkillDatabase.getSkillType(skillId)) {
       case SkillDatabase.PASSIVE:
         {
-          switch (skill.getSkillId()) {
+          switch (skillId) {
             case SkillPool.FLAVOUR_OF_MAGIC:
               // Flavour of Magic gives you access to five other
               // castable skills
@@ -4146,7 +3783,7 @@ public abstract class KoLCharacter {
 
             case SkillPool.SOUL_SAUCERY:
               // Soul Saucery gives you access to six other skills if a Sauceror
-              if (KoLCharacter.getClassType() == KoLCharacter.SAUCEROR) {
+              if (isSauceror()) {
                 KoLCharacter.addAvailableSkill("Soul Bubble");
                 KoLCharacter.addAvailableSkill("Soul Finger");
                 KoLCharacter.addAvailableSkill("Soul Blaze");
@@ -4274,43 +3911,21 @@ public abstract class KoLCharacter {
 
   /** Adds a single skill to the list of skills temporarily possessed by this character. */
   public static final void addAvailableCombatSkill(final int skillId) {
-    KoLCharacter.addAvailableCombatSkill(UseSkillRequest.getUnmodifiedInstance(skillId));
+    KoLConstants.availableCombatSkillsSet.add(skillId);
   }
 
   public static final void addAvailableCombatSkill(final String skillName) {
     // *** Skills can have ambiguous names. Best to use the methods that deal with skill id
-    KoLCharacter.addAvailableCombatSkill(UseSkillRequest.getUnmodifiedInstance(skillName));
+    KoLCharacter.addAvailableCombatSkill(SkillDatabase.getSkillId(skillName));
   }
 
-  private static void addAvailableCombatSkill(final UseSkillRequest skill) {
-    if (skill == null) {
-      return;
-    }
-
-    if (KoLConstants.availableCombatSkillsMap.containsKey(skill)) {
-      return;
-    }
-
-    KoLConstants.availableCombatSkills.add(skill);
-    KoLConstants.availableCombatSkillsMap.put(skill, null);
+  public static final void removeAvailableCombatSkill(final int skillId) {
+    KoLConstants.availableCombatSkillsSet.remove(skillId);
   }
 
-  public static final void removeAvailableCombatSkill(final String name) {
+  public static final void removeAvailableCombatSkill(final String skillName) {
     // *** Skills can have ambiguous names. Best to use the methods that deal with skill id
-    KoLCharacter.removeAvailableCombatSkill(UseSkillRequest.getUnmodifiedInstance(name));
-  }
-
-  private static void removeAvailableCombatSkill(final UseSkillRequest skill) {
-    if (skill == null) {
-      return;
-    }
-
-    if (!KoLConstants.availableCombatSkillsMap.containsKey(skill)) {
-      return;
-    }
-
-    KoLConstants.availableCombatSkills.remove(skill);
-    KoLConstants.availableCombatSkillsMap.remove(skill);
+    KoLCharacter.removeAvailableCombatSkill(SkillDatabase.getSkillId(skillName));
   }
 
   private static void addCombatSkill(final String name) {
@@ -4330,9 +3945,8 @@ public abstract class KoLCharacter {
     }
 
     UseSkillRequest skill = UseSkillRequest.getUnmodifiedInstance(skillId);
-
     KoLConstants.availableSkills.remove(skill);
-    KoLConstants.availableSkillsMap.remove(skill);
+    KoLConstants.availableSkillsSet.remove(skillId);
     KoLConstants.usableSkills.remove(skill);
     KoLConstants.summoningSkills.remove(skill);
     KoLConstants.usableSkills.remove(skill);
@@ -4455,41 +4069,19 @@ public abstract class KoLCharacter {
     return KoLCharacter.hasSkill("Amphibian Sympathy");
   }
 
-  /** Utility method which looks up whether or not the character has a skill of the given name. */
+  /** Utility methods which looks up whether or not the character has a particular skill. */
   public static final boolean hasSkill(final int skillId) {
-    UseSkillRequest skill = UseSkillRequest.getUnmodifiedInstance(skillId);
-    return KoLCharacter.hasSkill(skill);
+    return KoLConstants.availableSkillsSet.contains(skillId);
   }
 
   public static final boolean hasSkill(final String skillName) {
     // *** Skills can have ambiguous names. Best to use the methods that deal with skill id
-    UseSkillRequest skill = UseSkillRequest.getUnmodifiedInstance(skillName);
-    return KoLCharacter.hasSkill(skill);
+    int skillId = SkillDatabase.getSkillId(skillName);
+    return KoLCharacter.hasSkill(skillId);
   }
 
-  public static final boolean hasSkill(final String skillName, final List<UseSkillRequest> list) {
-    // *** Skills can have ambiguous names. Best to use the methods that deal with skill id
-    UseSkillRequest skill = UseSkillRequest.getUnmodifiedInstance(skillName);
-    return KoLCharacter.hasSkill(skill, list);
-  }
-
-  public static final boolean hasSkill(final UseSkillRequest skill) {
-    return KoLCharacter.hasSkill(skill, KoLConstants.availableSkills);
-  }
-
-  public static final boolean hasSkill(
-      final UseSkillRequest skill, final List<UseSkillRequest> list) {
-    if (skill == null) {
-      return false;
-    }
-
-    if (list == KoLConstants.availableSkills) {
-      return KoLConstants.availableSkillsMap.containsKey(skill);
-    }
-    if (list == KoLConstants.availableCombatSkills) {
-      return KoLConstants.availableCombatSkillsMap.containsKey(skill);
-    }
-    return list.contains(skill);
+  public static final boolean hasCombatSkill(final int skillId) {
+    return KoLConstants.availableCombatSkillsSet.contains(skillId);
   }
 
   /**
@@ -4704,12 +4296,7 @@ public abstract class KoLCharacter {
     }
 
     // Only the six original character classes can join a guild
-    if (KoLCharacter.classtype != KoLCharacter.SEAL_CLUBBER
-        && KoLCharacter.classtype != KoLCharacter.TURTLE_TAMER
-        && KoLCharacter.classtype != KoLCharacter.PASTAMANCER
-        && KoLCharacter.classtype != KoLCharacter.SAUCEROR
-        && KoLCharacter.classtype != KoLCharacter.DISCO_BANDIT
-        && KoLCharacter.classtype != KoLCharacter.ACCORDION_THIEF) {
+    if (!ascensionClass.isStandard()) {
       KoLCharacter.guildStoreStateKnown = true;
       return false;
     }
@@ -4737,20 +4324,17 @@ public abstract class KoLCharacter {
 
   public static final boolean canPickpocket() {
     return !Limitmode.limitPickpocket()
-        && (KoLCharacter.classtype == KoLCharacter.DISCO_BANDIT
-            || KoLCharacter.classtype == KoLCharacter.ACCORDION_THIEF
-            || KoLCharacter.classtype == KoLCharacter.AVATAR_OF_SNEAKY_PETE
-            || KoLCharacter.classtype == KoLCharacter.GELATINOUS_NOOB
+        && (ascensionClass == AscensionClass.DISCO_BANDIT
+            || ascensionClass == AscensionClass.ACCORDION_THIEF
+            || ascensionClass == AscensionClass.AVATAR_OF_SNEAKY_PETE
+            || ascensionClass == AscensionClass.GELATINOUS_NOOB
             || KoLConstants.activeEffects.contains(EffectPool.get(EffectPool.FORM_OF_BIRD))
             || KoLCharacter.hasEquipped(ItemPool.TINY_BLACK_HOLE, EquipmentManager.OFFHAND)
             || KoLCharacter.hasEquipped(ItemPool.MIME_ARMY_INFILTRATION_GLOVE));
   }
 
   public static final boolean isTorsoAware() {
-    return KoLCharacter.hasSkill("Torso Awareness")
-        || KoLCharacter.hasSkill("Best Dressed")
-        || (KoLCharacter.inRobocore()
-            && Preferences.getString("youRobotCPUUpgrades").contains("robot_shirt"));
+    return KoLCharacter.hasSkill("Torso Awareness") || KoLCharacter.hasSkill("Best Dressed");
   }
 
   /**
@@ -4769,62 +4353,45 @@ public abstract class KoLCharacter {
    * @return familiar The first familiar matching this race
    */
   public static final FamiliarData findFamiliar(final String race) {
-    if (FamiliarData.NO_FAMILIAR.getRace().equals(race)) {
-      return FamiliarData.NO_FAMILIAR;
-    }
-
-    // Don't even look if you are an Avatar
-    if (KoLCharacter.inAxecore() || KoLCharacter.isJarlsberg()) {
-      return null;
-    }
-
-    FamiliarData[] familiarArray = new FamiliarData[KoLCharacter.familiars.size()];
-    KoLCharacter.familiars.toArray(familiarArray);
-
-    for (int i = 0; i < familiarArray.length; ++i) {
-      FamiliarData familiar = familiarArray[i];
-      if (familiar.getRace().equals(race)) {
-        return familiar;
-      }
-    }
-
-    return null;
+    return findFamiliar(f -> f.getRace().equalsIgnoreCase(race));
   }
 
+  /**
+   * Accessor method to find the specified familiar.
+   *
+   * @param familiarId The id of the familiar to find
+   * @return familiar The first familiar matching this id
+   */
   public static final FamiliarData findFamiliar(final int familiarId) {
-    if (familiarId == -1) {
-      return FamiliarData.NO_FAMILIAR;
-    }
+    return findFamiliar(f -> f.getId() == familiarId);
+  }
+
+  private static final FamiliarData findFamiliar(final Predicate<FamiliarData> familiarFilter) {
+    // Quick check against NO_FAMILIAR
+    if (familiarFilter.test(FamiliarData.NO_FAMILIAR)) return FamiliarData.NO_FAMILIAR;
 
     // Don't even look if you are an Avatar
-    if (KoLCharacter.inAxecore() || KoLCharacter.isJarlsberg() || KoLCharacter.isSneakyPete()) {
-      return null;
-    }
+    if (!KoLCharacter.getPath().canUseFamiliars()) return null;
 
     // In Quantum Terrarium the player only has the familiar that is with them
     if (KoLCharacter.inQuantum()) {
-      return (KoLCharacter.currentFamiliar.getId() == familiarId)
+      return familiarFilter.test(KoLCharacter.currentFamiliar)
           ? KoLCharacter.currentFamiliar
           : null;
     }
 
-    FamiliarData[] familiarArray = new FamiliarData[KoLCharacter.familiars.size()];
-    KoLCharacter.familiars.toArray(familiarArray);
+    return KoLCharacter.familiars.stream()
+        .filter(familiarFilter)
+        .filter(StandardRequest::isAllowed)
+        .filter(f -> !KoLCharacter.inZombiecore() || f.isUndead())
+        .filter(f -> !KoLCharacter.inBeecore() || !KoLCharacter.hasBeeosity(f.getRace()))
+        .filter(f -> !KoLCharacter.inGLover() || KoLCharacter.hasGs(f.getRace()))
+        .findAny()
+        .orElse(null);
+  }
 
-    for (int i = 0; i < familiarArray.length; ++i) {
-      FamiliarData familiar = familiarArray[i];
-      if (familiar.getId() == familiarId) {
-        if (!StandardRequest.isAllowed("Familiars", familiar.getRace())) {
-          return null;
-        }
-        if (KoLCharacter.inGLover() && !KoLCharacter.hasGs(familiar.getRace())) {
-          return null;
-        }
-        return familiar;
-      }
-    }
-
-    return null;
+  public static final boolean hasFamiliar(final int familiarId) {
+    return KoLCharacter.findFamiliar(familiarId) != null;
   }
 
   /**
@@ -4845,7 +4412,13 @@ public abstract class KoLCharacter {
       EquipmentManager.updateEquipmentList(EquipmentManager.FAMILIAR);
     }
 
+    if (KoLCharacter.currentFamiliar != FamiliarData.NO_FAMILIAR) {
+      KoLCharacter.currentFamiliar.deactivate();
+    }
     KoLCharacter.currentFamiliar = KoLCharacter.addFamiliar(familiar);
+    if (KoLCharacter.currentFamiliar != FamiliarData.NO_FAMILIAR) {
+      KoLCharacter.currentFamiliar.activate();
+    }
 
     if (KoLCharacter.currentFamiliar.equals(KoLCharacter.currentEnthroned)) {
       KoLCharacter.currentEnthroned = FamiliarData.NO_FAMILIAR;
@@ -4980,7 +4553,7 @@ public abstract class KoLCharacter {
   }
 
   public static final PastaThrallData findPastaThrall(final String type) {
-    if (KoLCharacter.classtype != KoLCharacter.PASTAMANCER) {
+    if (ascensionClass != AscensionClass.PASTAMANCER) {
       return null;
     }
 
@@ -5007,7 +4580,7 @@ public abstract class KoLCharacter {
   }
 
   public static final PastaThrallData findPastaThrall(final int thrallId) {
-    if (KoLCharacter.classtype != KoLCharacter.PASTAMANCER) {
+    if (ascensionClass != AscensionClass.PASTAMANCER) {
       return null;
     }
 
@@ -5041,14 +4614,16 @@ public abstract class KoLCharacter {
 
     if (thrall == PastaThrallData.NO_THRALL) {
       UseSkillRequest skill = UseSkillRequest.getUnmodifiedInstance("Dismiss Pasta Thrall");
+      int skillId = skill.getSkillId();
       KoLConstants.availableSkills.remove(skill);
-      KoLConstants.availableSkillsMap.remove(skill);
+      KoLConstants.availableSkillsSet.remove(skillId);
       KoLConstants.usableSkills.remove(skill);
       KoLConstants.summoningSkills.remove(skill);
     } else if (KoLCharacter.currentPastaThrall == PastaThrallData.NO_THRALL) {
       UseSkillRequest skill = UseSkillRequest.getUnmodifiedInstance("Dismiss Pasta Thrall");
+      int skillId = skill.getSkillId();
       KoLConstants.availableSkills.add(skill);
-      KoLConstants.availableSkillsMap.put(skill, null);
+      KoLConstants.availableSkillsSet.add(skillId);
       KoLConstants.usableSkills.add(skill);
       LockableListFactory.sort(KoLConstants.usableSkills);
       KoLConstants.summoningSkills.add(skill);
@@ -5321,6 +4896,7 @@ public abstract class KoLCharacter {
                 + " "
                 + Preferences.getString("retroCapeWashingInstructions"),
             Preferences.getString("backupCameraMode"),
+            Preferences.getString("umbrellaState"),
             false));
   }
 
@@ -5339,6 +4915,7 @@ public abstract class KoLCharacter {
       String boomBox,
       String retroCape,
       String backupCamera,
+      String unbreakableUmbrella,
       boolean speculation) {
     int taoFactor = KoLCharacter.hasSkill("Tao of the Terrapin") ? 2 : 1;
 
@@ -5358,14 +4935,12 @@ public abstract class KoLCharacter {
 
     // Look at sign-specific adjustments
     newModifiers.add(Modifiers.MONSTER_LEVEL, MCD, "MCD:MCD");
-    newModifiers.add(Modifiers.getModifiers("Sign", KoLCharacter.ascensionSign));
+    newModifiers.add(Modifiers.getModifiers("Sign", KoLCharacter.ascensionSign.getName()));
 
     // If we are out of ronin/hardcore, look at stat day adjustments
     if (KoLCharacter.canInteract() && !KoLmafia.statDay.equals("None")) {
       newModifiers.add(Modifiers.getModifiers("StatDay", KoLmafia.statDay));
     }
-
-    Modifiers.smithsness = KoLCharacter.getSmithsnessModifier(equipment, effects);
 
     // Certain outfits give benefits to the character
     // Need to do this before the individual items, so that Hobo Power
@@ -5433,6 +5008,7 @@ public abstract class KoLCharacter {
           snowsuit,
           retroCape,
           backupCamera,
+          unbreakableUmbrella,
           speculation,
           taoFactor);
     }
@@ -5470,11 +5046,9 @@ public abstract class KoLCharacter {
     // For the sake of easier maintenance, execute a lot of extra
     // string comparisons when looking at status effects.
 
-    for (int i = 0; i < effects.size(); ++i) {
-      newModifiers.add(Modifiers.getEffectModifiers(effects.get(i).getEffectId()));
+    for (AdventureResult effect : effects) {
+      newModifiers.add(Modifiers.getEffectModifiers(effect.getEffectId()));
     }
-
-    Modifiers.hoboPower = newModifiers.get(Modifiers.HOBO_POWER);
 
     // Add modifiers from campground equipment.
     for (int i = 0; i < KoLConstants.campground.size(); ++i) {
@@ -5492,7 +5066,7 @@ public abstract class KoLCharacter {
     AdventureResult dwelling = CampgroundRequest.getCurrentDwelling();
     newModifiers.add(Modifiers.getItemModifiers(dwelling.getItemId()));
 
-    if (KoLConstants.inventory.contains(ItemPool.get(ItemPool.COMFY_BLANKET, 1))) {
+    if (InventoryManager.getCount(ItemPool.COMFY_BLANKET) > 0) {
       newModifiers.add(Modifiers.getItemModifiers(ItemPool.COMFY_BLANKET));
     }
 
@@ -5521,7 +5095,7 @@ public abstract class KoLCharacter {
 
     // Add Pasta Thrall effects
 
-    if (KoLCharacter.classtype == KoLCharacter.PASTAMANCER) {
+    if (ascensionClass == AscensionClass.PASTAMANCER) {
       PastaThrallData thrall = KoLCharacter.currentPastaThrall;
       if (thrall != PastaThrallData.NO_THRALL) {
         newModifiers.add(Modifiers.getModifiers("Thrall", thrall.getType()));
@@ -5583,6 +5157,10 @@ public abstract class KoLCharacter {
     if (custom != null) {
       newModifiers.add(Modifiers.parseModifiers("Generated:custom", custom));
     }
+
+    // Store some modifiers as statics
+    Modifiers.hoboPower = newModifiers.get(Modifiers.HOBO_POWER);
+    Modifiers.smithsness = KoLCharacter.getSmithsnessModifier(equipment, effects);
 
     if (Modifiers.currentLocation.equals("The Slime Tube")) {
       int hatred = (int) newModifiers.get(Modifiers.SLIME_HATES_IT);
@@ -5653,16 +5231,7 @@ public abstract class KoLCharacter {
     }
 
     if (KoLCharacter.inRobocore()) {
-      newModifiers.add(Modifiers.getModifiers("RobotTop", Preferences.getString("youRobotTop")));
-      newModifiers.add(
-          Modifiers.getModifiers("RobotRight", Preferences.getString("youRobotRight")));
-      newModifiers.add(
-          Modifiers.getModifiers("RobotBottom", Preferences.getString("youRobotBottom")));
-      newModifiers.add(Modifiers.getModifiers("RobotLeft", Preferences.getString("youRobotLeft")));
-
-      for (String cpuUpgrade : Preferences.getString("youRobotCPUUpgrades").split(",")) {
-        newModifiers.add(Modifiers.getModifiers("RobotCPU", cpuUpgrade));
-      }
+      YouRobotManager.addRobotModifiers(newModifiers);
     }
 
     if (VYKEACompanionData.currentCompanion() != VYKEACompanionData.NO_COMPANION) {
@@ -5843,6 +5412,7 @@ public abstract class KoLCharacter {
       String snowsuit,
       String retroCape,
       String backupCamera,
+      String unbreakableUmbrella,
       boolean speculation,
       int taoFactor) {
     if (item == null || item == EquipmentRequest.UNEQUIP) {
@@ -5974,6 +5544,10 @@ public abstract class KoLCharacter {
           newModifiers.add(Modifiers.getModifiers("BackupCamera", backupCamera));
           break;
 
+        case ItemPool.UNBREAKABLE_UMBRELLA:
+          newModifiers.add(Modifiers.getModifiers("UnbreakableUmbrella", unbreakableUmbrella));
+          break;
+
         case ItemPool.SNOW_SUIT:
           newModifiers.add(Modifiers.getModifiers("Snowsuit", snowsuit));
           break;
@@ -6025,9 +5599,9 @@ public abstract class KoLCharacter {
         int itemId = item.getItemId();
         Modifiers imod = Modifiers.getItemModifiers(itemId);
         if (imod != null) {
-          String classType = imod.getString(Modifiers.CLASS);
-          if (classType == ""
-              || classType.equals(KoLCharacter.getClassType())
+          AscensionClass classType = AscensionClass.find(imod.getString(Modifiers.CLASS));
+          if (classType == null
+              || classType == ascensionClass
                   && (slot != EquipmentManager.FAMILIAR
                       || KoLCharacter.getFamiliar().getId() == FamiliarPool.HAND)) {
             smithsness += imod.get(Modifiers.SMITHSNESS);
@@ -6091,11 +5665,8 @@ public abstract class KoLCharacter {
   }
 
   public static final void ensureUpdatedAscensionCounters() {
-    int lastAscension = Preferences.getInteger("lastSemirareReset");
+    int lastAscension = Preferences.getInteger("beeCounter");
     if (lastAscension < KoLCharacter.getAscensions()) {
-      Preferences.setInteger("lastSemirareReset", KoLCharacter.getAscensions());
-      Preferences.setInteger("semirareCounter", 0);
-      Preferences.setString("semirareLocation", "");
       Preferences.setInteger("beeCounter", 0);
     }
   }
@@ -6114,7 +5685,7 @@ public abstract class KoLCharacter {
 
     for (int i = 819; i <= 827; ++i) {
       String testProperty = Preferences.getString("lastBangPotion" + i);
-      if (!testProperty.equals("")) {
+      if (!testProperty.isEmpty()) {
         String name = ItemDatabase.getItemName(i);
         String testName = name + " of " + testProperty;
         String testPlural = name + "s of " + testProperty;
@@ -6127,7 +5698,7 @@ public abstract class KoLCharacter {
 
     for (int i = ItemPool.VIAL_OF_RED_SLIME; i <= ItemPool.VIAL_OF_PURPLE_SLIME; ++i) {
       String testProperty = Preferences.getString("lastSlimeVial" + i);
-      if (!testProperty.equals("")) {
+      if (!testProperty.isEmpty()) {
         String name = ItemDatabase.getItemName(i);
         String testName = name + ": " + testProperty;
         String testPlural = ItemDatabase.getPluralName(i) + testProperty;

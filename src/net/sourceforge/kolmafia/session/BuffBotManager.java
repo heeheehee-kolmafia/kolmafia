@@ -2,7 +2,9 @@ package net.sourceforge.kolmafia.session;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.IOException;
 import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -23,7 +25,6 @@ import net.sourceforge.kolmafia.RequestThread;
 import net.sourceforge.kolmafia.StaticEntity;
 import net.sourceforge.kolmafia.moods.MPRestoreItemList;
 import net.sourceforge.kolmafia.moods.RecoveryManager;
-import net.sourceforge.kolmafia.objectpool.IntegerPool;
 import net.sourceforge.kolmafia.objectpool.ItemPool;
 import net.sourceforge.kolmafia.objectpool.SkillPool;
 import net.sourceforge.kolmafia.persistence.NPCStoreDatabase;
@@ -60,7 +61,7 @@ public abstract class BuffBotManager {
 
   public static final Pattern MEAT_PATTERN =
       Pattern.compile(
-          "<img src=[^>]*?(?:images.kingdomofloathing.com|/images)/itemimages/meat.gif\" height=30 width=30 alt=\"Meat\">You gain ([\\d,]+) Meat");
+          "<img src=[^>]*?(?:cloudfront.net|images.kingdomofloathing.com|/images)/itemimages/meat.gif\" height=30 width=30 alt=\"Meat\">You gain ([\\d,]+) Meat");
   public static final Pattern GIFT1_PATTERN =
       Pattern.compile(
           "<a class=nounder style='color: blue' href='showplayer.php\\?who=(\\d+)' target=mainpane>");
@@ -80,34 +81,30 @@ public abstract class BuffBotManager {
     BuffBotManager.sendList.clear();
 
     String[] currentBuff;
-    BufferedReader reader =
+    try (BufferedReader reader =
         FileUtilities.getReader(
-            new File(KoLConstants.BUFFBOT_LOCATION, KoLCharacter.baseUserName() + ".txt"));
-
-    if (reader == null) {
-      BuffBotManager.isInitializing = false;
-      BuffBotManager.saveBuffs();
-      return;
-    }
-
-    // It's possible the person is starting from an older release
-    // of KoLmafia.  If that's the case, reload the data from the
-    // properties file, clear it out, and continue.
-
-    while ((currentBuff = FileUtilities.readData(reader)) != null) {
-      if (currentBuff.length < 3) {
-        continue;
+            new File(KoLConstants.BUFFBOT_LOCATION, KoLCharacter.baseUserName() + ".txt"))) {
+      if (reader == null) {
+        BuffBotManager.isInitializing = false;
+        BuffBotManager.saveBuffs();
+        return;
       }
 
-      BuffBotManager.addBuff(
-          SkillDatabase.getSkillName(StringUtilities.parseInt(currentBuff[0])),
-          StringUtilities.parseInt(currentBuff[1]),
-          StringUtilities.parseInt(currentBuff[2]));
-    }
+      // It's possible the person is starting from an older release
+      // of KoLmafia.  If that's the case, reload the data from the
+      // properties file, clear it out, and continue.
 
-    try {
-      reader.close();
-    } catch (Exception e) {
+      while ((currentBuff = FileUtilities.readData(reader)) != null) {
+        if (currentBuff.length < 3) {
+          continue;
+        }
+
+        BuffBotManager.addBuff(
+            SkillDatabase.getSkillName(StringUtilities.parseInt(currentBuff[0])),
+            StringUtilities.parseInt(currentBuff[1]),
+            StringUtilities.parseInt(currentBuff[2]));
+      }
+    } catch (IOException e) {
       StaticEntity.printStackTrace(e);
     }
 
@@ -128,7 +125,7 @@ public abstract class BuffBotManager {
       return;
     }
 
-    Integer newPrice = IntegerPool.get(price);
+    Integer newPrice = price;
 
     // Because the new concept allows multiple buffs
     // to have the same price, store things in a list.
@@ -157,19 +154,17 @@ public abstract class BuffBotManager {
   }
 
   /** An internal method which removes the list of selected buffs from the current mappings. */
-  public static final void removeBuffs(final Object[] buffs) {
-    Offering toRemove;
+  public static final void removeBuffs(final List<Offering> buffs) {
     boolean removedOne = false;
 
-    for (int i = 0; i < buffs.length; ++i) {
-      if (!BuffBotManager.buffCostTable.contains(buffs[i])) {
+    for (Offering buff : buffs) {
+      if (!BuffBotManager.buffCostTable.contains(buff)) {
         continue;
       }
 
       removedOne = true;
-      toRemove = (Offering) buffs[i];
-      BuffBotManager.buffCostTable.remove(toRemove);
-      BuffBotManager.buffCostMap.remove(IntegerPool.get(toRemove.getPrice()));
+      BuffBotManager.buffCostTable.remove(buff);
+      BuffBotManager.buffCostMap.remove(buff.getPrice());
     }
 
     if (removedOne) {
@@ -190,8 +185,8 @@ public abstract class BuffBotManager {
     File datafile = new File(KoLConstants.BUFFBOT_LOCATION, KoLCharacter.baseUserName() + ".txt");
     File xmlfile = new File(KoLConstants.BUFFBOT_LOCATION, KoLCharacter.baseUserName() + ".xml");
 
-    PrintStream settings = LogStream.openStream(datafile, true, "ISO-8859-1");
-    PrintStream document = LogStream.openStream(xmlfile, true, "ISO-8859-1");
+    PrintStream settings = LogStream.openStream(datafile, true, StandardCharsets.ISO_8859_1);
+    PrintStream document = LogStream.openStream(xmlfile, true, StandardCharsets.ISO_8859_1);
 
     document.println("<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>");
     document.println("<?xml-stylesheet type=\"text/xsl\" href=\"buffbot.xsl\"?>");
@@ -452,7 +447,7 @@ public abstract class BuffBotManager {
   }
 
   private static Offering extractRequest(final KoLMailMessage message, final int meatSent) {
-    Offering castList = BuffBotManager.buffCostMap.get(IntegerPool.get(meatSent));
+    Offering castList = BuffBotManager.buffCostMap.get(meatSent);
 
     // If what is sent does not match anything in the buff table,
     // handle it.  Once it gets beyond this point, it is known to
@@ -662,7 +657,7 @@ public abstract class BuffBotManager {
         }
 
         // This is a philanthropic buff and the user has already
-        // requested it the maximum number of times alotted.  The
+        // requested it the maximum number of times allotted.  The
         // user will not be buffed.
 
         BuffBotHome.update(
@@ -937,6 +932,7 @@ public abstract class BuffBotManager {
           new AdventureResult(AdventureResult.MEAT, this.price));
     }
 
+    @Override
     public int compareTo(final Offering o) {
       if (!(o instanceof Offering)) {
         return -1;

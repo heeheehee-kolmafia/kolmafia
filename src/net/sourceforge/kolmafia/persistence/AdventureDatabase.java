@@ -1,13 +1,15 @@
 package net.sourceforge.kolmafia.persistence;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.SortedMap;
 import java.util.StringTokenizer;
+import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import net.sourceforge.kolmafia.AdventureResult;
@@ -21,7 +23,6 @@ import net.sourceforge.kolmafia.MonsterData;
 import net.sourceforge.kolmafia.RequestLogger;
 import net.sourceforge.kolmafia.StaticEntity;
 import net.sourceforge.kolmafia.objectpool.AdventurePool;
-import net.sourceforge.kolmafia.objectpool.IntegerPool;
 import net.sourceforge.kolmafia.objectpool.ItemPool;
 import net.sourceforge.kolmafia.persistence.MonsterDatabase.Element;
 import net.sourceforge.kolmafia.preferences.Preferences;
@@ -29,9 +30,6 @@ import net.sourceforge.kolmafia.request.ClanRumpusRequest;
 import net.sourceforge.kolmafia.request.GenericRequest;
 import net.sourceforge.kolmafia.request.RelayRequest;
 import net.sourceforge.kolmafia.request.RichardRequest;
-import net.sourceforge.kolmafia.session.EncounterManager;
-import net.sourceforge.kolmafia.session.EncounterManager.EncounterType;
-import net.sourceforge.kolmafia.session.InventoryManager;
 import net.sourceforge.kolmafia.utilities.FileUtilities;
 import net.sourceforge.kolmafia.utilities.StringArray;
 import net.sourceforge.kolmafia.utilities.StringUtilities;
@@ -80,141 +78,131 @@ public class AdventureDatabase {
   // Some adventures don't actually cost a turn
   public static final String[] FREE_ADVENTURES = {"Rock-a-bye larva", "Cobb's Knob lab key"};
 
+  private AdventureDatabase() {}
+
   public static final void refreshZoneTable() {
     if (!AdventureDatabase.ZONE_DESCRIPTIONS.isEmpty()) {
       return;
     }
 
-    BufferedReader reader =
-        FileUtilities.getVersionedReader("zonelist.txt", KoLConstants.ZONELIST_VERSION);
-    if (reader == null) {
-      return;
-    }
-
-    String[] data;
-
-    while ((data = FileUtilities.readData(reader)) != null) {
-      if (data.length >= 3) {
-        String zone = data[0];
-        String parent = data[1];
-        String description = data[2];
-
-        AdventureDatabase.PARENT_ZONES.put(zone, parent);
-        if (!AdventureDatabase.PARENT_LIST.contains(parent)) {
-          AdventureDatabase.PARENT_LIST.add(parent);
-        }
-
-        AdventureDatabase.ZONE_DESCRIPTIONS.put(zone, description);
+    try (BufferedReader reader =
+        FileUtilities.getVersionedReader("zonelist.txt", KoLConstants.ZONELIST_VERSION)) {
+      if (reader == null) {
+        return;
       }
-    }
 
-    try {
-      reader.close();
-    } catch (Exception e) {
-      // This should not happen.  Therefore, print
-      // a stack trace for debug purposes.
+      String[] data;
 
+      while ((data = FileUtilities.readData(reader)) != null) {
+        if (data.length >= 3) {
+          String zone = data[0];
+          String parent = data[1];
+          String description = data[2];
+
+          AdventureDatabase.PARENT_ZONES.put(zone, parent);
+          if (!AdventureDatabase.PARENT_LIST.contains(parent)) {
+            AdventureDatabase.PARENT_LIST.add(parent);
+          }
+
+          AdventureDatabase.ZONE_DESCRIPTIONS.put(zone, description);
+        }
+      }
+    } catch (IOException e) {
       StaticEntity.printStackTrace(e);
     }
   }
 
   public static final void refreshAdventureTable() {
-    BufferedReader reader =
-        FileUtilities.getVersionedReader("adventures.txt", KoLConstants.ADVENTURES_VERSION);
-    if (reader == null) {
-      return;
-    }
-
-    for (int i = 0; i < AdventureDatabase.adventureTable.length; ++i) {
-      AdventureDatabase.adventureTable[i].clear();
-    }
-
-    String[] data;
-
-    while ((data = FileUtilities.readData(reader)) != null) {
-      if (data.length <= 3) {
-        continue;
+    try (BufferedReader reader =
+        FileUtilities.getVersionedReader("adventures.txt", KoLConstants.ADVENTURES_VERSION)) {
+      if (reader == null) {
+        return;
       }
 
-      String zone = data[0];
-      String[] location = data[1].split("=");
+      for (int i = 0; i < AdventureDatabase.adventureTable.length; ++i) {
+        AdventureDatabase.adventureTable[i].clear();
+      }
 
-      String environment = null;
-      int stat = -1;
-      int waterLevel = -1;
-      boolean hasWanderers = true;
-      StringTokenizer tokens = new StringTokenizer(data[2], " ");
-      while (tokens.hasMoreTokens()) {
-        String option = tokens.nextToken();
-        if (option.equals("Env:")) {
-          environment = tokens.nextToken();
-        } else if (option.equals("Stat:")) {
-          stat = StringUtilities.parseInt(tokens.nextToken());
-        } else if (option.equals("Level:")) {
-          waterLevel = StringUtilities.parseInt(tokens.nextToken());
-        } else if (option.equals("nowander")) {
-          hasWanderers = false;
+      String[] data;
+
+      while ((data = FileUtilities.readData(reader)) != null) {
+        if (data.length <= 3) {
+          continue;
+        }
+
+        String zone = data[0];
+        String[] location = data[1].split("=");
+
+        String environment = null;
+        int stat = -1;
+        int waterLevel = -1;
+        boolean hasWanderers = true;
+        StringTokenizer tokens = new StringTokenizer(data[2], " ");
+        while (tokens.hasMoreTokens()) {
+          String option = tokens.nextToken();
+          if (option.equals("Env:")) {
+            environment = tokens.nextToken();
+          } else if (option.equals("Stat:")) {
+            stat = StringUtilities.parseInt(tokens.nextToken());
+          } else if (option.equals("Level:")) {
+            waterLevel = StringUtilities.parseInt(tokens.nextToken());
+          } else if (option.equals("nowander")) {
+            hasWanderers = false;
+          }
+        }
+
+        String name = data[3];
+
+        if (environment == null) {
+          RequestLogger.printLine("Adventure area \"" + name + "\" is missing environment data");
+        }
+
+        if (AdventureDatabase.PARENT_ZONES.get(zone) == null) {
+          RequestLogger.printLine(
+              "Adventure area \"" + name + "\" has invalid zone: \"" + zone + "\"");
+          continue;
+        }
+
+        AdventureDatabase.zoneLookup.put(name, zone);
+        AdventureDatabase.adventureTable[0].add(zone);
+        AdventureDatabase.adventureTable[1].add(location[0] + ".php");
+        AdventureDatabase.adventureTable[2].add(location[1]);
+        AdventureDatabase.adventureTable[3].add(name);
+        AdventureDatabase.environmentLookup.put(name, environment);
+
+        AdventureDatabase.statLookup.put(name, stat);
+
+        hasWanderers = hasWanderers && location[0].equals("adventure");
+        AdventureDatabase.wandererLookup.put(name, hasWanderers);
+
+        // Build base water level if not specified
+        if (waterLevel == -1) {
+          if (environment == null || environment.equals("outdoor") || environment.equals("none")) {
+            waterLevel = 1;
+          } else if (environment.equals("indoor")) {
+            waterLevel = 3;
+          } else if (environment.equals("underground")) {
+            waterLevel = 5;
+          }
+          if (stat >= 40) {
+            waterLevel++;
+          }
+          if ("underwater".equals(environment)) {
+            waterLevel = 0;
+          }
+        }
+
+        AdventureDatabase.waterLevelLookup.put(name, waterLevel);
+
+        if (data.length <= 4) {
+          continue;
+        }
+
+        if (!data[4].equals("")) {
+          AdventureDatabase.conditionLookup.put(name, data[4]);
         }
       }
-
-      String name = data[3];
-
-      if (environment == null) {
-        RequestLogger.printLine("Adventure area \"" + name + "\" is missing environment data");
-      }
-
-      if (AdventureDatabase.PARENT_ZONES.get(zone) == null) {
-        RequestLogger.printLine(
-            "Adventure area \"" + name + "\" has invalid zone: \"" + zone + "\"");
-        continue;
-      }
-
-      AdventureDatabase.zoneLookup.put(name, zone);
-      AdventureDatabase.adventureTable[0].add(zone);
-      AdventureDatabase.adventureTable[1].add(location[0] + ".php");
-      AdventureDatabase.adventureTable[2].add(location[1]);
-      AdventureDatabase.adventureTable[3].add(name);
-      AdventureDatabase.environmentLookup.put(name, environment);
-
-      AdventureDatabase.statLookup.put(name, stat);
-
-      hasWanderers = hasWanderers && location[0].equals("adventure");
-      AdventureDatabase.wandererLookup.put(name, hasWanderers);
-
-      // Build base water level if not specified
-      if (waterLevel == -1) {
-        if (environment == null || environment.equals("outdoor") || environment.equals("none")) {
-          waterLevel = 1;
-        } else if (environment.equals("indoor")) {
-          waterLevel = 3;
-        } else if (environment.equals("underground")) {
-          waterLevel = 5;
-        }
-        if (stat >= 40) {
-          waterLevel++;
-        }
-        if ("underwater".equals(environment)) {
-          waterLevel = 0;
-        }
-      }
-
-      AdventureDatabase.waterLevelLookup.put(name, waterLevel);
-
-      if (data.length <= 4) {
-        continue;
-      }
-
-      if (!data[4].equals("")) {
-        AdventureDatabase.conditionLookup.put(name, data[4]);
-      }
-    }
-
-    try {
-      reader.close();
-    } catch (Exception e) {
-      // This should not happen.  Therefore, print
-      // a stack trace for debug purposes.
-
+    } catch (IOException e) {
       StaticEntity.printStackTrace(e);
     }
   }
@@ -222,53 +210,47 @@ public class AdventureDatabase {
   public static final void refreshCombatsTable() {
     AdventureDatabase.areaCombatData.clear();
 
-    BufferedReader reader =
-        FileUtilities.getVersionedReader("combats.txt", KoLConstants.COMBATS_VERSION);
-    if (reader == null) {
-      return;
-    }
-
-    String[] data;
-
-    while ((data = FileUtilities.readData(reader)) != null) {
-      if (data.length > 1) {
-        String area = data[0];
-        if (!AdventureDatabase.validateAdventureArea(area)) {
-          RequestLogger.printLine("Invalid adventure area: \"" + area + "\"");
-          continue;
-        }
-
-        int combats = StringUtilities.parseInt(data[1]);
-        // There can be an ultra-rare monster even if
-        // there are no other combats
-        AreaCombatData combat = new AreaCombatData(area, combats);
-        for (int i = 2; i < data.length; ++i) {
-          String monsterName = data[i];
-          if (!combat.addMonster(monsterName)) {
-            KoLmafia.updateDisplay("(In area '" + area + "')");
-          }
-          // Does it drop a bounty, if so add it to the bounty lookup by area
-          // Trim any trailing ":" and following text
-          int colonIndex = data[i].indexOf(":");
-          if (colonIndex > 0) {
-            monsterName = monsterName.substring(0, colonIndex);
-          }
-          String bountyName = BountyDatabase.getNameByMonster(monsterName);
-          if (bountyName != null) {
-            AdventureDatabase.bountyLookup.put(area, bountyName);
-          }
-        }
-
-        AdventureDatabase.areaCombatData.put(area, combat);
+    try (BufferedReader reader =
+        FileUtilities.getVersionedReader("combats.txt", KoLConstants.COMBATS_VERSION)) {
+      if (reader == null) {
+        return;
       }
-    }
 
-    try {
-      reader.close();
-    } catch (Exception e) {
-      // This should not happen.  Therefore, print
-      // a stack trace for debug purposes.
+      String[] data;
 
+      while ((data = FileUtilities.readData(reader)) != null) {
+        if (data.length > 1) {
+          String area = data[0];
+          if (!AdventureDatabase.validateAdventureArea(area)) {
+            RequestLogger.printLine("Invalid adventure area: \"" + area + "\"");
+            continue;
+          }
+
+          int combats = StringUtilities.parseInt(data[1]);
+          // There can be an ultra-rare monster even if
+          // there are no other combats
+          AreaCombatData combat = new AreaCombatData(area, combats);
+          for (int i = 2; i < data.length; ++i) {
+            String monsterName = data[i];
+            if (!combat.addMonster(monsterName)) {
+              KoLmafia.updateDisplay("(In area '" + area + "')");
+            }
+            // Does it drop a bounty, if so add it to the bounty lookup by area
+            // Trim any trailing ":" and following text
+            int colonIndex = data[i].indexOf(":");
+            if (colonIndex > 0) {
+              monsterName = monsterName.substring(0, colonIndex);
+            }
+            String bountyName = BountyDatabase.getNameByMonster(monsterName);
+            if (bountyName != null) {
+              AdventureDatabase.bountyLookup.put(area, bountyName);
+            }
+          }
+
+          AdventureDatabase.areaCombatData.put(area, combat);
+        }
+      }
+    } catch (IOException e) {
       StaticEntity.printStackTrace(e);
     }
   }
@@ -290,7 +272,7 @@ public class AdventureDatabase {
 
   public static final String pirateRealmIslandName() {
     String island = Preferences.getString("_LastPirateRealmIsland");
-    return island == "" ? "PirateRealm Island" : island;
+    return island.isEmpty() ? "PirateRealm Island" : island;
   }
 
   public static final void addAdventure(final KoLAdventure location) {
@@ -729,49 +711,37 @@ public class AdventureDatabase {
     // Adventure ID
     // Setting
     {
-      "The Haiku Dungeon",
-      IntegerPool.get(AdventurePool.HAIKU_DUNGEON),
-      "fistTeachingsHaikuDungeon",
+      "The Haiku Dungeon", AdventurePool.HAIKU_DUNGEON, "fistTeachingsHaikuDungeon",
     },
     {
-      "The Poker Room", IntegerPool.get(AdventurePool.POKER_ROOM), "fistTeachingsPokerRoom",
+      "The Poker Room", AdventurePool.POKER_ROOM, "fistTeachingsPokerRoom",
     },
     {
-      "A Barroom Brawl", IntegerPool.get(AdventurePool.BARROOM_BRAWL), "fistTeachingsBarroomBrawl",
+      "A Barroom Brawl", AdventurePool.BARROOM_BRAWL, "fistTeachingsBarroomBrawl",
     },
     {
-      "The Haunted Conservatory",
-      IntegerPool.get(AdventurePool.HAUNTED_CONSERVATORY),
-      "fistTeachingsConservatory",
+      "The Haunted Conservatory", AdventurePool.HAUNTED_CONSERVATORY, "fistTeachingsConservatory",
     },
     {
-      "The Bat Hole Entrance",
-      IntegerPool.get(AdventurePool.BAT_HOLE_ENTRYWAY),
-      "fistTeachingsBatHole",
+      "The Bat Hole Entrance", AdventurePool.BAT_HOLE_ENTRYWAY, "fistTeachingsBatHole",
     },
     {
-      "The \"Fun\" House", IntegerPool.get(AdventurePool.FUN_HOUSE), "fistTeachingsFunHouse",
+      "The \"Fun\" House", AdventurePool.FUN_HOUSE, "fistTeachingsFunHouse",
     },
     {
-      "Cobb's Knob Menagerie Level 2",
-      IntegerPool.get(AdventurePool.MENAGERIE_LEVEL_2),
-      "fistTeachingsMenagerie",
+      "Cobb's Knob Menagerie Level 2", AdventurePool.MENAGERIE_LEVEL_2, "fistTeachingsMenagerie",
     },
     {
-      "Pandamonium Slums", IntegerPool.get(AdventurePool.PANDAMONIUM_SLUMS), "fistTeachingsSlums",
+      "Pandamonium Slums", AdventurePool.PANDAMONIUM_SLUMS, "fistTeachingsSlums",
     },
     {
-      "Frat House", IntegerPool.get(AdventurePool.FRAT_HOUSE), "fistTeachingsFratHouse",
+      "Frat House", AdventurePool.FRAT_HOUSE, "fistTeachingsFratHouse",
     },
     {
-      "Road to the White Citadel",
-      IntegerPool.get(AdventurePool.ROAD_TO_WHITE_CITADEL),
-      "fistTeachingsRoad",
+      "Road to the White Citadel", AdventurePool.ROAD_TO_WHITE_CITADEL, "fistTeachingsRoad",
     },
     {
-      "Lair of the Ninja Snowmen",
-      IntegerPool.get(AdventurePool.NINJA_SNOWMEN),
-      "fistTeachingsNinjaSnowmen",
+      "Lair of the Ninja Snowmen", AdventurePool.NINJA_SNOWMEN, "fistTeachingsNinjaSnowmen",
     },
   };
 
@@ -796,21 +766,6 @@ public class AdventureDatabase {
 
   public static String fistcoreLocationToSetting(final int location) {
     return fistcoreDataSetting(fistcoreLocationToData(location));
-  }
-
-  /**
-   * Returns whether or not the user has a ten-leaf clover in inventory.
-   *
-   * @return <code>true</code>
-   */
-  private static boolean hasClover() {
-    return InventoryManager.getCount(ItemPool.TEN_LEAF_CLOVER) > 0;
-  }
-
-  public static boolean isPotentialCloverAdventure(String adventureName) {
-    String encounter =
-        EncounterManager.findEncounterForLocation(adventureName, EncounterType.CLOVER);
-    return AdventureDatabase.hasClover() && encounter != null;
   }
 
   public static final String getEnvironment(String adventureName) {
@@ -843,36 +798,20 @@ public class AdventureDatabase {
     return hasWanderers;
   }
 
-  public static class AdventureArray {
-    private String[] nameArray = new String[0];
-    private final ArrayList<String> nameList = new ArrayList<String>();
-    private final ArrayList<KoLAdventure> internalList = new ArrayList<KoLAdventure>();
-
-    public KoLAdventure get(final int index) {
-      if (index < 0 || index > this.internalList.size()) {
-        return null;
-      }
-
-      return this.internalList.get(index);
-    }
+  private static class AdventureArray {
+    private final SortedMap<String, KoLAdventure> internalList = new TreeMap<>();
 
     public void add(final KoLAdventure value) {
-      this.nameList.add(StringUtilities.getCanonicalName(value.getAdventureName()));
-      this.internalList.add(value);
+      this.internalList.put(StringUtilities.getCanonicalName(value.getAdventureName()), value);
     }
 
     public KoLAdventure find(String adventureName) {
-      if (nameArray.length != nameList.size()) {
-        nameArray = new String[nameList.size()];
-        nameList.toArray(nameArray);
-        Arrays.sort(nameArray);
-      }
-
-      List matchingNames = StringUtilities.getMatchingNames(nameArray, adventureName);
+      var names = internalList.keySet().toArray(new String[0]);
+      List<String> matchingNames = StringUtilities.getMatchingNames(names, adventureName);
 
       if (matchingNames.size() > 1) {
-        for (int i = 0; i < matchingNames.size(); ++i) {
-          RequestLogger.printLine((String) matchingNames.get(i));
+        for (String matchingName : matchingNames) {
+          RequestLogger.printLine(matchingName);
         }
 
         KoLmafia.updateDisplay(MafiaState.ERROR, "Multiple matches against " + adventureName + ".");
@@ -880,20 +819,15 @@ public class AdventureDatabase {
       }
 
       if (matchingNames.size() == 1) {
-        String match = (String) matchingNames.get(0);
-        return this.get(nameList.indexOf(match));
+        String match = matchingNames.get(0);
+        return this.internalList.get(match);
       }
 
       return null;
     }
 
     public void clear() {
-      this.nameList.clear();
       this.internalList.clear();
-    }
-
-    public int size() {
-      return this.internalList.size();
     }
 
     public boolean isEmpty() {

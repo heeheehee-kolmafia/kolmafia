@@ -13,6 +13,7 @@ import net.sourceforge.kolmafia.textui.RuntimeLibrary;
 import net.sourceforge.kolmafia.textui.ScriptRuntime;
 import net.sourceforge.kolmafia.textui.parsetree.Function.MatchType;
 import net.sourceforge.kolmafia.utilities.PauseObject;
+import org.eclipse.lsp4j.Location;
 
 public abstract class BasicScope extends Command {
   private final PauseObject pauser = new PauseObject();
@@ -31,6 +32,9 @@ public abstract class BasicScope extends Command {
 
   public BasicScope(
       FunctionList functions, VariableList variables, TypeList types, BasicScope parentScope) {
+    // Scopes need to be instantiated before we reach their end,
+    // so we can't send their location straight away.
+    super(null);
     this.functions = (functions == null) ? new FunctionList() : functions;
     this.types = (types == null) ? new TypeList() : types;
     this.variables = (variables == null) ? new VariableList() : variables;
@@ -52,8 +56,22 @@ public abstract class BasicScope extends Command {
     this(null, null, null, parentScope);
   }
 
+  /**
+   * Scopes need to be instantiated before we reach their end, so we can't send their location
+   * straight away.
+   */
+  public void setScopeLocation(final Location location) {
+    if (this.getLocation() == null) {
+      this.setLocation(location);
+    }
+  }
+
   public BasicScope getParentScope() {
     return this.parentScope;
+  }
+
+  public TypeList getTypes() {
+    return this.types;
   }
 
   public boolean addType(final Type t) {
@@ -110,95 +128,58 @@ public abstract class BasicScope extends Command {
     return this.functions.remove(f);
   }
 
-  public final Function findFunction(final String name, List<Value> params) {
+  public final Function findFunction(final String name, final List<Evaluable> params) {
     return this.findFunction(name, params, MatchType.ANY);
   }
 
-  public final Function findFunction(final String name, List<Value> params, MatchType matchType) {
+  public final Function findFunction(
+      final String name, List<Evaluable> params, final MatchType matchType) {
     // Functions with no params are fine.
     if (params == null) {
       params = Collections.emptyList();
     }
 
-    // We will consider functions from this scope and from the RuntimeLibrary.
-    Function[] userFunctions = this.functions.findFunctions(name);
-    Function[] libraryFunctions = RuntimeLibrary.functions.findFunctions(name);
+    Function[] functions = this.functions.findFunctions(name);
 
     Function result = null;
 
     if (matchType == MatchType.ANY || matchType == MatchType.EXACT) {
-      // Exact, no vararg, user functions
-      result = this.findFunction(userFunctions, false, name, params, MatchType.EXACT, false);
+      // Exact, no vararg
+      result = this.findFunction(functions, name, params, MatchType.EXACT, false);
       if (result != null) {
         return result;
       }
 
-      // Exact, no vararg, library functions
-      result = this.findFunction(libraryFunctions, true, name, params, MatchType.EXACT, false);
-      if (result != null) {
-        return result;
-      }
-
-      // Exact, vararg, user functions
-      result = this.findFunction(userFunctions, false, name, params, MatchType.EXACT, true);
-      if (result != null) {
-        return result;
-      }
-
-      // Exact, vararg, library functions
-      result = this.findFunction(libraryFunctions, true, name, params, MatchType.EXACT, true);
+      // Exact, vararg
+      result = this.findFunction(functions, name, params, MatchType.EXACT, true);
       if (result != null) {
         return result;
       }
     }
 
     if (matchType == MatchType.ANY || matchType == MatchType.BASE) {
-      // Base, no vararg, user functions
-      result = this.findFunction(userFunctions, false, name, params, MatchType.BASE, false);
+      // Base, no vararg
+      result = this.findFunction(functions, name, params, MatchType.BASE, false);
       if (result != null) {
         return result;
       }
 
-      // Base, no vararg, library functions
-      result = this.findFunction(libraryFunctions, true, name, params, MatchType.BASE, false);
-      if (result != null) {
-        return result;
-      }
-
-      // Base, vararg, user functions
-      result = this.findFunction(userFunctions, false, name, params, MatchType.BASE, true);
-      if (result != null) {
-        return result;
-      }
-
-      // Base, vararg, library functions
-      result = this.findFunction(libraryFunctions, true, name, params, MatchType.BASE, true);
+      // Base, vararg
+      result = this.findFunction(functions, name, params, MatchType.BASE, true);
       if (result != null) {
         return result;
       }
     }
 
     if (matchType == MatchType.ANY || matchType == MatchType.COERCE) {
-      // Coerce, no vararg, user functions
-      result = this.findFunction(userFunctions, false, name, params, MatchType.COERCE, false);
+      // Coerce, no vararg
+      result = this.findFunction(functions, name, params, MatchType.COERCE, false);
       if (result != null) {
         return result;
       }
 
-      // Coerce, no vararg, library functions
-      result = this.findFunction(libraryFunctions, true, name, params, MatchType.COERCE, false);
-      if (result != null) {
-        return result;
-      }
-
-      // Coerce, vararg, user functions
-      result = this.findFunction(userFunctions, false, name, params, MatchType.COERCE, true);
-      if (result != null) {
-        return result;
-      }
-
-      // Coerce, vararg, library functions
-      result = this.findFunction(libraryFunctions, true, name, params, MatchType.COERCE, true);
+      // Coerce, vararg
+      result = this.findFunction(functions, name, params, MatchType.COERCE, true);
       if (result != null) {
         return result;
       }
@@ -209,11 +190,10 @@ public abstract class BasicScope extends Command {
 
   private Function findFunction(
       final Function[] functions,
-      boolean library,
-      String name,
-      final List<Value> params,
-      MatchType match,
-      boolean vararg) {
+      final String name,
+      final List<Evaluable> params,
+      final MatchType match,
+      final boolean vararg) {
     // Search the function list for a match
     for (Function function : functions) {
       if (function.paramsMatch(params, match, vararg)) {
@@ -221,16 +201,11 @@ public abstract class BasicScope extends Command {
       }
     }
 
-    // If we are searching the RuntimeLibrary, no parent scope
-    if (library) {
-      return null;
-    }
-
-    // We are searching a scope. Search the parent scope.
+    // Search the parent scope.
     BasicScope parent = this.getParentScope();
     if (parent != null) {
       Function[] parentFunctions = parent.functions.findFunctions(name);
-      return parent.findFunction(parentFunctions, false, name, params, match, vararg);
+      return parent.findFunction(parentFunctions, name, params, match, vararg);
     }
 
     return null;
@@ -245,7 +220,7 @@ public abstract class BasicScope extends Command {
     for (Function function : options) {
       if (function instanceof UserDefinedFunction) {
         UserDefinedFunction existing = (UserDefinedFunction) function;
-        if (f.paramsMatch(existing)) {
+        if (f.paramsMatch(existing, false)) {
           return existing;
         }
       }

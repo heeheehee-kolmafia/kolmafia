@@ -2,6 +2,7 @@ package net.sourceforge.kolmafia.persistence;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -25,7 +26,6 @@ import net.sourceforge.kolmafia.SpecialOutfit;
 import net.sourceforge.kolmafia.StaticEntity;
 import net.sourceforge.kolmafia.objectpool.AdventurePool;
 import net.sourceforge.kolmafia.objectpool.EffectPool;
-import net.sourceforge.kolmafia.objectpool.IntegerPool;
 import net.sourceforge.kolmafia.objectpool.ItemPool;
 import net.sourceforge.kolmafia.objectpool.OutfitPool;
 import net.sourceforge.kolmafia.session.EquipmentManager;
@@ -99,157 +99,139 @@ public class EquipmentDatabase {
     EquipmentDatabase.reset();
   }
 
+  private EquipmentDatabase() {}
+
   public static void reset() {
     EquipmentDatabase.newEquipment = false;
-
-    BufferedReader reader =
-        FileUtilities.getVersionedReader("equipment.txt", KoLConstants.EQUIPMENT_VERSION);
-
     String[] data;
     int itemId;
 
-    while ((data = FileUtilities.readData(reader)) != null) {
-      if (data.length < 3) {
-        continue;
-      }
-
-      itemId = ItemDatabase.getItemId(data[0]);
-      if (itemId < 0) {
-        continue;
-      }
-
-      EquipmentDatabase.power.set(itemId, StringUtilities.parseInt(data[1]));
-
-      String reqs = data[2];
-      EquipmentDatabase.statRequirements.set(itemId, reqs);
-
-      int hval = 0;
-      String tval = null;
-
-      if (data.length >= 4) {
-        String str = data[3];
-        int index1 = str.indexOf("-handed");
-        if (index1 > 0) {
-          hval = StringUtilities.parseInt(str.substring(0, index1));
-          String type = str.substring(index1 + 7).trim();
-          tval = type.equals("") ? "weapon" : type;
-        } else {
-          tval = str;
-        }
-      }
-
-      EquipmentDatabase.hands.set(itemId, hval);
-      EquipmentDatabase.itemTypes.set(itemId, tval);
-    }
-
-    try {
-      reader.close();
-    } catch (Exception e) {
-      // This should not happen.  Therefore, print
-      // a stack trace for debug purposes.
-
-      StaticEntity.printStackTrace(e);
-    }
-
-    reader = FileUtilities.getVersionedReader("outfits.txt", KoLConstants.OUTFITS_VERSION);
-
-    int outfitId, arrayIndex;
-    SpecialOutfitArray outfitList;
-
-    while ((data = FileUtilities.readData(reader)) != null) {
-      if (data.length >= 4) {
-        outfitId = StringUtilities.parseInt(data[0]);
-
-        if (outfitId == 0) {
-          arrayIndex = EquipmentDatabase.weirdOutfits.size();
-          outfitList = EquipmentDatabase.weirdOutfits;
-        } else {
-          arrayIndex = outfitId;
-          outfitList = EquipmentDatabase.normalOutfits;
+    try (BufferedReader reader =
+        FileUtilities.getVersionedReader("equipment.txt", KoLConstants.EQUIPMENT_VERSION)) {
+      while ((data = FileUtilities.readData(reader)) != null) {
+        if (data.length < 3) {
+          continue;
         }
 
-        String name = data[1];
-        SpecialOutfit outfit = new SpecialOutfit(outfitId, name);
-        outfitList.set(arrayIndex, outfit);
+        itemId = ItemDatabase.getItemId(data[0]);
+        if (itemId < 0) {
+          continue;
+        }
 
-        String image = data[2];
-        outfit.setImage(image);
+        EquipmentDatabase.power.set(itemId, StringUtilities.parseInt(data[1]));
 
-        String[] pieces = data[3].split("\\s*,\\s*");
+        String reqs = data[2];
+        EquipmentDatabase.statRequirements.set(itemId, reqs);
 
-        if (data.length >= 5) {
-          String[] treats = data[4].split("\\s*,\\s*");
-          for (String treat : treats) {
-            if (treat.equals("none")) {
-              break;
-            }
+        int hval = 0;
+        String tval = null;
 
-            int treatId = ItemDatabase.getItemId(treat);
-            if (treatId != -1) {
-              outfit.addTreat(ItemPool.get(treatId));
-            } else {
-              RequestLogger.printLine(
-                  "Outfit \"" + name + "\" has an invalid treat: \"" + treat + "\"");
-            }
+        if (data.length >= 4) {
+          String str = data[3];
+          int index1 = str.indexOf("-handed");
+          if (index1 > 0) {
+            hval = StringUtilities.parseInt(str.substring(0, index1));
+            String type = str.substring(index1 + 7).trim();
+            tval = type.equals("") ? "weapon" : type;
+          } else {
+            tval = str;
           }
         }
 
-        Integer id = IntegerPool.get(outfitId);
-
-        EquipmentDatabase.outfitById.put(id, name);
-
-        for (String piece : pieces) {
-          int pieceId = ItemDatabase.getItemId(piece);
-          if (pieceId != -1) {
-            EquipmentDatabase.outfitPieces.put(IntegerPool.get(pieceId), id);
-            outfit.addPiece(ItemPool.get(pieceId));
-          }
-        }
+        EquipmentDatabase.hands.set(itemId, hval);
+        EquipmentDatabase.itemTypes.set(itemId, tval);
       }
-    }
-
-    try {
-      reader.close();
-    } catch (Exception e) {
-      // This should not happen.  Therefore, print
-      // a stack trace for debug purposes.
-
+    } catch (IOException e) {
       StaticEntity.printStackTrace(e);
     }
 
-    reader = FileUtilities.getVersionedReader("pulverize.txt", KoLConstants.PULVERIZE_VERSION);
+    try (BufferedReader reader =
+        FileUtilities.getVersionedReader("outfits.txt", KoLConstants.OUTFITS_VERSION)) {
+      int outfitId, arrayIndex;
+      SpecialOutfitArray outfitList;
 
-    while ((data = FileUtilities.readData(reader)) != null) {
-      if (data.length < 2) {
-        continue;
+      while ((data = FileUtilities.readData(reader)) != null) {
+        if (data.length >= 4) {
+          outfitId = StringUtilities.parseInt(data[0]);
+
+          if (outfitId == 0) {
+            arrayIndex = EquipmentDatabase.weirdOutfits.size();
+            outfitList = EquipmentDatabase.weirdOutfits;
+          } else {
+            arrayIndex = outfitId;
+            outfitList = EquipmentDatabase.normalOutfits;
+          }
+
+          String name = data[1];
+          SpecialOutfit outfit = new SpecialOutfit(outfitId, name);
+          outfitList.set(arrayIndex, outfit);
+
+          String image = data[2];
+          outfit.setImage(image);
+
+          String[] pieces = data[3].split("\\s*,\\s*");
+
+          if (data.length >= 5) {
+            String[] treats = data[4].split("\\s*,\\s*");
+            for (String treat : treats) {
+              if (treat.equals("none")) {
+                break;
+              }
+
+              int treatId = ItemDatabase.getItemId(treat);
+              if (treatId != -1) {
+                outfit.addTreat(ItemPool.get(treatId));
+              } else {
+                RequestLogger.printLine(
+                    "Outfit \"" + name + "\" has an invalid treat: \"" + treat + "\"");
+              }
+            }
+          }
+
+          Integer id = outfitId;
+
+          EquipmentDatabase.outfitById.put(id, name);
+
+          for (String piece : pieces) {
+            int pieceId = ItemDatabase.getItemId(piece);
+            if (pieceId != -1) {
+              EquipmentDatabase.outfitPieces.put(pieceId, id);
+              outfit.addPiece(ItemPool.get(pieceId));
+            }
+          }
+        }
       }
-
-      itemId = ItemDatabase.getItemId(data[0]);
-      if (itemId < 0) {
-        continue;
-      }
-
-      String spec = data[1];
-      int result =
-          spec.equals("nosmash")
-              ? -1
-              : spec.equals("upgrade")
-                  ? EquipmentDatabase.deriveUpgrade(data[0])
-                  : StringUtilities.isNumeric(spec)
-                      ? (PULVERIZE_BITS | StringUtilities.parseInt(spec))
-                      : spec.endsWith("cluster")
-                          ? EquipmentDatabase.deriveCluster(spec)
-                          : ItemDatabase.getItemId(spec);
-
-      EquipmentDatabase.pulverize.set(itemId, result);
+    } catch (IOException e) {
+      StaticEntity.printStackTrace(e);
     }
 
-    try {
-      reader.close();
-    } catch (Exception e) {
-      // This should not happen.  Therefore, print
-      // a stack trace for debug purposes.
+    try (BufferedReader reader =
+        FileUtilities.getVersionedReader("pulverize.txt", KoLConstants.PULVERIZE_VERSION)) {
+      while ((data = FileUtilities.readData(reader)) != null) {
+        if (data.length < 2) {
+          continue;
+        }
 
+        itemId = ItemDatabase.getItemId(data[0]);
+        if (itemId < 0) {
+          continue;
+        }
+
+        String spec = data[1];
+        int result =
+            spec.equals("nosmash")
+                ? -1
+                : spec.equals("upgrade")
+                    ? EquipmentDatabase.deriveUpgrade(data[0])
+                    : StringUtilities.isNumeric(spec)
+                        ? (PULVERIZE_BITS | StringUtilities.parseInt(spec))
+                        : spec.endsWith("cluster")
+                            ? EquipmentDatabase.deriveCluster(spec)
+                            : ItemDatabase.getItemId(spec);
+
+        EquipmentDatabase.pulverize.set(itemId, result);
+      }
+    } catch (IOException e) {
       StaticEntity.printStackTrace(e);
     }
   }
@@ -282,11 +264,11 @@ public class EquipmentDatabase {
     Map<String, Integer> containers = new TreeMap<String, Integer>();
 
     // Iterate over all items and assign item id to category
-    Iterator it = ItemDatabase.dataNameEntrySet().iterator();
+    Iterator<Entry<Integer, String>> it = ItemDatabase.dataNameEntrySet().iterator();
     while (it.hasNext()) {
-      Entry entry = (Entry) it.next();
-      Integer key = (Integer) entry.getKey();
-      String name = (String) entry.getValue();
+      Entry<Integer, String> entry = it.next();
+      Integer key = entry.getKey();
+      String name = entry.getValue();
       int type = ItemDatabase.getConsumptionType(key.intValue());
 
       switch (type) {
@@ -337,14 +319,14 @@ public class EquipmentDatabase {
   }
 
   private static void writeEquipmentCategory(
-      final PrintStream writer, final Map map, final String tag) {
+      final PrintStream writer, final Map<String, Integer> map, final String tag) {
     writer.println("# " + tag + " section of equipment.txt");
     writer.println();
 
-    Object[] keys = map.keySet().toArray();
+    String[] keys = map.keySet().toArray(new String[0]);
     for (int i = 0; i < keys.length; ++i) {
-      String name = (String) keys[i];
-      Integer val = (Integer) map.get(name);
+      String name = keys[i];
+      Integer val = map.get(name);
       int itemId = val.intValue();
       int power = EquipmentDatabase.getPower(itemId);
       String req = EquipmentDatabase.getEquipRequirement(itemId);
@@ -462,7 +444,7 @@ public class EquipmentDatabase {
     // be on an outfit, register it.
 
     if (EquipmentDatabase.normalOutfits.get(outfitId) == null
-        || EquipmentDatabase.outfitPieces.get(IntegerPool.get(itemId)) == null) {
+        || EquipmentDatabase.outfitPieces.get(itemId) == null) {
       EquipmentDatabase.registerOutfit(outfitId, outfitName, itemId);
     }
   }
@@ -470,7 +452,7 @@ public class EquipmentDatabase {
   public static final void registerOutfit(
       final int outfitId, final String outfitName, final int itemId) {
     SpecialOutfit outfit = EquipmentDatabase.normalOutfits.get(outfitId);
-    Integer id = IntegerPool.get(outfitId);
+    Integer id = outfitId;
 
     if (outfit == null) {
       outfit = new SpecialOutfit(outfitId, outfitName);
@@ -479,7 +461,7 @@ public class EquipmentDatabase {
     }
 
     if (itemId != -1) {
-      EquipmentDatabase.outfitPieces.put(IntegerPool.get(itemId), id);
+      EquipmentDatabase.outfitPieces.put(itemId, id);
       outfit.addPiece(ItemPool.get(itemId));
     }
 
@@ -524,7 +506,7 @@ public class EquipmentDatabase {
       return -1;
     }
 
-    Integer result = EquipmentDatabase.outfitPieces.get(IntegerPool.get(itemId));
+    Integer result = EquipmentDatabase.outfitPieces.get(itemId);
     return result == null ? -1 : result.intValue();
   }
 
@@ -987,6 +969,7 @@ public class EquipmentDatabase {
     private final ArrayList<SpecialOutfit> internalList = new ArrayList<SpecialOutfit>();
     private final TreeSet<Integer> internalSet = new TreeSet<Integer>();
 
+    @Override
     public Iterator<SpecialOutfit> iterator() {
       return this.internalList.iterator();
     }

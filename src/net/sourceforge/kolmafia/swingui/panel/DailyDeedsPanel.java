@@ -15,6 +15,8 @@ import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import net.sourceforge.kolmafia.AdventureResult;
+import net.sourceforge.kolmafia.AscensionClass;
+import net.sourceforge.kolmafia.AscensionPath.Path;
 import net.sourceforge.kolmafia.FamiliarData;
 import net.sourceforge.kolmafia.KoLAdventure;
 import net.sourceforge.kolmafia.KoLCharacter;
@@ -682,31 +684,29 @@ public class DailyDeedsPanel extends Box implements Listener {
        * Skill|displayText|preference
        * skillName is found from displayText
        */
-      List<?> skillNames = SkillDatabase.getMatchingNames(deedsString[1]);
+      List<String> skillNames = SkillDatabase.getMatchingNames(deedsString[1]);
 
       if (skillNames.size() != 1) {
         RequestLogger.printLine("Daily Deeds error: unable to resolve skill " + deedsString[1]);
         return;
       }
 
-      this.add(new SkillDaily(pref, (String) skillNames.get(0), "cast " + skillNames.get(0)));
+      this.add(new SkillDaily(pref, skillNames.get(0), "cast " + skillNames.get(0)));
     } else if (deedsString.length == 4) {
       /*
        * Skill|displayText|preference|skillName
        */
       String displayText = deedsString[1];
-      List<?> skillNames = SkillDatabase.getMatchingNames(deedsString[3]);
+      List<String> skillNames = SkillDatabase.getMatchingNames(deedsString[3]);
 
       if (skillNames.size() != 1) {
         RequestLogger.printLine("Daily Deeds error: unable to resolve skill " + deedsString[3]);
         return;
       }
-      this.add(
-          new SkillDaily(
-              displayText, pref, (String) skillNames.get(0), "cast " + skillNames.get(0)));
+      this.add(new SkillDaily(displayText, pref, skillNames.get(0), "cast " + skillNames.get(0)));
     } else if (deedsString.length == 5) {
       String displayText = deedsString[1];
-      List<?> skillNames = SkillDatabase.getMatchingNames(deedsString[3]);
+      List<String> skillNames = SkillDatabase.getMatchingNames(deedsString[3]);
 
       try {
         int maxCasts = Integer.parseInt(deedsString[4]);
@@ -717,18 +717,14 @@ public class DailyDeedsPanel extends Box implements Listener {
         }
         this.add(
             new SkillDaily(
-                displayText,
-                pref,
-                (String) skillNames.get(0),
-                "cast " + skillNames.get(0),
-                maxCasts));
+                displayText, pref, skillNames.get(0), "cast " + skillNames.get(0), maxCasts));
       } catch (NumberFormatException e) {
         RequestLogger.printLine(
             "Daily Deeds error: Skill deeds require an int for the fifth parameter.");
       }
     } else if (deedsString.length == 6) {
       String displayText = deedsString[1];
-      List<?> skillNames = SkillDatabase.getMatchingNames(deedsString[3]);
+      List<String> skillNames = SkillDatabase.getMatchingNames(deedsString[3]);
       String toolTip = deedsString[5];
 
       try {
@@ -742,7 +738,7 @@ public class DailyDeedsPanel extends Box implements Listener {
             new SkillDaily(
                 displayText,
                 pref,
-                (String) skillNames.get(0),
+                skillNames.get(0),
                 "cast " + skillNames.get(0),
                 maxCasts,
                 toolTip));
@@ -756,7 +752,7 @@ public class DailyDeedsPanel extends Box implements Listener {
       if (skillString.equals("")) {
         skillString = displayText;
       }
-      List<?> skillNames = SkillDatabase.getMatchingNames(skillString);
+      List<String> skillNames = SkillDatabase.getMatchingNames(skillString);
       String toolTip = deedsString[5];
       String compMessage = deedsString[6];
 
@@ -775,7 +771,7 @@ public class DailyDeedsPanel extends Box implements Listener {
             new SkillDaily(
                 displayText,
                 pref,
-                (String) skillNames.get(0),
+                skillNames.get(0),
                 "cast " + skillNames.get(0),
                 maxCasts,
                 toolTip,
@@ -950,14 +946,13 @@ public class DailyDeedsPanel extends Box implements Listener {
       this.add(new TerminalExtrudeDaily());
     } else if (deedsString[1].equals("Terminal Summary")) {
       this.add(new TerminalSummaryDaily());
-    } else
-    // you added a special deed to BUILTIN_DEEDS but didn't add a method call.
-    {
+    } else { // you added a special deed to BUILTIN_DEEDS but didn't add a method call.
       RequestLogger.printLine(
           "Couldn't match a deed: " + deedsString[1] + " does not have a built-in method.");
     }
   }
 
+  @Override
   public void update() {
     // Called whenever the dailyDeedsOptions preference is changed.
     this.removeAll();
@@ -979,6 +974,7 @@ public class DailyDeedsPanel extends Box implements Listener {
       this.daily = daily;
     }
 
+    @Override
     public void run() {
       daily.update();
     }
@@ -1054,9 +1050,9 @@ public class DailyDeedsPanel extends Box implements Listener {
       this.addComboButton(command, displaytext).setToolTipText(tip);
     }
 
-    public DisabledItemsComboBox addComboBox(
+    public DisabledItemsComboBox<String> addComboBox(
         String[] choice, List<String> tooltips, String lengthString) {
-      DisabledItemsComboBox comboBox = new DisabledItemsComboBox();
+      DisabledItemsComboBox<String> comboBox = new DisabledItemsComboBox<>();
       int ht = comboBox.getFontMetrics(comboBox.getFont()).getHeight();
       int len = comboBox.getFontMetrics(comboBox.getFont()).stringWidth(lengthString);
 
@@ -1101,6 +1097,11 @@ public class DailyDeedsPanel extends Box implements Listener {
       this.label.setText(text);
     }
 
+    // for testing
+    String getText() {
+      return this.label.getText();
+    }
+
     @Override
     public void setEnabled(boolean enabled) {
       if (this.buttons != null) {
@@ -1125,6 +1126,7 @@ public class DailyDeedsPanel extends Box implements Listener {
       }
     }
 
+    @Override
     public void actionPerformed(ActionEvent e) {
       CommandDisplayFrame.executeCommand(e.getActionCommand());
       // Try to avoid having a random button, possibly with a high associated
@@ -1132,6 +1134,7 @@ public class DailyDeedsPanel extends Box implements Listener {
       KeyboardFocusManager.getCurrentKeyboardFocusManager().clearGlobalFocusOwner();
     }
 
+    @Override
     public abstract void update();
   }
 
@@ -1139,7 +1142,7 @@ public class DailyDeedsPanel extends Box implements Listener {
     // We don't really need the ability to disable items within
     // the shower combo box, but it's implemented here for consistency
 
-    DisabledItemsComboBox box = new DisabledItemsComboBox();
+    DisabledItemsComboBox<String> box = new DisabledItemsComboBox<>();
     Component space;
     JButton btn;
 
@@ -1193,12 +1196,12 @@ public class DailyDeedsPanel extends Box implements Listener {
 
     // can probably generalize these combo listeners and put them somewhere else.
     // for now they're individual to each combo.
-    private class ShowerComboListener implements ActionListener
-    // the combo listeners exist solely to update the GO button with
-    // the combo box target
-    {
+    private class ShowerComboListener implements ActionListener {
+      // the combo listeners exist solely to update the GO button with
+      // the combo box target
+      @Override
       public void actionPerformed(final ActionEvent e) {
-        DisabledItemsComboBox cb = (DisabledItemsComboBox) e.getSource();
+        DisabledItemsComboBox<?> cb = (DisabledItemsComboBox<?>) e.getSource();
         if (cb.getSelectedIndex() <= 0) {
           setComboTarget(btn, "");
         } else {
@@ -1210,7 +1213,7 @@ public class DailyDeedsPanel extends Box implements Listener {
   }
 
   public static class DemonCombo extends Daily {
-    DisabledItemsComboBox box = new DisabledItemsComboBox();
+    DisabledItemsComboBox<String> box = new DisabledItemsComboBox<>();
     Component space;
     JButton btn = null;
 
@@ -1277,8 +1280,9 @@ public class DailyDeedsPanel extends Box implements Listener {
     }
 
     private class DemonComboListener implements ActionListener {
+      @Override
       public void actionPerformed(final ActionEvent e) {
-        DisabledItemsComboBox cb = (DisabledItemsComboBox) e.getSource();
+        DisabledItemsComboBox<?> cb = (DisabledItemsComboBox<?>) e.getSource();
         if (cb.getSelectedIndex() <= 0) {
           setComboTarget(btn, "");
         } else {
@@ -1290,7 +1294,7 @@ public class DailyDeedsPanel extends Box implements Listener {
   }
 
   public static class ComboDaily extends Daily {
-    DisabledItemsComboBox box = new DisabledItemsComboBox();
+    DisabledItemsComboBox<String> box = new DisabledItemsComboBox<>();
     JButton btn = null;
 
     ArrayList<String[]> packedDeed;
@@ -1377,8 +1381,9 @@ public class DailyDeedsPanel extends Box implements Listener {
     }
 
     private class ComboListener implements ActionListener {
+      @Override
       public void actionPerformed(final ActionEvent e) {
-        DisabledItemsComboBox cb = (DisabledItemsComboBox) e.getSource();
+        DisabledItemsComboBox<?> cb = (DisabledItemsComboBox<?>) e.getSource();
         int choice = cb.getSelectedIndex();
         if (choice <= 0) {
           setComboTarget(btn, "");
@@ -1500,6 +1505,7 @@ public class DailyDeedsPanel extends Box implements Listener {
         this.preference = pref;
       }
 
+      @Override
       public void actionPerformed(ActionEvent arg0) {
         String pref = this.preference;
         int value = Preferences.getInteger(pref);
@@ -2186,7 +2192,7 @@ public class DailyDeedsPanel extends Box implements Listener {
   }
 
   public static class MomCombo extends Daily {
-    DisabledItemsComboBox box = new DisabledItemsComboBox();
+    DisabledItemsComboBox<String> box = new DisabledItemsComboBox<>();
     Component space;
     JButton btn = null;
 
@@ -2240,8 +2246,9 @@ public class DailyDeedsPanel extends Box implements Listener {
     }
 
     private class MomComboListener implements ActionListener {
+      @Override
       public void actionPerformed(final ActionEvent e) {
-        DisabledItemsComboBox cb = (DisabledItemsComboBox) e.getSource();
+        DisabledItemsComboBox<?> cb = (DisabledItemsComboBox<?>) e.getSource();
         int index = cb.getSelectedIndex();
         if (index < 2) {
           setComboTarget(btn, "");
@@ -2553,6 +2560,9 @@ public class DailyDeedsPanel extends Box implements Listener {
     @Override
     public void update() {
       boolean limited = Limitmode.limitMall();
+      boolean ly =
+          (!KoLCharacter.isHardcore() && !limited)
+              || InventoryManager.hasItem(ItemPool.LYNYRD_SNARE);
       boolean bf =
           (!KoLCharacter.isHardcore()
                   && !limited
@@ -2569,7 +2579,7 @@ public class DailyDeedsPanel extends Box implements Listener {
       if (hh && hg) ff = "hipster+goth";
       else if (hh) ff = "hipster";
       else if (hg) ff = "goth";
-      boolean sc = KoLCharacter.getClassType().equals(KoLCharacter.SEAL_CLUBBER);
+      boolean sc = KoLCharacter.isSealClubber();
       boolean me = machineElf != null && machineElf.canEquip();
       boolean gl = godLobster != null && godLobster.canEquip();
       boolean sj =
@@ -2589,7 +2599,8 @@ public class DailyDeedsPanel extends Box implements Listener {
               && !Limitmode.limitZone("Town")
               && !KoLCharacter.inBadMoon();
       boolean np =
-          Preferences.getBoolean("neverendingPartyAlways")
+          (Preferences.getBoolean("_neverendingPartyToday")
+                  || Preferences.getBoolean("neverendingPartyAlways"))
               && StandardRequest.isAllowed("Items", "Neverending Party invitation envelope")
               && !Limitmode.limitZone("Town")
               && !KoLCharacter.inBadMoon();
@@ -2598,6 +2609,21 @@ public class DailyDeedsPanel extends Box implements Listener {
               && StandardRequest.isAllowed("Items", "voter registration form")
               && !Limitmode.limitZone("Town")
               && !KoLCharacter.inBadMoon();
+      boolean sg =
+          StandardRequest.isAllowed("Items", "Kramco Sausage-o-Matic™")
+              && InventoryManager.hasItem(ItemPool.SAUSAGE_O_MATIC);
+      boolean gm =
+          StandardRequest.isAllowed("Items", "[glitch season reward name]")
+              && InventoryManager.hasItem(ItemPool.GLITCH_ITEM)
+              && Preferences.getInteger("_glitchMonsterFights") == 0;
+      boolean pp =
+          (KoLConstants.campground.contains(ItemPool.get(ItemPool.MUSHROOM_SPORES, 1))
+                  || InventoryManager.hasItem(ItemPool.MUSHROOM_SPORES))
+              && StandardRequest.isAllowed("Items", "packet of mushroom spores")
+              && !Limitmode.limitCampground();
+      boolean vm =
+          StandardRequest.isAllowed("Items", "cursed magnifying glass")
+              && InventoryManager.hasItem(ItemPool.CURSED_MAGNIFYING_GLASS);
 
       StringBuilder buffer = new StringBuilder();
       count = 0;
@@ -2605,17 +2631,17 @@ public class DailyDeedsPanel extends Box implements Listener {
 
       buffer.append("<html>");
 
-      int maxSummons = 5;
+      int maxSeals = 5;
       if (KoLCharacter.hasEquipped(DailyDeedsPanel.INFERNAL_SEAL_CLAW)
           || DailyDeedsPanel.INFERNAL_SEAL_CLAW.getCount(KoLConstants.inventory) > 0) {
-        maxSummons = 10;
+        maxSeals = 10;
       }
+      if (ly) addFightCounter(buffer, Preferences.getInteger("_lynyrdSnareUses") + "/3 lynyrd");
       if (bf) addFightCounter(buffer, Preferences.getInteger("_brickoFights") + "/10 BRICKO");
       if (hf) addFightCounter(buffer, Preferences.getInteger("_hipsterAdv") + "/7 " + ff);
       if (sc)
         addFightCounter(
-            buffer,
-            Preferences.getInteger("_sealsSummoned") + "/" + maxSummons + " seals summoned");
+            buffer, Preferences.getInteger("_sealsSummoned") + "/" + maxSeals + " seals summoned");
       if (me)
         addFightCounter(buffer, Preferences.getInteger("_machineTunnelsAdv") + "/5 machine elf");
       if (sj) addFightCounter(buffer, Preferences.getInteger("_snojoFreeFights") + "/10 snojo");
@@ -2627,7 +2653,15 @@ public class DailyDeedsPanel extends Box implements Listener {
       if (np)
         addFightCounter(buffer, Preferences.getInteger("_neverendingPartyFreeTurns") + "/10 party");
       if (vb) addFightCounter(buffer, Preferences.getInteger("_voteFreeFights") + "/3 vote");
+      if (sg) addFightCounter(buffer, Preferences.getInteger("_sausageFights") + " sausage goblin");
+      int maxPlants = KoLCharacter.getPath() == Path.PATH_OF_THE_PLUMBER ? 5 : 1;
+      if (pp)
+        addFightCounter(
+            buffer,
+            Preferences.getInteger("_mushroomGardenFights") + "/" + maxPlants + " piranha plant");
+      if (vm) addFightCounter(buffer, Preferences.getInteger("_voidFreeFights") + "/5 void");
       if (et) addFightCounter(buffer, "tentacle");
+      if (gm) addFightCounter(buffer, "%monster%");
       buffer.append("</html>");
 
       this.setShown(shown);
@@ -3201,7 +3235,7 @@ public class DailyDeedsPanel extends Box implements Listener {
   }
 
   public static class HatterDaily extends Daily {
-    private final DisabledItemsComboBox box;
+    private final DisabledItemsComboBox<String> box;
     private final Component space;
     private final JButton button;
 
@@ -3271,7 +3305,7 @@ public class DailyDeedsPanel extends Box implements Listener {
       this.modifiers.add(null);
 
       // build hat options here
-      List<AdventureResult> hats = EquipmentManager.getEquipmentLists()[EquipmentManager.HAT];
+      List<AdventureResult> hats = EquipmentManager.getEquipmentLists().get(EquipmentManager.HAT);
       FamiliarData current = KoLCharacter.getFamiliar();
 
       if (current.getItem() != null && EquipmentDatabase.isHat(current.getItem())) {
@@ -3306,8 +3340,9 @@ public class DailyDeedsPanel extends Box implements Listener {
     }
 
     private class HatterComboListener implements ActionListener {
+      @Override
       public void actionPerformed(final ActionEvent e) {
-        DisabledItemsComboBox cb = (DisabledItemsComboBox) e.getSource();
+        DisabledItemsComboBox<?> cb = (DisabledItemsComboBox<?>) e.getSource();
 
         if (cb.getItemCount() == 0) {
           return;
@@ -3332,18 +3367,11 @@ public class DailyDeedsPanel extends Box implements Listener {
 
     @Override
     public void update() {
-      boolean borisBan = KoLCharacter.hasSkill("Banishing Shout");
-      boolean zombieBan = KoLCharacter.hasSkill("Howl of the Alpha");
-      boolean jarlBan =
-          InventoryManager.getCount(ItemPool.STAFF_OF_CHEESE) > 0
-              || KoLCharacter.hasEquipped(DailyDeedsPanel.STAFF_OF_CHEESE);
-      boolean nanoBan = KoLCharacter.findFamiliar(FamiliarPool.NANORHINO) != null;
-
-      String list = BanishManager.getBanishList();
-      String text = "Banished monsters: " + list;
+      List<String> list = BanishManager.getBanishedMonsters();
+      String text = "Banished monsters: " + String.join(",", list);
 
       this.setText(text);
-      this.setShown(borisBan || zombieBan || jarlBan || nanoBan || list.length() > 0);
+      this.setShown(list.size() > 0);
     }
   }
 
@@ -3515,8 +3543,8 @@ public class DailyDeedsPanel extends Box implements Listener {
           Preferences.getInteger("lastArcadeAscension") == KoLCharacter.getAscensions();
       boolean unlockable =
           unlocked
-              || // Having those items doesn't matter if it's already unlocked
-              InventoryManager.hasItem(ItemPool.GG_TOKEN)
+              // Having those items doesn't matter if it's already unlocked
+              || InventoryManager.hasItem(ItemPool.GG_TOKEN)
               || InventoryManager.hasItem(ItemPool.GG_TICKET);
       boolean limited = Limitmode.limitClan();
 
@@ -3652,7 +3680,7 @@ public class DailyDeedsPanel extends Box implements Listener {
     private static final List<String> commands = new ArrayList<String>();
     private static final List<String> tooltips = new ArrayList<String>();
 
-    DisabledItemsComboBox box = new DisabledItemsComboBox();
+    DisabledItemsComboBox<String> box = new DisabledItemsComboBox<>();
     Component space;
     JButton btn;
 
@@ -3707,17 +3735,17 @@ public class DailyDeedsPanel extends Box implements Listener {
     }
 
     private class DeckComboListener implements ActionListener {
+      @Override
       public void actionPerformed(final ActionEvent e) {
-        DisabledItemsComboBox cb = (DisabledItemsComboBox) e.getSource();
+        DisabledItemsComboBox<?> cb = (DisabledItemsComboBox<?>) e.getSource();
         String command = commands.get(cb.getSelectedIndex());
         int cardsdrawn = Preferences.getInteger("_deckCardsDrawn");
         if (command.equals("")) {
           setComboTarget(btn, "");
           setEnabled(false);
         } else {
-          if (cb.getSelectedIndex() > 1
-              && cardsdrawn > 10) // Can't cheat with less than 5 remaining
-          {
+          if (cb.getSelectedIndex() > 1 && cardsdrawn > 10) {
+            // Can't cheat with less than 5 remaining
             setComboTarget(btn, "");
             setEnabled(false);
           } else {
@@ -3750,7 +3778,7 @@ public class DailyDeedsPanel extends Box implements Listener {
       }
     }
 
-    DisabledItemsComboBox box = new DisabledItemsComboBox();
+    DisabledItemsComboBox<String> box = new DisabledItemsComboBox<>();
     Component space;
     JButton btn;
 
@@ -3792,7 +3820,7 @@ public class DailyDeedsPanel extends Box implements Listener {
     private class TeaTreeListener implements ActionListener {
       @Override
       public void actionPerformed(final ActionEvent e) {
-        DisabledItemsComboBox cb = (DisabledItemsComboBox) e.getSource();
+        DisabledItemsComboBox<?> cb = (DisabledItemsComboBox<?>) e.getSource();
         String command = commands.get(cb.getSelectedIndex());
         setComboTarget(btn, command);
         setEnabled(cb.getSelectedIndex() > 0 && !Preferences.getBoolean("_pottedTeaTreeUsed"));
@@ -3846,31 +3874,47 @@ public class DailyDeedsPanel extends Box implements Listener {
       boolean hasProtection = !Preferences.getBoolean("prayedForProtection");
       boolean hasGlamour = !Preferences.getBoolean("prayedForGlamour");
       boolean hasVigor = !Preferences.getBoolean("prayedForVigor");
-      String myClass = KoLCharacter.getClassType();
       btnMus.setVisible(hasProtection);
       btnMys.setVisible(hasGlamour);
       btnMox.setVisible(hasVigor);
       btnBuff.setVisible(true);
       this.setText("Pray to the Barrel god");
 
-      if (myClass.equals(KoLCharacter.SEAL_CLUBBER)) {
-        btnBuff.setToolTipText("Weapon Damage +150%");
-      } else if (myClass.equals(KoLCharacter.TURTLE_TAMER)) {
-        btnBuff.setToolTipText("Maximum HP +90, Makes food more delicious!");
-      } else if (myClass.equals(KoLCharacter.PASTAMANCER)) {
-        btnBuff.setToolTipText("+90% Item Drops from Monsters");
-      } else if (myClass.equals(KoLCharacter.SAUCEROR)) {
-        btnBuff.setToolTipText("Spell Damage +150%");
-      } else if (myClass.equals(KoLCharacter.DISCO_BANDIT)) {
-        btnBuff.setToolTipText("Ranged Damage +150%");
-      } else if (myClass.equals(KoLCharacter.ACCORDION_THIEF)) {
-        btnBuff.setToolTipText("+45% Booze Drops from Monsters, Makes booze more effective!");
-      } else {
-        if (!(hasProtection || hasGlamour || hasVigor) && !prayed) {
-          this.setText("The Barrel god will not answer your prayers");
+      String buffText = null;
+      AscensionClass ascensionClass = KoLCharacter.getAscensionClass();
+      if (ascensionClass != null) {
+        switch (ascensionClass) {
+          case SEAL_CLUBBER:
+            buffText = "Weapon Damage +150%";
+            break;
+          case TURTLE_TAMER:
+            buffText = "Maximum HP +90, Makes food more delicious!";
+            break;
+          case PASTAMANCER:
+            buffText = "+90% Item Drops from Monsters";
+            break;
+          case SAUCEROR:
+            buffText = "Spell Damage +150%";
+            break;
+          case DISCO_BANDIT:
+            buffText = "Ranged Damage +150%";
+            break;
+          case ACCORDION_THIEF:
+            buffText = "+45% Booze Drops from Monsters, Makes booze more effective!";
+            break;
         }
-        btnBuff.setVisible(false);
       }
+
+      if (buffText != null) {
+        btnBuff.setToolTipText(buffText);
+        return;
+      }
+
+      if (!(hasProtection || hasGlamour || hasVigor)) {
+        this.setText("The Barrel god will not answer your prayers");
+      }
+
+      btnBuff.setVisible(false);
     }
   }
 
@@ -3893,7 +3937,7 @@ public class DailyDeedsPanel extends Box implements Listener {
     private static final List<String> commands = new ArrayList<String>();
     private static final List<String> tooltips = new ArrayList<String>();
 
-    DisabledItemsComboBox box = new DisabledItemsComboBox();
+    DisabledItemsComboBox<String> box = new DisabledItemsComboBox<>();
     Component space;
     JButton btn;
 
@@ -3954,8 +3998,9 @@ public class DailyDeedsPanel extends Box implements Listener {
     }
 
     private class TerminalEnhanceComboListener implements ActionListener {
+      @Override
       public void actionPerformed(final ActionEvent e) {
-        DisabledItemsComboBox cb = (DisabledItemsComboBox) e.getSource();
+        DisabledItemsComboBox<?> cb = (DisabledItemsComboBox<?>) e.getSource();
         String command = commands.get(cb.getSelectedIndex());
         if (command.equals("")) {
           setComboTarget(btn, "");
@@ -3981,7 +4026,7 @@ public class DailyDeedsPanel extends Box implements Listener {
     private static final List<String> commands = new ArrayList<String>();
     private static final List<String> tooltips = new ArrayList<String>();
 
-    DisabledItemsComboBox box = new DisabledItemsComboBox();
+    DisabledItemsComboBox<String> box = new DisabledItemsComboBox<>();
     JButton btn;
 
     static {
@@ -4030,8 +4075,9 @@ public class DailyDeedsPanel extends Box implements Listener {
     }
 
     private class TerminalEnquiryComboListener implements ActionListener {
+      @Override
       public void actionPerformed(final ActionEvent e) {
-        DisabledItemsComboBox cb = (DisabledItemsComboBox) e.getSource();
+        DisabledItemsComboBox<?> cb = (DisabledItemsComboBox<?>) e.getSource();
         String command = commands.get(cb.getSelectedIndex());
         String choice = choices.get(cb.getSelectedIndex());
         if (command.equals("") || choice.equals(Preferences.getString("sourceTerminalEnquiry"))) {
@@ -4064,7 +4110,7 @@ public class DailyDeedsPanel extends Box implements Listener {
     private static final List<String> commands = new ArrayList<String>();
     private static final List<String> tooltips = new ArrayList<String>();
 
-    DisabledItemsComboBox box = new DisabledItemsComboBox();
+    DisabledItemsComboBox<String> box = new DisabledItemsComboBox<>();
     Component space;
     JButton btn;
 
@@ -4121,8 +4167,9 @@ public class DailyDeedsPanel extends Box implements Listener {
     }
 
     private class TerminalExtrudeComboListener implements ActionListener {
+      @Override
       public void actionPerformed(final ActionEvent e) {
-        DisabledItemsComboBox cb = (DisabledItemsComboBox) e.getSource();
+        DisabledItemsComboBox<?> cb = (DisabledItemsComboBox<?>) e.getSource();
         String command = commands.get(cb.getSelectedIndex());
         String choice = choices.get(cb.getSelectedIndex());
         if (command.equals("")) {
@@ -4151,7 +4198,7 @@ public class DailyDeedsPanel extends Box implements Listener {
     private static final List<String> commands = new ArrayList<String>();
     private static final List<String> tooltips = new ArrayList<String>();
 
-    DisabledItemsComboBox box = new DisabledItemsComboBox();
+    DisabledItemsComboBox<String> box = new DisabledItemsComboBox<>();
     JButton btn;
 
     static {
@@ -4203,8 +4250,9 @@ public class DailyDeedsPanel extends Box implements Listener {
     }
 
     private class TerminalEducateComboListener implements ActionListener {
+      @Override
       public void actionPerformed(final ActionEvent e) {
-        DisabledItemsComboBox cb = (DisabledItemsComboBox) e.getSource();
+        DisabledItemsComboBox<?> cb = (DisabledItemsComboBox<?>) e.getSource();
         String command = commands.get(cb.getSelectedIndex());
         String choice = choices.get(cb.getSelectedIndex());
         String chips = Preferences.getString("sourceTerminalChips");

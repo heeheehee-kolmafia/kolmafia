@@ -24,9 +24,11 @@ import net.sourceforge.kolmafia.persistence.MonsterDatabase;
 import net.sourceforge.kolmafia.persistence.QuestDatabase;
 import net.sourceforge.kolmafia.persistence.QuestDatabase.Quest;
 import net.sourceforge.kolmafia.preferences.Preferences;
+import net.sourceforge.kolmafia.session.BastilleBattalionManager;
 import net.sourceforge.kolmafia.session.BatManager;
 import net.sourceforge.kolmafia.session.ChoiceManager;
 import net.sourceforge.kolmafia.session.ConsequenceManager;
+import net.sourceforge.kolmafia.session.CrystalBallManager;
 import net.sourceforge.kolmafia.session.DvorakManager;
 import net.sourceforge.kolmafia.session.EncounterManager;
 import net.sourceforge.kolmafia.session.EquipmentManager;
@@ -234,6 +236,21 @@ public class AdventureRequest extends GenericRequest {
     if (index >= 0) {
       String failure = KoLAdventure.adventureFailureMessage(index);
       MafiaState severity = KoLAdventure.adventureFailureSeverity(index);
+
+      // Add more details to the failure message when adventuring in the 2021 crimbo cold resistance
+      // zones.
+      if (this.formSource.equals("adventure.php")) {
+        String zone = AdventureDatabase.getZone(this.adventureName);
+        if ("Crimbo21".equals(zone)) {
+          int required = Preferences.getInteger("_crimbo21ColdResistance");
+          int current = KoLCharacter.getElementalResistanceLevels(MonsterDatabase.Element.COLD);
+          if (current < required) {
+            failure +=
+                " You need " + required + " (" + (required - current) + " more than you have now).";
+          }
+        }
+      }
+
       KoLmafia.updateDisplay(severity, failure);
       this.override = 0;
       return;
@@ -387,19 +404,20 @@ public class AdventureRequest extends GenericRequest {
 
         encounter = monster.getName();
         // Only queue normal monster encounters
-        if (!EncounterManager.ignoreSpecialMonsters
-            && !EncounterManager.isWanderingMonster(encounter)
-            && !EncounterManager.isUltrarareMonster(encounter)
-            && !EncounterManager.isSemiRareMonster(encounter)
-            && !EncounterManager.isSuperlikelyMonster(encounter)
-            && !EncounterManager.isFreeCombatMonster(encounter)
-            && !EncounterManager.isNoWanderMonster(encounter)
-            && !EncounterManager.isEnamorangEncounter(responseText, false)
-            && !EncounterManager.isDigitizedEncounter(responseText, false)
-            && !EncounterManager.isRomanticEncounter(responseText, false)
-            && !EncounterManager.isSaberForceMonster()
-            && !EncounterManager.isCrystalBallMonster()
-            && !FightRequest.edFightInProgress()) {
+        if (EncounterManager.isGregariousEncounter(responseText)
+            || (!EncounterManager.ignoreSpecialMonsters
+                && !EncounterManager.isWanderingMonster(encounter)
+                && !EncounterManager.isUltrarareMonster(encounter)
+                && !EncounterManager.isLuckyMonster(encounter)
+                && !EncounterManager.isSuperlikelyMonster(encounter)
+                && !EncounterManager.isFreeCombatMonster(encounter)
+                && !EncounterManager.isNoWanderMonster(encounter)
+                && !EncounterManager.isEnamorangEncounter(responseText, false)
+                && !EncounterManager.isDigitizedEncounter(responseText, false)
+                && !EncounterManager.isRomanticEncounter(responseText, false)
+                && !EncounterManager.isSaberForceMonster()
+                && !CrystalBallManager.isCrystalBallMonster()
+                && !FightRequest.edFightInProgress())) {
           AdventureQueueDatabase.enqueue(KoLAdventure.lastVisitedLocation(), encounter);
         }
       } else if (type.equals("Noncombat")) {
@@ -414,10 +432,9 @@ public class AdventureRequest extends GenericRequest {
 
     TurnCounter.handleTemporaryCounters(type, encounter);
 
-    // Spending a turn somewhere should wipe the crystal ball monster prediction.
-    // Parsing a new prediction just needs to happen *after* this is called
-    Preferences.setString("crystalBallMonster", "");
-    Preferences.setString("crystalBallLocation", "");
+    if (!Preferences.getString("crystalBallPredictions").isEmpty()) {
+      CrystalBallManager.updateCrystalBallPredictions();
+    }
 
     return encounter;
   }
@@ -576,7 +593,7 @@ public class AdventureRequest extends GenericRequest {
     return monster;
   }
 
-  private static String parseChoiceEncounter(
+  public static String parseChoiceEncounter(
       final String urlString, final int choice, final String responseText) {
     if (LouvreManager.louvreChoice(choice)) {
       return LouvreManager.encounterName(choice);
@@ -624,7 +641,17 @@ public class AdventureRequest extends GenericRequest {
       case 807: // Breaker Breaker!
       case 1003: // Test Your Might And Also Test Other Things
       case 1086: // Pick a Card
+      case 1463: // Reminiscing About Those Monsters You Fought
         return null;
+
+      case 1313: // Bastille Battalion
+      case 1314: // Bastille Battalion (Master of None)
+      case 1315: // Castle vs. Castle
+      case 1316: // GAME OVER
+      case 1317: // A Hello to Arms (Battalion)
+      case 1318: // Defensive Posturing
+      case 1319: // Cheese Seeking Behavior
+        return BastilleBattalionManager.parseChoiceEncounter(choice, responseText);
 
       case 1135: // The Bat-Sedan
         return BatManager.parseBatSedan(responseText);
@@ -988,9 +1015,7 @@ public class AdventureRequest extends GenericRequest {
     if (this.adventureId.equals(AdventurePool.THE_SHORE_ID)) {
       return KoLCharacter.inFistcore() ? 5 : 3;
     }
-    String zone = AdventureDatabase.getZone(this.adventureName);
-    if (zone != null
-        && (zone.equals("The Sea") || this.adventureId.equals(AdventurePool.YACHT_ID))) {
+    if ("underwater".equals(AdventureDatabase.getEnvironment(this.adventureName))) {
       return KoLConstants.activeEffects.contains(EffectPool.get(EffectPool.FISHY)) ? 1 : 2;
     }
     return 1;
@@ -1052,7 +1077,21 @@ public class AdventureRequest extends GenericRequest {
       return;
     }
 
+    if (redirectLocation.startsWith("shop.php")) {
+      // The Shore Inc. can redirect to the gift shop.
+      AdventureRequest.ZONE_UNLOCK.run();
+      return;
+    }
+
+    if (redirectLocation.startsWith("council.php") || redirectLocation.startsWith("ascend.php")) {
+      // Community Service can redirect to both council.php and ascend.php
+      AdventureRequest.ZONE_UNLOCK.run();
+      return;
+    }
+
     RequestSynchFrame.showRequest(AdventureRequest.ZONE_UNLOCK);
+    RequestLogger.printLine("Unrecognized choice.php redirect: " + redirectLocation);
+    RequestLogger.updateSessionLog("Unrecognized choice.php redirect: " + redirectLocation);
     KoLmafia.updateDisplay(MafiaState.ABORT, "Unknown adventure type encountered.");
   }
 
@@ -1100,8 +1139,7 @@ public class AdventureRequest extends GenericRequest {
     ArrayList<String> internal = new ArrayList<String>();
     String[] temp = text.split("\"");
 
-    for (int i = 1; i < temp.length - 1; i++) // The first and last elements are never useful
-    {
+    for (int i = 1; i < temp.length - 1; i++) { // The first and last elements are never useful
       if (!temp[i].contains(":") && !temp[i].equals(",")) {
         internal.add(temp[i]);
       }

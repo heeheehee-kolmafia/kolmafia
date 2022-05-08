@@ -1,6 +1,7 @@
 package net.sourceforge.kolmafia.textui.parsetree;
 
 import net.sourceforge.kolmafia.textui.DataTypes;
+import org.eclipse.lsp4j.Location;
 
 public class AggregateType extends CompositeType {
   protected final Type dataType;
@@ -8,50 +9,62 @@ public class AggregateType extends CompositeType {
   protected final boolean caseInsensitive;
   protected int size;
 
+  private AggregateType(
+      final String name,
+      final Type dataType,
+      final Type indexType,
+      final int size,
+      final boolean caseInsensitive) {
+    this(name, dataType, indexType, size, caseInsensitive, null);
+  }
+
+  private AggregateType(
+      final String name,
+      final Type dataType,
+      final Type indexType,
+      final int size,
+      final boolean caseInsensitive,
+      final Location location) {
+    super(name, DataTypes.TYPE_AGGREGATE, location);
+    this.dataType = dataType;
+    this.indexType = indexType;
+    this.size = size;
+    this.caseInsensitive = caseInsensitive && indexType.equals(DataTypes.STRING_TYPE);
+  }
+
   public AggregateType(final AggregateType original) {
-    super("aggregate", DataTypes.TYPE_AGGREGATE);
-    this.dataType = original.dataType;
-    this.indexType = original.indexType;
-    this.caseInsensitive = original.caseInsensitive;
-    this.size = original.size;
+    this(original, (Location) null);
+  }
+
+  public AggregateType(final AggregateType original, final Location location) {
+    this(
+        "aggregate",
+        original.dataType,
+        original.indexType,
+        original.size,
+        original.caseInsensitive,
+        location);
   }
 
   // Map
   public AggregateType(final Type dataType, final Type indexType) {
-    super("aggregate", DataTypes.TYPE_AGGREGATE);
-    this.dataType = dataType;
-    this.indexType = indexType;
-    this.size = -1;
-    this.caseInsensitive = false;
+    this("aggregate", dataType, indexType, -1, false);
   }
 
   // Map with case-insensitive string keys
   public AggregateType(final Type dataType, final Type indexType, boolean caseInsensitive) {
-    super("aggregate", DataTypes.TYPE_AGGREGATE);
-    this.dataType = dataType;
-    this.indexType = indexType;
-    this.size = -1;
-    this.caseInsensitive = caseInsensitive && indexType.equals(DataTypes.STRING_TYPE);
+    this("aggregate", dataType, indexType, -1, caseInsensitive);
   }
 
   // Array
   public AggregateType(final Type dataType, final int size) {
-    super("aggregate", DataTypes.TYPE_AGGREGATE);
-    this.primitive = false;
-    this.dataType = dataType;
-    this.indexType = DataTypes.INT_TYPE;
-    this.size = size;
-    this.caseInsensitive = false;
+    this("aggregate", dataType, DataTypes.INT_TYPE, size, false);
   }
 
   // VarArg
-  public AggregateType(final String name, final Type dataType, final int size) {
-    super(name, DataTypes.TYPE_AGGREGATE);
-    this.primitive = false;
-    this.dataType = dataType;
-    this.indexType = DataTypes.INT_TYPE;
-    this.size = size;
-    this.caseInsensitive = false;
+  public AggregateType(
+      final String name, final Type dataType, final int size, final Location location) {
+    this(name, dataType, DataTypes.INT_TYPE, size, false, location);
   }
 
   @Override
@@ -132,5 +145,30 @@ public class AggregateType extends CompositeType {
       return -1;
     }
     return this.size * values;
+  }
+
+  @Override
+  public AggregateType reference(final Location location) {
+    return new AggregateTypeReference(this, location);
+  }
+
+  private class AggregateTypeReference extends AggregateType {
+    private AggregateTypeReference(final AggregateType aggregateType, final Location location) {
+      super(aggregateType, location);
+    }
+
+    @Override
+    public Location getDefinitionLocation() {
+      return AggregateType.this.getDefinitionLocation();
+    }
+  }
+
+  @Override
+  public boolean isBad() {
+    return this.getIndexType().isBad() || this.getDataType().isBad();
+  }
+
+  public static AggregateType badAggregateType() {
+    return new AggregateType(new BadType(null, null), new BadType(null, null));
   }
 }

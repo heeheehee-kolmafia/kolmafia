@@ -18,6 +18,8 @@ import net.sourceforge.kolmafia.session.BreakfastManager;
 import net.sourceforge.kolmafia.utilities.StringUtilities;
 
 public class ManaBurnManager {
+  private ManaBurnManager() {}
+
   public static final void burnExtraMana(final boolean isManualInvocation) {
     if (KoLmafia.refusesContinue()
         || KoLCharacter.inZombiecore()
@@ -278,7 +280,7 @@ public class ManaBurnManager {
       return null;
     }
 
-    List castable = BreakfastManager.getBreakfastLibramSkills();
+    List<String> castable = BreakfastManager.getBreakfastLibramSkills();
     int skillCount = castable.size();
 
     if (skillCount == 0) {
@@ -293,7 +295,7 @@ public class ManaBurnManager {
       buf.append("cast ");
       buf.append(thisCast);
       buf.append(" ");
-      buf.append((String) castable.get((i + nextCast) % skillCount));
+      buf.append(castable.get((i + nextCast) % skillCount));
       buf.append(";");
     }
 

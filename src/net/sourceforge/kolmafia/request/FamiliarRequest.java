@@ -43,7 +43,7 @@ public class FamiliarRequest extends GenericRequest {
   private FamiliarData changeTo;
   private final AdventureResult item;
   private final boolean locking;
-  private boolean enthrone, bjornify;
+  private boolean enthrone, bjornify, stealItem;
 
   public FamiliarRequest() {
     super("familiar.php");
@@ -52,9 +52,14 @@ public class FamiliarRequest extends GenericRequest {
     this.locking = false;
     this.enthrone = false;
     this.bjornify = false;
+    this.stealItem = true;
   }
 
   public FamiliarRequest(final FamiliarData changeTo) {
+    this(changeTo, true);
+  }
+
+  public FamiliarRequest(final FamiliarData changeTo, boolean stealItem) {
     super("familiar.php");
 
     this.changeTo = changeTo == null ? FamiliarData.NO_FAMILIAR : changeTo;
@@ -62,6 +67,7 @@ public class FamiliarRequest extends GenericRequest {
     this.locking = false;
     this.enthrone = false;
     this.bjornify = false;
+    this.stealItem = stealItem;
 
     if (this.changeTo == FamiliarData.NO_FAMILIAR) {
       this.addFormField("action", "putback");
@@ -80,6 +86,7 @@ public class FamiliarRequest extends GenericRequest {
     this.locking = false;
     this.enthrone = false;
     this.bjornify = false;
+    this.stealItem = true;
 
     if (this.item != EquipmentRequest.UNEQUIP) {
       this.addFormField("action", "equip");
@@ -100,6 +107,7 @@ public class FamiliarRequest extends GenericRequest {
     this.locking = true;
     this.enthrone = false;
     this.bjornify = false;
+    this.stealItem = true;
     this.addFormField("ajax", "1");
   }
 
@@ -255,8 +263,7 @@ public class FamiliarRequest extends GenericRequest {
                 + this.changeTo.getRace()
                 + " in the Bjorn Buddy...");
       }
-    } else // !enthrone
-    {
+    } else { // !enthrone
       if (familiar.getId() == this.changeTo.getId()) {
         return;
       }
@@ -282,13 +289,16 @@ public class FamiliarRequest extends GenericRequest {
 
     super.run();
 
-    // If we didn't have a familiar before or don't have one now,
+    // If we didn't have a familiar before,
+    // don't have one now,
+    // or have chosen not to change equipment
     // leave equipment alone.
 
     if (this.enthrone
         || this.bjornify
         || familiar == FamiliarData.NO_FAMILIAR
-        || this.changeTo == FamiliarData.NO_FAMILIAR) {
+        || this.changeTo == FamiliarData.NO_FAMILIAR
+        || !this.stealItem) {
       return;
     }
 
@@ -354,13 +364,7 @@ public class FamiliarRequest extends GenericRequest {
     // Familiars weren't cool enough for Pete.
     // Ed already has more than enough servants.
     // In Quantum Terrarium, familiar sets you.
-    if (KoLCharacter.inAxecore()
-        || KoLCharacter.isJarlsberg()
-        || KoLCharacter.isSneakyPete()
-        || KoLCharacter.isEd()
-        || KoLCharacter.inBondcore()
-        || KoLCharacter.isVampyre()
-        || KoLCharacter.inQuantum()) {
+    if (!KoLCharacter.getPath().canUseFamiliars() || KoLCharacter.inQuantum()) {
       return;
     }
 

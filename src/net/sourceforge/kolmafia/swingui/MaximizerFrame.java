@@ -9,10 +9,10 @@ import java.awt.event.ActionListener;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.Enumeration;
-import java.util.Iterator;
 import javax.swing.AbstractButton;
 import javax.swing.ButtonGroup;
 import javax.swing.JButton;
@@ -44,10 +44,9 @@ import net.sourceforge.kolmafia.swingui.widget.GenericScrollPane;
 import net.sourceforge.kolmafia.swingui.widget.ShowDescriptionList;
 import net.sourceforge.kolmafia.utilities.ByteBufferUtilities;
 import net.sourceforge.kolmafia.utilities.InputFieldUtilities;
-import net.sourceforge.kolmafia.utilities.StringUtilities;
 
 public class MaximizerFrame extends GenericFrame implements ListSelectionListener {
-  public static final JComboBox expressionSelect = new JComboBox();
+  public static final JComboBox<String> expressionSelect = new JComboBox<>();
 
   static { // This has to be done before the constructor runs, since the
     // CLI "maximize" command can set the selected item prior to the
@@ -58,7 +57,7 @@ public class MaximizerFrame extends GenericFrame implements ListSelectionListene
 
   private SmartButtonGroup equipmentSelect, mallSelect;
   private AutoHighlightTextField maxPriceField;
-  private final ShowDescriptionList boostList;
+  private final ShowDescriptionList<Boost> boostList;
   private final EnumMap<KoLConstants.filterType, Boolean> activeFilters;
   private EnumMap<KoLConstants.filterType, JCheckBox> filterButtons;
   private JLabel listTitle = null;
@@ -69,7 +68,7 @@ public class MaximizerFrame extends GenericFrame implements ListSelectionListene
     InputStream stream =
         DataUtilities.getInputStream(KoLConstants.DATA_DIRECTORY, "maximizer-help.html", false);
     byte[] bytes = ByteBufferUtilities.read(stream);
-    MaximizerFrame.HELP_STRING = StringUtilities.getEncodedString(bytes, "UTF-8");
+    MaximizerFrame.HELP_STRING = new String(bytes, StandardCharsets.UTF_8);
   }
 
   public MaximizerFrame() {
@@ -78,7 +77,7 @@ public class MaximizerFrame extends GenericFrame implements ListSelectionListene
     JPanel wrapperPanel = new JPanel(new BorderLayout());
     wrapperPanel.add(new MaximizerPanel(), BorderLayout.NORTH);
 
-    this.boostList = new ShowDescriptionList(Maximizer.boosts, 12);
+    this.boostList = new ShowDescriptionList<>(Maximizer.boosts, 12);
     this.boostList.addListSelectionListener(this);
     this.activeFilters = new EnumMap<>(KoLConstants.filterType.class);
 
@@ -94,7 +93,7 @@ public class MaximizerFrame extends GenericFrame implements ListSelectionListene
       }
     }
     for (KoLConstants.filterType f : KoLConstants.filterType.values()) {
-      activeFilters.put(f, true);
+      activeFilters.put(f, filterButtons.get(f).isSelected());
     }
   }
 
@@ -103,12 +102,13 @@ public class MaximizerFrame extends GenericFrame implements ListSelectionListene
     return null;
   }
 
+  @Override
   public void valueChanged(final ListSelectionEvent e) {
     double current = Maximizer.eval.getScore(KoLCharacter.getCurrentModifiers());
     boolean failed = Maximizer.eval.failed;
     Object[] items = this.boostList.getSelectedValuesList().toArray();
 
-    StringBuffer buff = new StringBuffer("Current score: ");
+    StringBuilder buff = new StringBuilder("Current score: ");
     buff.append(KoLConstants.FLOAT_FORMAT.format(current));
     if (failed) {
       buff.append(" (FAILED)");
@@ -155,7 +155,7 @@ public class MaximizerFrame extends GenericFrame implements ListSelectionListene
   private class MaximizerPanel extends GenericPanel implements ItemListener, ActionListener {
     public MaximizerPanel() {
       super("update", "help", new Dimension(80, 22), new Dimension(450, 22));
-      filterButtons = new EnumMap(KoLConstants.filterType.class);
+      filterButtons = new EnumMap<>(KoLConstants.filterType.class);
 
       MaximizerFrame.this.maxPriceField = new AutoHighlightTextField();
       JComponentUtilities.setComponentSize(MaximizerFrame.this.maxPriceField, 80, -1);
@@ -170,7 +170,7 @@ public class MaximizerFrame extends GenericFrame implements ListSelectionListene
       MaximizerFrame.this.equipmentSelect.add(new PullableRadioButton("pullable/buyable"));
 
       if (!Preferences.getBoolean("maximizerUseScope")) {
-        Integer maximizerEquipmentLevel = Preferences.getInteger("maximizerEquipmentLevel");
+        int maximizerEquipmentLevel = Preferences.getInteger("maximizerEquipmentLevel");
         if (maximizerEquipmentLevel == 0) {
           // no longer supported...
           maximizerEquipmentLevel = 1;
@@ -195,7 +195,7 @@ public class MaximizerFrame extends GenericFrame implements ListSelectionListene
           new KoLConstants.filterType[] {
             KoLConstants.filterType.EQUIP,
             KoLConstants.filterType.CAST,
-            KoLConstants.filterType.OTHER
+            KoLConstants.filterType.OTHER,
           };
       // JPanel filterPanel= new JPanel( new FlowLayout( FlowLayout.LEADING, 0, 0 ) );
       JPanel filterCheckboxTopPanel = new JPanel(new FlowLayout(FlowLayout.LEADING, 0, 0));
@@ -215,7 +215,7 @@ public class MaximizerFrame extends GenericFrame implements ListSelectionListene
         filterPanelTopRow.add(filterAllButton, BorderLayout.LINE_END);
         filterPanelBottomRow.add(filterNoneButton, BorderLayout.LINE_END);
       }
-      Boolean usageUnderLimit;
+      boolean usageUnderLimit;
       for (KoLConstants.filterType fType : KoLConstants.filterType.values()) {
         switch (fType) {
           case BOOZE:
@@ -234,7 +234,7 @@ public class MaximizerFrame extends GenericFrame implements ListSelectionListene
           default:
             usageUnderLimit = true;
         }
-        Boolean isLastUsedFilter =
+        boolean isLastUsedFilter =
             Preferences.getString("maximizerLastSingleFilter").equalsIgnoreCase(fType.name());
         if (Preferences.getBoolean("maximizerSingleFilter")) {
           usageUnderLimit = isLastUsedFilter;
@@ -271,36 +271,34 @@ public class MaximizerFrame extends GenericFrame implements ListSelectionListene
     public void itemStateChanged(ItemEvent e) {
       JCheckBox changedBox = (JCheckBox) e.getSource();
       KoLConstants.filterType thisFilter = null;
-      boolean updatedValue = (e.getStateChange() == ItemEvent.SELECTED);
+      for (KoLConstants.filterType fType : KoLConstants.filterType.values()) {
+        if (fType.name().equalsIgnoreCase(changedBox.getText())) {
+          thisFilter = fType;
+          break;
+        }
+      }
+
       if (Preferences.getBoolean("maximizerSingleFilter")) {
         if (!changedBox.isSelected()) {
           return;
         }
-        // selecting a filter turns off all others, as if it was a radio button
-        Boolean singleSelect;
 
         for (KoLConstants.filterType fType : KoLConstants.filterType.values()) {
-          singleSelect = (fType.toString().equalsIgnoreCase(changedBox.getText()));
+          // selecting a filter turns off all others, as if it was a radio button
+          boolean singleSelect = (fType == thisFilter);
 
           filterButtons.get(fType).setSelected(singleSelect);
 
-          if (activeFilters.containsKey(changedBox.getText())) {
+          if (activeFilters.containsKey(thisFilter)) {
             activeFilters.replace(fType, singleSelect);
           } else {
             activeFilters.put(fType, singleSelect);
           }
         }
         Preferences.setString("maximizerLastSingleFilter", changedBox.getText());
-      } else {
-        for (KoLConstants.filterType fType : KoLConstants.filterType.values()) {
-          if (fType.name().equalsIgnoreCase(changedBox.getText())) {
-            thisFilter = fType;
-            break;
-          }
-        }
-        if (!(thisFilter == null)) {
-          updateFilter(thisFilter, updatedValue);
-        }
+      } else if (thisFilter != null) {
+        boolean updatedValue = (e.getStateChange() == ItemEvent.SELECTED);
+        updateFilter(thisFilter, updatedValue);
       }
     }
 
@@ -346,7 +344,7 @@ public class MaximizerFrame extends GenericFrame implements ListSelectionListene
     }
   }
 
-  private class PullableRadioButton extends JRadioButton implements Listener {
+  private static class PullableRadioButton extends JRadioButton implements Listener {
     final String text;
 
     public PullableRadioButton(String text) {
@@ -356,6 +354,7 @@ public class MaximizerFrame extends GenericFrame implements ListSelectionListene
       this.update();
     }
 
+    @Override
     public void update() {
       int pulls = ConcoctionDatabase.getPullsRemaining();
       StringBuilder buf = new StringBuilder(this.text);
@@ -374,12 +373,12 @@ public class MaximizerFrame extends GenericFrame implements ListSelectionListene
     }
   }
 
-  private class BoostsPanel extends ScrollableFilteredPanel {
-    private final ShowDescriptionList elementList;
+  private class BoostsPanel extends ScrollableFilteredPanel<Boost> {
+    private final ShowDescriptionList<Boost> elementList;
 
-    public BoostsPanel(final ShowDescriptionList list) {
+    public BoostsPanel(final ShowDescriptionList<Boost> list) {
       super("Current score: --- \u25CA Predicted: ---", "equip all", "exec selected", list);
-      this.elementList = (ShowDescriptionList) this.scrollComponent;
+      this.elementList = this.scrollComponent;
       MaximizerFrame.this.listTitle = this.titleComponent;
     }
 
@@ -387,11 +386,9 @@ public class MaximizerFrame extends GenericFrame implements ListSelectionListene
     public void actionConfirmed() {
       KoLmafia.forceContinue();
       boolean any = false;
-      Iterator i = Maximizer.boosts.iterator();
-      while (i.hasNext()) {
-        Object boost = i.next();
-        if (boost instanceof Boost) {
-          boolean did = ((Boost) boost).execute(true);
+      for (Boost boost : Maximizer.boosts) {
+        if (boost != null) {
+          boolean did = boost.execute(true);
           if (!KoLmafia.permitsContinue()) return;
           any |= did;
         }
@@ -442,18 +439,18 @@ public class MaximizerFrame extends GenericFrame implements ListSelectionListene
 
     public void setSelectedIndex(int index) {
       int i = 0;
-      Enumeration e = this.getElements();
+      Enumeration<AbstractButton> e = this.getElements();
       while (e.hasMoreElements()) {
-        ((AbstractButton) e.nextElement()).setSelected(i == index);
+        e.nextElement().setSelected(i == index);
         ++i;
       }
     }
 
     public int getSelectedIndex() {
       int i = 0;
-      Enumeration e = this.getElements();
+      Enumeration<AbstractButton> e = this.getElements();
       while (e.hasMoreElements()) {
-        if (((AbstractButton) e.nextElement()).isSelected()) {
+        if (e.nextElement().isSelected()) {
           return i;
         }
         ++i;

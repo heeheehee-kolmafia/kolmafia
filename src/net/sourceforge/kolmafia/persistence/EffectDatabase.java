@@ -2,6 +2,7 @@ package net.sourceforge.kolmafia.persistence;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -23,7 +24,7 @@ import net.sourceforge.kolmafia.Modifiers;
 import net.sourceforge.kolmafia.RequestLogger;
 import net.sourceforge.kolmafia.StaticEntity;
 import net.sourceforge.kolmafia.objectpool.EffectPool;
-import net.sourceforge.kolmafia.objectpool.IntegerPool;
+import net.sourceforge.kolmafia.preferences.Preferences;
 import net.sourceforge.kolmafia.textui.command.UseItemCommand;
 import net.sourceforge.kolmafia.textui.command.UseSkillCommand;
 import net.sourceforge.kolmafia.utilities.FileUtilities;
@@ -52,38 +53,34 @@ public class EffectDatabase {
     EffectDatabase.reset();
   }
 
+  private EffectDatabase() {}
+
   public static void reset() {
     EffectDatabase.newEffects = false;
 
-    BufferedReader reader =
-        FileUtilities.getVersionedReader("statuseffects.txt", KoLConstants.STATUSEFFECTS_VERSION);
-    String[] data;
+    try (BufferedReader reader =
+        FileUtilities.getVersionedReader("statuseffects.txt", KoLConstants.STATUSEFFECTS_VERSION)) {
+      String[] data;
 
-    while ((data = FileUtilities.readData(reader)) != null) {
-      if (data.length >= 3) {
-        Integer effectId = Integer.valueOf(data[0]);
-        if (effectId.intValue() < 0) {
-          continue;
+      while ((data = FileUtilities.readData(reader)) != null) {
+        if (data.length >= 3) {
+          Integer effectId = Integer.valueOf(data[0]);
+          if (effectId.intValue() < 0) {
+            continue;
+          }
+
+          String name = data[1];
+          String image = data[2];
+          String descId = data.length > 3 ? data[3] : null;
+          String quality = data[4];
+          String attributes = data[5];
+          String defaultAction = data.length > 6 ? data[6] : null;
+
+          EffectDatabase.addToDatabase(
+              effectId, name, image, descId, quality, attributes, defaultAction);
         }
-
-        String name = data[1];
-        String image = data[2];
-        String descId = data.length > 3 ? data[3] : null;
-        String quality = data[4];
-        String attributes = data[5];
-        String defaultAction = data.length > 6 ? data[6] : null;
-
-        EffectDatabase.addToDatabase(
-            effectId, name, image, descId, quality, attributes, defaultAction);
       }
-    }
-
-    try {
-      reader.close();
-    } catch (Exception e) {
-      // This should not happen.  Therefore, print
-      // a stack trace for debug purposes.
-
+    } catch (IOException e) {
       StaticEntity.printStackTrace(e);
     }
 
@@ -188,13 +185,19 @@ public class EffectDatabase {
     return (attrs == null) ? false : attrs.contains(attribute);
   }
 
+  public static final boolean isSong(final int effectId) {
+    return EffectDatabase.hasAttribute(effectId, "song");
+  }
+
+  public static final boolean isSong(final String effectName) {
+    return EffectDatabase.hasAttribute(effectName, "song");
+  }
+
   public static final String getDefaultAction(final int effectId) {
     if (effectId == -1) {
       return null;
     }
-    String rv =
-        StringUtilities.getDisplayName(
-            EffectDatabase.defaultActions.get(IntegerPool.get(effectId)));
+    String rv = StringUtilities.getDisplayName(EffectDatabase.defaultActions.get(effectId));
     if (rv == null) {
       return null;
     }
@@ -227,9 +230,7 @@ public class EffectDatabase {
     if (effectId == -1) {
       return Collections.emptyIterator();
     }
-    String actions =
-        StringUtilities.getDisplayName(
-            EffectDatabase.defaultActions.get(IntegerPool.get(effectId)));
+    String actions = StringUtilities.getDisplayName(EffectDatabase.defaultActions.get(effectId));
     if (actions == null) {
       return Collections.emptyIterator();
     }
@@ -255,7 +256,7 @@ public class EffectDatabase {
   }
 
   public static final String getActions(final int effectId) {
-    return (effectId == -1) ? null : EffectDatabase.getActions(IntegerPool.get(effectId));
+    return (effectId == -1) ? null : EffectDatabase.getActions((Integer) effectId);
   }
 
   public static final String getActions(final Integer effectId) {
@@ -263,7 +264,7 @@ public class EffectDatabase {
   }
 
   public static final void setActions(final int effectId, final String actions) {
-    EffectDatabase.setActions(IntegerPool.get(effectId), actions);
+    EffectDatabase.setActions((Integer) effectId, actions);
   }
 
   public static final void setActions(final Integer effectId, final String actions) {
@@ -274,9 +275,7 @@ public class EffectDatabase {
     if (effectId == -1) {
       return null;
     }
-    String rv =
-        StringUtilities.getDisplayName(
-            EffectDatabase.defaultActions.get(IntegerPool.get(effectId)));
+    String rv = StringUtilities.getDisplayName(EffectDatabase.defaultActions.get(effectId));
     if (rv != null && rv.startsWith("#")) {
       return rv.substring(1).trim();
     }
@@ -290,7 +289,7 @@ public class EffectDatabase {
    * @return The name of the corresponding effect
    */
   public static final String getEffectName(final int effectId) {
-    return effectId == -1 ? null : EffectDatabase.nameById.get(IntegerPool.get(effectId));
+    return effectId == -1 ? null : EffectDatabase.nameById.get(effectId);
   }
 
   public static final String getEffectName(final String descriptionId) {
@@ -315,7 +314,7 @@ public class EffectDatabase {
   }
 
   public static final String getDescriptionId(final int effectId) {
-    return EffectDatabase.descriptionById.get(IntegerPool.get(effectId));
+    return EffectDatabase.descriptionById.get(effectId);
   }
 
   static final Set<Integer> descriptionIdKeySet() {
@@ -425,8 +424,7 @@ public class EffectDatabase {
    * @return The name of the corresponding effect
    */
   public static final String getImageName(final int effectId) {
-    String imageName =
-        effectId == -1 ? null : EffectDatabase.imageById.get(IntegerPool.get(effectId));
+    String imageName = effectId == -1 ? null : EffectDatabase.imageById.get(effectId);
     return imageName == null ? "" : imageName;
   }
 
@@ -472,7 +470,7 @@ public class EffectDatabase {
     if (effectId == -1) {
       return false;
     }
-    return EffectDatabase.nameById.get(IntegerPool.get(effectId)) != null;
+    return EffectDatabase.nameById.get(effectId) != null;
   }
 
   /**
@@ -520,13 +518,8 @@ public class EffectDatabase {
 
     String image = DebugDatabase.parseImage(text);
 
-    // Detach name, descid, and image from being substrings
-    name = name;
-    descId = descId;
-    image = image;
-
     String canonicalName = StringUtilities.getCanonicalName(name);
-    Integer id = IntegerPool.get(effectId);
+    Integer id = effectId;
 
     EffectDatabase.nameById.put(id, name);
     EffectDatabase.addIdToName(canonicalName, id);
@@ -751,5 +744,41 @@ public class EffectDatabase {
       return 6;
     }
     return Integer.MAX_VALUE;
+  }
+
+  public static void parseVampireVintnerWineEffect(final String edesc, final int effectId) {
+    String eEnchantments = DebugDatabase.parseEffectEnchantments(edesc, new ArrayList<String>());
+    String ename = EffectDatabase.getEffectName(effectId);
+    Modifiers emods = Modifiers.parseModifiers(ename, eEnchantments);
+
+    int level = 0;
+
+    switch (effectId) {
+      case EffectPool.WINE_FORTIFIED:
+        level = (int) emods.get(Modifiers.WEAPON_DAMAGE) / 3;
+        break;
+      case EffectPool.WINE_HOT:
+        level = (int) emods.get(Modifiers.HOT_DAMAGE) / 3;
+        break;
+      case EffectPool.WINE_COLD:
+        level = (int) emods.get(Modifiers.COLD_DAMAGE) / 3;
+        break;
+      case EffectPool.WINE_DARK:
+        level = (int) emods.get(Modifiers.SPOOKY_DAMAGE) / 4;
+        break;
+      case EffectPool.WINE_BEFOULED:
+        level = (int) emods.get(Modifiers.STENCH_DAMAGE) / 3;
+        break;
+      case EffectPool.WINE_FRISKY:
+        level = (int) emods.get(Modifiers.SLEAZE_DAMAGE) / 3;
+        break;
+      case EffectPool.WINE_FRIENDLY:
+        level = (int) emods.get(Modifiers.FAMILIAR_DAMAGE) / 3;
+        break;
+      default:
+        return;
+    }
+
+    Preferences.setInteger("vintnerWineLevel", level);
   }
 }

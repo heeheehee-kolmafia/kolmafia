@@ -2,6 +2,7 @@ package net.sourceforge.kolmafia.session;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import net.sourceforge.kolmafia.AdventureResult;
@@ -57,6 +58,8 @@ public class QuestManager {
       Pattern.compile("&quot;Paranormal disturbance reported (.*?).&quot;");
   private static final Pattern DJ_MEAT_PATTERN = Pattern.compile("collect (.*?) Meat for the DJ");
   private static final Pattern TRASH_PATTERN = Pattern.compile("you clean up (\\d+) ");
+
+  private QuestManager() {}
 
   public static final void handleQuestChange(GenericRequest request) {
     // Certain location-specific quest changes are noticed by
@@ -198,8 +201,6 @@ public class QuestManager {
       }
     } else if (location.startsWith("barrel")) {
       BarrelDecorator.parseResponse(location, responseText);
-    } else if (location.startsWith("canadia")) {
-      handleCanadiaChange(location, responseText);
     } else if (location.startsWith("choice.php") && location.contains("forceoption=0")) {
       // This can have no active choice options and therefore
       // won't be interpreted by ChoiceManager
@@ -243,6 +244,8 @@ public class QuestManager {
         if (responseText.contains("otherimages/stalktop/beanstalk.gif")) {
           QuestDatabase.setQuestIfBetter(Quest.GARBAGE, "step1");
         }
+      } else if (location.contains("whichplace=canadia")) {
+        handleCanadiaChange(location, responseText);
       } else if (location.contains("whichplace=desertbeach")) {
         if (location.contains("action=db_pyramid1")) {
           handlePyramidChange(location, responseText);
@@ -354,7 +357,7 @@ public class QuestManager {
   private static void handleArrrboretumChange(String responseText) {
     if (!responseText.contains("Plant a Tree, Plant a Tree!")
         && !responseText.contains("Stumped")
-        && !responseText.contains("Timbarrr!")) {
+        && !responseText.contains("Timbarrrr!")) {
       Preferences.increment("_saplingsPlanted");
     }
   }
@@ -869,35 +872,33 @@ public class QuestManager {
     if (location.contains("whichplace=airport_spooky_bunker")) {
       if (responseText.contains("action=si_shop1locked")) {
         Preferences.setBoolean("SHAWARMAInitiativeUnlocked", false);
+      } else if (responseText.contains("whichshop=si_shop1")) {
+        Preferences.setBoolean("SHAWARMAInitiativeUnlocked", true);
       }
+
       if (responseText.contains("action=si_shop2locked")) {
         Preferences.setBoolean("canteenUnlocked", false);
+      } else if (responseText.contains("whichshop=si_shop2")) {
+        Preferences.setBoolean("canteenUnlocked", true);
       }
+
       if (responseText.contains("action=si_shop3locked")) {
         Preferences.setBoolean("armoryUnlocked", false);
-      }
-      if (responseText.contains("whichshop=si_shop1")) {
-        Preferences.setBoolean("SHAWARMAInitiativeUnlocked", true);
-      }
-      if (responseText.contains("whichshop=si_shop2")) {
-        Preferences.setBoolean("canteenUnlocked", true);
-      }
-      if (responseText.contains("whichshop=si_shop3")) {
+      } else if (responseText.contains("whichshop=si_shop3")) {
         Preferences.setBoolean("armoryUnlocked", true);
       }
-      if (responseText.contains(
-          "find the door to the secret government sandwich shop and use the keycard")) {
-        Preferences.setBoolean("SHAWARMAInitiativeUnlocked", true);
-        ResultProcessor.removeItem(ItemPool.SHAWARMA_KEYCARD);
-      }
-      if (responseText.contains(
-          "find a door with a bottle-shaped icon on it, zip the keycard through the reader")) {
-        Preferences.setBoolean("canteenUnlocked", true);
-        ResultProcessor.removeItem(ItemPool.BOTTLE_OPENER_KEYCARD);
-      }
+
       if (responseText.contains("insert the keycard and the door slides open")) {
-        Preferences.setBoolean("armoryUnlocked", true);
-        ResultProcessor.removeItem(ItemPool.ARMORY_KEYCARD);
+        if (location.contains("action=si_shop1locked")) {
+          Preferences.setBoolean("SHAWARMAInitiativeUnlocked", true);
+          ResultProcessor.removeItem(ItemPool.SHAWARMA_KEYCARD);
+        } else if (location.contains("action=si_shop2locked")) {
+          Preferences.setBoolean("canteenUnlocked", true);
+          ResultProcessor.removeItem(ItemPool.BOTTLE_OPENER_KEYCARD);
+        } else if (location.contains("action=si_shop3locked")) {
+          Preferences.setBoolean("armoryUnlocked", true);
+          ResultProcessor.removeItem(ItemPool.ARMORY_KEYCARD);
+        }
       }
     }
     return;
@@ -1059,7 +1060,8 @@ public class QuestManager {
   }
 
   private static void handleChasmChange(final String responseText) {
-    // You deploy your handy-dandy portable bridge and quickly finish the job.
+    // Using the Pocket Portable Bridge in License to Adventure: "You deploy your handy-dandy
+    // portable bridge and quickly finish the job."
     if (responseText.contains("Huzzah!  The bridge is finished!")
         || responseText.contains("deploy your handy-dandy portable bridge")) {
       ResultProcessor.processItem(
@@ -1091,7 +1093,7 @@ public class QuestManager {
   private static void handleOilPeakChange(final String responseText) {
     if (responseText.contains("Unimpressed with Pressure")) {
       Preferences.setBoolean("oilPeakLit", true);
-      Preferences.setInteger("oilPeakProgress", 0);
+      Preferences.setFloat("oilPeakProgress", 0);
     }
   }
 
@@ -1113,7 +1115,7 @@ public class QuestManager {
     }
     if (responseText.contains("orcchasm/fire3.gif")) {
       Preferences.setBoolean("oilPeakLit", true);
-      Preferences.setInteger("oilPeakProgress", 0);
+      Preferences.setFloat("oilPeakProgress", 0);
     }
 
     if (Preferences.getBoolean("booPeakLit")
@@ -1392,9 +1394,6 @@ public class QuestManager {
     if (responseText.contains("Thanks for the larva, Adventurer. We'll put this to good use.")) {
       ResultProcessor.removeItem(ItemPool.MOSQUITO_LARVA);
     }
-    if (responseText.contains("dragonbone belt buckle")) {
-      ResultProcessor.removeItem(ItemPool.BONERDAGON_SKULL);
-    }
     QuestDatabase.handleCouncilText(responseText);
     if (QuestDatabase.isQuestLaterThan(Quest.MACGUFFIN, QuestDatabase.UNSTARTED)) {
       QuestDatabase.setQuestIfBetter(Quest.BLACK, QuestDatabase.STARTED);
@@ -1451,6 +1450,13 @@ public class QuestManager {
     }
   }
 
+  private static Map<String, Float> OIL_MONSTER_PROGRESS =
+      Map.ofEntries(
+          Map.entry("oil slick", 6.34f),
+          Map.entry("oil tycoon", 19.02f),
+          Map.entry("oil baron", 31.7f),
+          Map.entry("oil cartel", 63.4f));
+
   /**
    * After we win a fight, some quests may need to be updated. Centralize handling for it here.
    *
@@ -1500,41 +1506,17 @@ public class QuestManager {
     // oil cartel: 63.4
     // dress pants: 6.34
     // lovebug: 6.34
-    else if (monsterName.equals("oil slick")) {
+    else if (OIL_MONSTER_PROGRESS.containsKey(monsterName)) {
       double pantsBonus = InventoryManager.getEquippedCount(ItemPool.DRESS_PANTS) > 0 ? 6.34 : 0;
       float current = Preferences.getFloat("oilPeakProgress");
       double lovebug = responseText.contains("love oil beetle trundles up") ? 6.34 : 0;
 
       // normalize
       String setTo =
-          String.format(Locale.US, "%.2f", Math.max(0, current - 6.34 - pantsBonus - lovebug));
-
-      Preferences.setString("oilPeakProgress", setTo);
-    } else if (monsterName.equals("oil tycoon")) {
-      double pantsBonus = InventoryManager.getEquippedCount(ItemPool.DRESS_PANTS) > 0 ? 6.34 : 0;
-      float current = Preferences.getFloat("oilPeakProgress");
-      double lovebug = responseText.contains("love oil beetle trundles up") ? 6.34 : 0;
-
-      String setTo =
-          String.format(Locale.US, "%.2f", Math.max(0, current - 19.02 - pantsBonus - lovebug));
-
-      Preferences.setString("oilPeakProgress", setTo);
-    } else if (monsterName.equals("oil baron")) {
-      double pantsBonus = InventoryManager.getEquippedCount(ItemPool.DRESS_PANTS) > 0 ? 6.34 : 0;
-      float current = Preferences.getFloat("oilPeakProgress");
-      double lovebug = responseText.contains("love oil beetle trundles up") ? 6.34 : 0;
-
-      String setTo =
-          String.format(Locale.US, "%.2f", Math.max(0, current - 31.7 - pantsBonus - lovebug));
-
-      Preferences.setString("oilPeakProgress", setTo);
-    } else if (monsterName.equals("oil cartel")) {
-      double pantsBonus = InventoryManager.getEquippedCount(ItemPool.DRESS_PANTS) > 0 ? 6.34 : 0;
-      float current = Preferences.getFloat("oilPeakProgress");
-      double lovebug = responseText.contains("love oil beetle trundles up") ? 6.34 : 0;
-
-      String setTo =
-          String.format(Locale.US, "%.2f", Math.max(0, current - 63.4 - pantsBonus - lovebug));
+          String.format(
+              Locale.US,
+              "%.2f",
+              Math.max(0, current - OIL_MONSTER_PROGRESS.get(monsterName) - pantsBonus - lovebug));
 
       Preferences.setString("oilPeakProgress", setTo);
     } else if (monsterName.equals("Battlie Knight Ghost")
@@ -1582,6 +1564,8 @@ public class QuestManager {
         || monsterName.equals("The Rain King")
         || monsterName.equals("One Thousand Source Agents")
         || monsterName.equals("\"Blofeld\"")
+        || monsterName.equals("Nautomatic Sorceress")
+        || monsterName.equals("%alucard%")
         || (monsterName.startsWith("Jerry Bradford") && monsterName.contains("World Champion"))
         || responseText.contains("Thwaitgold bee statuette")) {
       QuestDatabase.setQuestProgress(Quest.FINAL, "step13");
@@ -1844,13 +1828,21 @@ public class QuestManager {
           RequestLogger.updateSessionLog(message);
         }
       }
-    } else if (monsterName.equals("Steve Belmont") || monsterName.equals("Koopa Paratroopa")) {
+    } else if (monsterName.equals("Steve Belmont")
+        || monsterName.equals("Koopa Paratroopa")
+        || monsterName.equals("Boss Bot")) {
       QuestDatabase.setQuestProgress(Quest.BAT, "step4");
-    } else if (monsterName.equals("Ricardo Belmont") || monsterName.equals("Hammer Brother")) {
+    } else if (monsterName.equals("Ricardo Belmont")
+        || monsterName.equals("Hammer Brother")
+        || monsterName.equals("Gobot King")) {
       QuestDatabase.setQuestProgress(Quest.GOBLIN, QuestDatabase.FINISHED);
-    } else if (monsterName.equals("Jayden Belmont") || monsterName.equals("Very Dry Bones")) {
+    } else if (monsterName.equals("Jayden Belmont")
+        || monsterName.equals("Very Dry Bones")
+        || monsterName.equals("Robonerdagon")) {
       QuestDatabase.setQuestProgress(Quest.CYRPT, "step1");
-    } else if (monsterName.equals("Sharona") || monsterName.equals("Angry Sun")) {
+    } else if (monsterName.equals("Sharona")
+        || monsterName.equals("Angry Sun")
+        || monsterName.equals("Groarbot")) {
       QuestDatabase.setQuestProgress(Quest.TRAPPER, "step5");
     } else if (monsterName.equals("smut orc jacker")
         || monsterName.equals("smut orc nailer")

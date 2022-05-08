@@ -6,18 +6,18 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.PrintStream;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import net.java.dev.spellcast.utilities.DataUtilities;
 import net.sourceforge.kolmafia.KoLCharacter;
 import net.sourceforge.kolmafia.KoLConstants;
@@ -25,32 +25,394 @@ import net.sourceforge.kolmafia.RequestLogger;
 import net.sourceforge.kolmafia.combat.CombatActionManager;
 import net.sourceforge.kolmafia.listener.PreferenceListenerRegistry;
 import net.sourceforge.kolmafia.moods.MoodManager;
-import net.sourceforge.kolmafia.objectpool.IntegerPool;
-import net.sourceforge.kolmafia.session.ChoiceManager;
-import net.sourceforge.kolmafia.session.ChoiceManager.ChoiceAdventure;
+import net.sourceforge.kolmafia.session.MonorailManager;
 import net.sourceforge.kolmafia.swingui.AdventureFrame;
 import net.sourceforge.kolmafia.utilities.FileUtilities;
-import net.sourceforge.kolmafia.utilities.LogStream;
 import net.sourceforge.kolmafia.utilities.StringUtilities;
 import net.sourceforge.kolmafia.webui.CharPaneDecorator;
 
 public class Preferences {
+  // If false, blocks saving of all preferences. Do not modify outside of tests.
+  public static boolean saveSettingsToFile = true;
+
+  private static final Object lock = new Object(); // used to synch io
+
   private static final byte[] LINE_BREAK_AS_BYTES = KoLConstants.LINE_BREAK.getBytes();
 
   private static final String[] characterMap = new String[65536];
 
-  private static final HashMap<String, String> globalNames = new HashMap<String, String>();
+  private static final HashMap<String, String> globalNames = new HashMap<>();
   private static final SortedMap<String, Object> globalValues =
-      Collections.synchronizedSortedMap(new TreeMap<String, Object>());
+      Collections.synchronizedSortedMap(new TreeMap<>());
   private static File globalPropertiesFile = null;
 
-  private static final HashMap<String, String> userNames = new HashMap<String, String>();
+  private static final HashMap<String, String> userNames = new HashMap<>();
   private static final SortedMap<String, Object> userValues =
-      Collections.synchronizedSortedMap(new TreeMap<String, Object>());
+      Collections.synchronizedSortedMap(new TreeMap<>());
   private static File userPropertiesFile = null;
 
-  private static final Set<String> defaultsSet = new HashSet<String>();
-  private static final Set<String> perUserGlobalSet = new HashSet<String>();
+  private static final Set<String> defaultsSet = new HashSet<>();
+  private static final Set<String> perUserGlobalSet = new HashSet<>();
+  private static final Set<String> legacyDailies =
+      new TreeSet<>(
+          List.of(
+              "barrelLayout",
+              "bootsCharged",
+              "breakfastCompleted",
+              "burrowgrubHiveUsed",
+              "burrowgrubSummonsRemaining",
+              "cocktailSummons",
+              "concertVisited",
+              "currentMojoFilters",
+              "currentPvpVictories",
+              "dailyDungeonDone",
+              "demonSummoned",
+              "expressCardUsed",
+              "extraRolloverAdventures",
+              "friarsBlessingReceived",
+              "grimoire1Summons",
+              "grimoire2Summons",
+              "grimoire3Summons",
+              "lastBarrelSmashed",
+              "libramSummons",
+              "libraryCardUsed",
+              "noodleSummons",
+              "nunsVisits",
+              "oscusSodaUsed",
+              "outrageousSombreroUsed",
+              "prismaticSummons",
+              "rageGlandVented",
+              "reagentSummons",
+              "romanticTarget",
+              "seaodesFound",
+              "spiceMelangeUsed",
+              "spookyPuttyCopiesMade",
+              "styxPixieVisited",
+              "telescopeLookedHigh",
+              "tempuraSummons",
+              "timesRested",
+              "tomeSummons"));
+
+  private static final String[] resetOnAscension =
+      new String[] {
+        "affirmationCookiesEaten",
+        "aminoAcidsUsed",
+        "awolDeferredPointsBeanslinger",
+        "awolDeferredPointsCowpuncher",
+        "awolDeferredPointsSnakeoiler",
+        "awolMedicine",
+        "awolVenom",
+        "backupCameraMode",
+        "backupCameraReverserEnabled",
+        "bagOTricksCharges",
+        "banishingShoutMonsters",
+        "beGregariousCharges",
+        "beGregariousMonster",
+        "beGregariousFightsLeft",
+        "bigBrotherRescued",
+        "blankOutUsed",
+        "bondAdv",
+        "bondBeach",
+        "bondBeat",
+        "bondBooze",
+        "bondBridge",
+        "bondDesert",
+        "bondDR",
+        "bondDrunk1",
+        "bondDrunk2",
+        "bondHoney",
+        "bondHP",
+        "bondInit",
+        "bondItem1",
+        "bondItem2",
+        "bondItem3",
+        "bondJetpack",
+        "bondMartiniDelivery",
+        "bondMartiniPlus",
+        "bondMartiniTurn",
+        "bondMeat",
+        "bondMox1",
+        "bondMox2",
+        "bondMPregen",
+        "bondMus1",
+        "bondMus2",
+        "bondMys1",
+        "bondMys2",
+        "bondSpleen",
+        "bondStat",
+        "bondStat2",
+        "bondStealth",
+        "bondStealth2",
+        "bondSymbols",
+        "bondWar",
+        "bondWeapon2",
+        "bondWpn",
+        "boomBoxSong",
+        "breathitinCharges",
+        "camelSpit",
+        "cameraMonster",
+        "campAwayDecoration",
+        "carboLoading",
+        "cargoPocketScraps",
+        "cargoPocketsEmptied",
+        "catBurglarBankHeists",
+        "chaosButterflyThrown",
+        "charitableDonations",
+        "cinderellaMinutesToMidnight",
+        "cinderellaScore",
+        "commerceGhostItem",
+        "copperheadClubHazard",
+        "cornucopiasOpened",
+        "cosmicBowlingBallReturnCombats",
+        "cozyCounter6332",
+        "cozyCounter6333",
+        "cozyCounter6334",
+        "crappyCameraMonster",
+        "crimbotArm",
+        "crimbotChassis",
+        "crimbotPropulsion",
+        "crimboTreeDays",
+        "crudeMonster",
+        "crystalBallPredictions",
+        "csServicesPerformed",
+        "cubelingProgress",
+        "currentEasyBountyItem",
+        "currentHardBountyItem",
+        "currentHedgeMazeRoom",
+        "currentHippyStore",
+        "currentSpecialBountyItem",
+        "cursedMagnifyingGlassCount",
+        "cyrusAdjectives",
+        "dampOldBootPurchased",
+        "daycareEquipment",
+        "daycareInstructors",
+        "daycareToddlers",
+        "demonName12",
+        "demonName13",
+        "dnaSyringe",
+        "dolphinItem",
+        "dreadScroll1",
+        "dreadScroll2",
+        "dreadScroll3",
+        "dreadScroll4",
+        "dreadScroll5",
+        "dreadScroll6",
+        "dreadScroll7",
+        "dreadScroll8",
+        "dripAdventuresSinceAscension",
+        "drippingHallAdventuresSinceAscension",
+        "drippingTreesAdventuresSinceAscension",
+        "drippyJuice",
+        "edPiece",
+        "eldritchTentaclesFought",
+        "encountersUntilDMTChoice",
+        "encountersUntilNEPChoice",
+        "ensorcelee",
+        "ensorceleeLevel",
+        "entauntaunedColdRes",
+        "envyfishMonster",
+        "falloutShelterChronoUsed",
+        "falloutShelterCoolingTankUsed",
+        "fireExtinguisherBatHoleUsed",
+        "fireExtinguisherChasmUsed",
+        "fireExtinguisherCyrptUsed",
+        "fireExtinguisherDesertUsed",
+        "fireExtinguisherHaremUsed",
+        "fistSkillsKnown",
+        "fistTeachingsBarroomBrawl",
+        "fistTeachingsBatHole",
+        "fistTeachingsConservatory",
+        "fistTeachingsFratHouse",
+        "fistTeachingsFunHouse",
+        "fistTeachingsHaikuDungeon",
+        "fistTeachingsMenagerie",
+        "fistTeachingsNinjaSnowmen",
+        "fistTeachingsPokerRoom",
+        "fistTeachingsRoad",
+        "fistTeachingsSlums",
+        "frenchGuardTurtlesFreed",
+        "garbageChampagneCharge",
+        "garbageFireProgress",
+        "garbageShirtCharge",
+        "garbageTreeCharge",
+        "gingerBlackmailAccomplished",
+        "gingerDigCount",
+        "gingerLawChoice",
+        "gingerMuscleChoice",
+        "gingerNegativesDropped",
+        "gingerSubwayLineUnlocked",
+        "gladiatorBallMovesKnown",
+        "gladiatorBladeMovesKnown",
+        "gladiatorNetMovesKnown",
+        "gnasirProgress",
+        "gooseDronesRemaining",
+        "gooseReprocessed",
+        "grimstoneCharge",
+        "grimstoneMaskPath",
+        "guardTurtlesFreed",
+        "guyMadeOfBeesCount",
+        "guyMadeOfBeesDefeated",
+        "guzzlrDeliveryProgress",
+        "hasBartender",
+        "hasChef",
+        "hasCocktailKit",
+        "hasOven",
+        "hasRange",
+        "hasShaker",
+        "hasSushiMat",
+        "hermitHax0red",
+        "highTopPumped",
+        "homebodylCharges",
+        "iceSculptureMonster",
+        "itemBoughtPerAscension10790",
+        "itemBoughtPerAscension10794",
+        "itemBoughtPerAscension10795",
+        "itemBoughtPerAscension637",
+        "itemBoughtPerAscension8266",
+        "jungCharge",
+        "lassoTraining",
+        "lastAnticheeseDay",
+        "lastBeardBuff",
+        "lastColosseumRoundWon",
+        "lastCopyableMonster",
+        "lastCouncilVisit",
+        "lastZapperWandExplosionDay",
+        "latteModifier",
+        "latteUnlocks",
+        "leafletCompleted",
+        "locketPhylum",
+        "lockPicked",
+        "louvreLayout",
+        "mappingMonsters",
+        "mapToAnemoneMinePurchased",
+        "mapToMadnessReefPurchased",
+        "mapToTheDiveBarPurchased",
+        "mapToTheMarinaraTrenchPurchased",
+        "mapToTheSkateParkPurchased",
+        "mayflyExperience",
+        "mayoInMouth",
+        "mayoLevel",
+        "mayoMinderSetting",
+        "meansuckerPrice",
+        "merkinLockkeyMonster",
+        "merkinQuestPath",
+        "merkinVocabularyMastery",
+        "milkOfMagnesiumActive",
+        "miniAdvClass",
+        "moonTuned",
+        "mushroomGardenCropLevel",
+        "nextParanormalActivity",
+        "nextQuantumFamiliar",
+        "nextQuantumFamiliarTurn",
+        "nextSpookyravenElizabethRoom",
+        "nextSpookyravenStephenRoom",
+        "noobDeferredPoints",
+        "nosyNoseMonster",
+        "optimisticCandleProgress",
+        "parasolUsed",
+        "pastaThrall1",
+        "pastaThrall2",
+        "pastaThrall3",
+        "pastaThrall4",
+        "pastaThrall5",
+        "pastaThrall6",
+        "pastaThrall7",
+        "pastaThrall8",
+        "pendingMapReflections",
+        "photocopyMonster",
+        "plantingDate",
+        "plantingDay",
+        "plumberBadgeCost",
+        "plumberCostumeCost",
+        "plumberCostumeWorn",
+        "pokefamBoosts",
+        "popularTartUnlocked",
+        "prayedForGlamour",
+        "prayedForProtection",
+        "prayedForVigor",
+        "procrastinatorLanguageFluency",
+        "pyramidBombUsed",
+        "pyramidPosition",
+        "rainDohMonster",
+        "redSnapperProgress",
+        "retroCapeSuperhero",
+        "retroCapeWashingInstructions",
+        "rockinRobinProgress",
+        "rumpelstiltskinKidsRescued",
+        "rumpelstiltskinTurnsUsed",
+        "sausageGrinderUnits",
+        "scrapbookCharges",
+        "screencappedMonster",
+        "seahorseName",
+        "shenInitiationDay",
+        "shockingLickCharges",
+        "singleFamiliarRun",
+        "slimelingFullness",
+        "slimelingStacksDropped",
+        "slimelingStacksDue",
+        "smoresEaten",
+        "smutOrcNoncombatProgress",
+        "snojoMoxieWins",
+        "snojoMuscleWins",
+        "snojoMysticalityWins",
+        "snojoSetting",
+        "snowsuit",
+        "sourceAgentsDefeated",
+        "sourceEnlightenment",
+        "sourceInterval",
+        "sourceOracleTarget",
+        "sourceTerminalEducate1",
+        "sourceTerminalEducate2",
+        "sourceTerminalEnquiry",
+        "spaceBabyLanguageFluency",
+        "spaceInvaderDefeated",
+        "spacePirateLanguageFluency",
+        "spookyPuttyMonster",
+        "statbotUses",
+        "sugarCounter4178",
+        "sugarCounter4179",
+        "sugarCounter4180",
+        "sugarCounter4181",
+        "sugarCounter4182",
+        "sugarCounter4183",
+        "sugarCounter4191",
+        "superficiallyInterestedMonster",
+        "telescope1",
+        "telescope2",
+        "telescope3",
+        "telescope4",
+        "telescope5",
+        "telescope6",
+        "telescope7",
+        "testudinalTeachings",
+        "trapperOre",
+        "turtleBlessingTurns",
+        "twinPeakProgress",
+        "unicornHornInflation",
+        "vintnerWineEffect",
+        "vintnerWineLevel",
+        "vintnerWineName",
+        "vintnerWineType",
+        "violetFogLayout",
+        "waxMonster",
+        "wildfireBarrelCaulked",
+        "wildfireDusted",
+        "wildfireFracked",
+        "wildfirePumpGreased",
+        "wildfireSprinkled",
+        "workteaClue",
+        "xoSkeleltonOProgress",
+        "xoSkeleltonXProgress",
+        "yearbookCameraPending",
+        "yearbookCameraTarget",
+        "youRobotBody",
+        "youRobotBottom",
+        "youRobotCPUUpgrades",
+        "youRobotLeft",
+        "youRobotRight",
+        "youRobotScavenged",
+        "youRobotTop",
+      };
 
   static {
     // Initialize perUserGlobalSet and read defaults.txt into
@@ -60,6 +422,8 @@ public class Preferences {
     // Read GLOBAL_prefs.txt into globalNames and globalValues
     Preferences.loadGlobalPreferences();
   }
+
+  private Preferences() {}
 
   private static void initializeMaps() {
     // There are three specific per-user settings that appear in
@@ -87,7 +451,7 @@ public class Preferences {
 
         HashMap<String, String> otherMap =
             map.equals("global") ? Preferences.userNames : Preferences.globalNames;
-        if (otherMap != null && otherMap.containsKey(name)) {
+        if (otherMap.containsKey(name)) {
           String other = map.equals("global") ? "user" : "global";
           System.out.println(
               map + " setting " + name + " already defined as a " + other + " setting");
@@ -110,6 +474,7 @@ public class Preferences {
     Preferences.globalNames.put("chatFontSize", isUsingMac ? "medium" : "small");
 
     try {
+      assert istream != null;
       istream.close();
     } catch (Exception e) {
       // The stream is already closed, go ahead
@@ -118,9 +483,8 @@ public class Preferences {
   }
 
   /** Resets all settings so that the given user is represented whenever settings are modified. */
-  public static final synchronized void reset(final String username) {
+  public static synchronized void reset(String username) {
     Preferences.saveToFile(Preferences.globalPropertiesFile, Preferences.globalValues);
-
     // Prevent anybody from manipulating the user map until we are
     // done bulk-loading it.
     synchronized (Preferences.userValues) {
@@ -144,7 +508,7 @@ public class Preferences {
     PreferenceListenerRegistry.fireAllPreferencesChanged();
   }
 
-  public static final String baseUserName(final String name) {
+  public static String baseUserName(final String name) {
     return name == null || name.equals("")
         ? "GLOBAL"
         : StringUtilities.globalStringReplace(name.trim(), " ", "_").toLowerCase();
@@ -163,10 +527,10 @@ public class Preferences {
     // migration will pull the value from the global map
     for (Entry<Object, Object> entry : p.entrySet()) {
       String key = (String) entry.getKey();
-      if (!Preferences.globalNames.containsKey(key) && !Preferences.isPerUserGlobalProperty(key)) {
-        // System.out.println( "obsolete global setting detected: " + key );
-        // continue;
-      }
+      if (!Preferences.globalNames.containsKey(key)) {
+        Preferences.isPerUserGlobalProperty(key);
+      } // System.out.println( "obsolete global setting detected: " + key );
+      // continue;
 
       String value = (String) entry.getValue();
       Preferences.globalValues.put(key, value);
@@ -184,7 +548,7 @@ public class Preferences {
     }
   }
 
-  private static void loadUserPreferences(final String username) {
+  private static void loadUserPreferences(String username) {
     File file =
         new File(KoLConstants.SETTINGS_LOCATION, Preferences.baseUserName(username) + "_prefs.txt");
     Preferences.userPropertiesFile = file;
@@ -302,13 +666,13 @@ public class Preferences {
                         : "\\u" + Integer.toHexString(ch);
   }
 
-  public static final boolean propertyExists(final String name, final boolean global) {
+  public static boolean propertyExists(final String name, final boolean global) {
     return global
         ? Preferences.globalValues.containsKey(name)
         : Preferences.userValues.containsKey(name);
   }
 
-  public static final String getString(final String name, final boolean global) {
+  public static String getString(final String name, final boolean global) {
     Object value = null;
 
     if (global) {
@@ -324,7 +688,7 @@ public class Preferences {
     return value == null ? "" : value.toString();
   }
 
-  public static final String getDefault(final String name) {
+  public static String getDefault(final String name) {
     if (Preferences.globalNames.containsKey(name)) {
       return Preferences.globalNames.get(name);
     }
@@ -336,7 +700,7 @@ public class Preferences {
     return "";
   }
 
-  public static final void removeProperty(final String name, final boolean global) {
+  public static void removeProperty(final String name, final boolean global) {
     // Remove only properties which do not have defaults
     if (global) {
       if (!Preferences.globalNames.containsKey(name)) {
@@ -361,12 +725,12 @@ public class Preferences {
     }
   }
 
-  public static final boolean isGlobalProperty(final String name) {
+  public static boolean isGlobalProperty(final String name) {
     return Preferences.globalNames.containsKey(name);
   }
 
   public static boolean isPerUserGlobalProperty(final String property) {
-    if (property.indexOf(".") != -1) {
+    if (property.contains(".")) {
       for (String prefix : Preferences.perUserGlobalSet) {
         if (property.startsWith(prefix)) {
           return true;
@@ -376,67 +740,67 @@ public class Preferences {
     return false;
   }
 
-  public static final boolean isUserEditable(final String property) {
+  public static boolean isUserEditable(final String property) {
     return !property.startsWith("saveState") && !property.equals("externalEditor");
   }
 
-  public static final void setString(final String name, final String value) {
+  public static void setString(final String name, final String value) {
     setString(null, name, value);
   }
 
-  public static final String getString(final String name) {
+  public static String getString(final String name) {
     return getString(null, name);
   }
 
-  public static final void setBoolean(final String name, final boolean value) {
+  public static void setBoolean(final String name, final boolean value) {
     setBoolean(null, name, value);
   }
 
-  public static final boolean getBoolean(final String name) {
+  public static boolean getBoolean(final String name) {
     return getBoolean(null, name);
   }
 
-  public static final void setInteger(final String name, final int value) {
+  public static void setInteger(final String name, final int value) {
     setInteger(null, name, value);
   }
 
-  public static final int getInteger(final String name) {
+  public static int getInteger(final String name) {
     return getInteger(null, name);
   }
 
-  public static final void setFloat(final String name, final float value) {
+  public static void setFloat(final String name, final float value) {
     setFloat(null, name, value);
   }
 
-  public static final float getFloat(final String name) {
+  public static float getFloat(final String name) {
     return getFloat(null, name);
   }
 
-  public static final void setLong(final String name, final long value) {
+  public static void setLong(final String name, final long value) {
     setLong(null, name, value);
   }
 
-  public static final long getLong(final String name) {
+  public static long getLong(final String name) {
     return getLong(null, name);
   }
 
-  public static final void setDouble(final String name, final double value) {
+  public static void setDouble(final String name, final double value) {
     setDouble(null, name, value);
   }
 
-  public static final double getDouble(final String name) {
+  public static double getDouble(final String name) {
     return getDouble(null, name);
   }
 
-  public static final int increment(final String name) {
+  public static int increment(final String name) {
     return Preferences.increment(name, 1);
   }
 
-  public static final int increment(final String name, final int delta) {
+  public static int increment(final String name, final int delta) {
     return Preferences.increment(name, delta, 0, false);
   }
 
-  public static final int increment(
+  public static int increment(
       final String name, final int delta, final int max, final boolean mod) {
     int current = Preferences.getInteger(name);
     if (delta != 0) {
@@ -455,15 +819,15 @@ public class Preferences {
     return current;
   }
 
-  public static final int decrement(final String name) {
+  public static int decrement(final String name) {
     return Preferences.decrement(name, 1);
   }
 
-  public static final int decrement(final String name, final int delta) {
+  public static int decrement(final String name, final int delta) {
     return Preferences.decrement(name, delta, 0);
   }
 
-  public static final int decrement(final String name, final int delta, final int min) {
+  public static int decrement(final String name, final int delta, final int min) {
     int current = Preferences.getInteger(name);
     if (delta != 0) {
       current -= delta;
@@ -480,7 +844,7 @@ public class Preferences {
   // Per-user global properties are stored in the global settings with
   // key "<name>.<user>"
 
-  public static final String getString(final String user, final String name) {
+  public static String getString(final String user, final String name) {
     Object value = Preferences.getObject(user, name);
 
     if (value == null) {
@@ -490,7 +854,7 @@ public class Preferences {
     return value.toString();
   }
 
-  public static final boolean getBoolean(final String user, final String name) {
+  public static boolean getBoolean(final String user, final String name) {
     Map<String, Object> map = Preferences.getMap(name);
     Object value = Preferences.getObject(map, user, name);
 
@@ -503,10 +867,10 @@ public class Preferences {
       map.put(name, value);
     }
 
-    return ((Boolean) value).booleanValue();
+    return (Boolean) value;
   }
 
-  public static final int getInteger(final String user, final String name) {
+  public static int getInteger(final String user, final String name) {
     Map<String, Object> map = Preferences.getMap(name);
     Object value = Preferences.getObject(map, user, name);
 
@@ -515,14 +879,14 @@ public class Preferences {
     }
 
     if (!(value instanceof Integer)) {
-      value = IntegerPool.get(StringUtilities.parseInt(value.toString()));
+      value = StringUtilities.parseInt(value.toString());
       map.put(name, value);
     }
 
-    return ((Integer) value).intValue();
+    return (Integer) value;
   }
 
-  public static final long getLong(final String user, final String name) {
+  public static long getLong(final String user, final String name) {
     Map<String, Object> map = Preferences.getMap(name);
     Object value = Preferences.getObject(map, user, name);
 
@@ -531,14 +895,14 @@ public class Preferences {
     }
 
     if (!(value instanceof Long)) {
-      value = Long.valueOf(StringUtilities.parseLong(value.toString()));
+      value = StringUtilities.parseLong(value.toString());
       map.put(name, value);
     }
 
-    return ((Long) value).longValue();
+    return (Long) value;
   }
 
-  public static final float getFloat(final String user, final String name) {
+  public static float getFloat(final String user, final String name) {
     Map<String, Object> map = Preferences.getMap(name);
     Object value = Preferences.getObject(map, user, name);
 
@@ -547,14 +911,14 @@ public class Preferences {
     }
 
     if (!(value instanceof Float)) {
-      value = Float.valueOf(StringUtilities.parseFloat(value.toString()));
+      value = StringUtilities.parseFloat(value.toString());
       map.put(name, value);
     }
 
-    return ((Float) value).floatValue();
+    return (Float) value;
   }
 
-  public static final double getDouble(final String user, final String name) {
+  public static double getDouble(final String user, final String name) {
     Map<String, Object> map = Preferences.getMap(name);
     Object value = Preferences.getObject(map, user, name);
 
@@ -563,11 +927,11 @@ public class Preferences {
     }
 
     if (!(value instanceof Double)) {
-      value = Double.valueOf(StringUtilities.parseDouble(value.toString()));
+      value = StringUtilities.parseDouble(value.toString());
       map.put(name, value);
     }
 
-    return ((Double) value).doubleValue();
+    return (Double) value;
   }
 
   private static Map<String, Object> getMap(final String name) {
@@ -584,11 +948,11 @@ public class Preferences {
     return map.get(key);
   }
 
-  public static final TreeMap<String, String> getMap(boolean defaults, boolean user) {
+  public static TreeMap<String, String> getMap(boolean defaults, boolean user) {
     if (defaults) {
-      return new TreeMap<String, String>(user ? userNames : globalNames);
+      return new TreeMap<>(user ? userNames : globalNames);
     } else {
-      TreeMap<String, String> map = new TreeMap<String, String>();
+      TreeMap<String, String> map = new TreeMap<>();
       Map<String, Object> srcmap = user ? userValues : globalValues;
       for (String pref : srcmap.keySet()) {
         map.put(pref, getString(pref));
@@ -597,52 +961,52 @@ public class Preferences {
     }
   }
 
-  public static final void setString(final String user, final String name, final String value) {
+  public static void setString(final String user, final String name, final String value) {
     String old = Preferences.getString(user, name);
     if (!old.equals(value)) {
       Preferences.setObject(user, name, value, value);
     }
   }
 
-  public static final void setBoolean(final String user, final String name, final boolean value) {
+  public static void setBoolean(final String user, final String name, final boolean value) {
     boolean old = Preferences.getBoolean(user, name);
     if (old != value) {
-      Preferences.setObject(user, name, value ? "true" : "false", Boolean.valueOf(value));
+      Preferences.setObject(user, name, value ? "true" : "false", value);
     }
   }
 
-  public static final void setInteger(final String user, final String name, final int value) {
+  public static void setInteger(final String user, final String name, final int value) {
     int old = Preferences.getInteger(user, name);
     if (old != value) {
-      Preferences.setObject(user, name, String.valueOf(value), IntegerPool.get(value));
+      Preferences.setObject(user, name, String.valueOf(value), value);
     }
   }
 
-  public static final void setLong(final String user, final String name, final long value) {
+  public static void setLong(final String user, final String name, final long value) {
     long old = Preferences.getLong(user, name);
     if (old != value) {
-      Preferences.setObject(user, name, String.valueOf(value), Long.valueOf(value));
+      Preferences.setObject(user, name, String.valueOf(value), value);
     }
   }
 
-  public static final void setFloat(final String user, final String name, final float value) {
+  public static void setFloat(final String user, final String name, final float value) {
     float old = Preferences.getFloat(user, name);
     if (old != value) {
-      Preferences.setObject(user, name, String.valueOf(value), Float.valueOf(value));
+      Preferences.setObject(user, name, String.valueOf(value), value);
     }
   }
 
-  public static final void setDouble(final String user, final String name, final double value) {
+  public static void setDouble(final String user, final String name, final double value) {
     double old = Preferences.getDouble(user, name);
     if (old != value) {
-      Preferences.setObject(user, name, String.valueOf(value), Double.valueOf(value));
+      Preferences.setObject(user, name, String.valueOf(value), value);
     }
   }
 
   private static void setObject(
       final String user, final String name, final String value, final Object object) {
     if (Preferences.getBoolean("logPreferenceChange")) {
-      Set<String> preferenceFilter = new HashSet<String>();
+      Set<String> preferenceFilter = new HashSet<>();
       Collections.addAll(
           preferenceFilter, Preferences.getString("logPreferenceChangeFilter").split(","));
       if (!preferenceFilter.contains(name)) {
@@ -685,13 +1049,17 @@ public class Preferences {
   }
 
   private static void saveToFile(File file, Map<String, Object> data) {
+    if (!Preferences.saveSettingsToFile) {
+      return;
+    }
+
     // See Collections.synchronizedSortedMap
     //
     // We are essentially iterating over the map. Not exactly - we
     // are iterating over the entrySet - but let's keep the map and
     // the file in synch atomically
 
-    synchronized (data) {
+    synchronized (lock) {
       // Determine the contents of the file by
       // actually printing them.
 
@@ -724,70 +1092,37 @@ public class Preferences {
     }
   }
 
-  public static final void printDefaults() {
-    PrintStream ostream = LogStream.openStream("choices.txt", true);
-
-    ostream.println("[u]Configurable[/u]");
-    ostream.println();
-
-    ChoiceManager.setChoiceOrdering(false);
-    Arrays.sort(ChoiceManager.CHOICE_ADVS);
-    Arrays.sort(ChoiceManager.CHOICE_ADV_SPOILERS);
-
-    Preferences.printDefaults(ChoiceManager.CHOICE_ADVS, ostream);
-
-    ostream.println();
-    ostream.println();
-    ostream.println("[u]Not Configurable[/u]");
-    ostream.println();
-
-    Preferences.printDefaults(ChoiceManager.CHOICE_ADV_SPOILERS, ostream);
-
-    ChoiceManager.setChoiceOrdering(true);
-    Arrays.sort(ChoiceManager.CHOICE_ADVS);
-    Arrays.sort(ChoiceManager.CHOICE_ADV_SPOILERS);
-
-    ostream.close();
-  }
-
-  private static void printDefaults(final ChoiceAdventure[] choices, final PrintStream ostream) {
-    for (int i = 0; i < choices.length; ++i) {
-      String setting = choices[i].getSetting();
-
-      ostream.print("[" + setting.substring(15) + "] ");
-      ostream.print(choices[i].getName() + ": ");
-
-      Object[] options = choices[i].getOptions();
-      int defaultOption = StringUtilities.parseInt(Preferences.userNames.get(setting));
-      Object def = ChoiceManager.findOption(options, defaultOption);
-
-      ostream.print(def.toString() + " [color=gray](");
-
-      int printedCount = 0;
-      for (int j = 0; j < options.length; ++j) {
-        Object option = options[j];
-        if (option == def) {
-          continue;
-        }
-
-        if (printedCount != 0) {
-          ostream.print(", ");
-        }
-
-        ++printedCount;
-        ostream.print(option.toString());
-      }
-
-      ostream.println(")[/color]");
-    }
-  }
-
   public static void resetToDefault(String name) {
     if (Preferences.userNames.containsKey(name)) {
       Preferences.setString(name, Preferences.userNames.get(name));
     } else if (Preferences.globalNames.containsKey(name)) {
       Preferences.setString(name, Preferences.globalNames.get(name));
     }
+  }
+
+  public static boolean isDaily(String name) {
+    return name.startsWith("_") || legacyDailies.contains(name);
+  }
+
+  public static void resetPerAscension() {
+    // Deferred ascension rewards
+    Preferences.setInteger(
+        "yearbookCameraUpgrades", Preferences.getInteger("yearbookCameraAscensions"));
+    Preferences.increment(
+        "awolPointsBeanslinger", Preferences.getInteger("awolDeferredPointsBeanslinger"));
+    Preferences.increment(
+        "awolPointsCowpuncher", Preferences.getInteger("awolDeferredPointsCowpuncher"));
+    Preferences.increment(
+        "awolPointsSnakeoiler", Preferences.getInteger("awolDeferredPointsSnakeoiler"));
+    Preferences.increment("noobPoints", Preferences.getInteger("noobDeferredPoints"));
+
+    // Most prefs that get reset on ascension just return to their default value
+    for (String pref : resetOnAscension) {
+      resetToDefault(pref);
+    }
+
+    // Some need special treatment
+    MonorailManager.resetMuffinOrder();
   }
 
   public static void resetDailies() {
@@ -800,7 +1135,7 @@ public class Preferences {
       Iterator<String> it = Preferences.userValues.keySet().iterator();
       while (it.hasNext()) {
         String name = it.next();
-        if (name.startsWith("_")) {
+        if (isDaily(name)) {
           if (!Preferences.containsDefault(name)) {
             // fully delete preferences that start with _ and aren't in defaults.txt
             it.remove();
@@ -826,7 +1161,7 @@ public class Preferences {
 
     synchronized (Preferences.globalValues) {
       for (String name : Preferences.globalValues.keySet()) {
-        if (name.startsWith("_")) {
+        if (isDaily(name)) {
           String val = Preferences.globalNames.get(name);
           if (val == null) val = "";
           Preferences.setString(name, val);

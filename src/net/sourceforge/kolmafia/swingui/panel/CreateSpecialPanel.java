@@ -2,6 +2,7 @@ package net.sourceforge.kolmafia.swingui.panel;
 
 import java.awt.BorderLayout;
 import java.util.Hashtable;
+import java.util.List;
 import javax.swing.Box;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -15,7 +16,6 @@ import net.sourceforge.kolmafia.KoLmafia;
 import net.sourceforge.kolmafia.RequestThread;
 import net.sourceforge.kolmafia.listener.Listener;
 import net.sourceforge.kolmafia.listener.PreferenceListenerRegistry;
-import net.sourceforge.kolmafia.objectpool.IntegerPool;
 import net.sourceforge.kolmafia.objectpool.ItemPool;
 import net.sourceforge.kolmafia.persistence.ConcoctionDatabase;
 import net.sourceforge.kolmafia.persistence.ItemDatabase;
@@ -27,12 +27,12 @@ import net.sourceforge.kolmafia.swingui.widget.AutoHighlightSpinner;
 import net.sourceforge.kolmafia.swingui.widget.CreationSettingCheckBox;
 import net.sourceforge.kolmafia.utilities.InputFieldUtilities;
 
-public class CreateSpecialPanel extends InventoryPanel {
-  private static final LockableListModel temp;
+public class CreateSpecialPanel extends InventoryPanel<CreateItemRequest> {
+  private static final LockableListModel<CreateItemRequest> temp;
 
   static {
-    temp = new LockableListModel();
-    temp.add("(reserved for list of manual recipes)");
+    temp = new LockableListModel<>();
+    ((LockableListModel) temp).add("(reserved for list of manual recipes)");
   }
 
   public CreateSpecialPanel() {
@@ -84,10 +84,10 @@ public class CreateSpecialPanel extends InventoryPanel {
 
   @Override
   public void actionConfirmed() {
-    Object[] items = this.getSelectedValues();
+    List<CreateItemRequest> items = this.getSelectedValues();
     // Disabled for now
-    for (int i = 0; i < 0 * items.length; ++i) {
-      CreateItemRequest selection = (CreateItemRequest) items[i];
+    for (int i = 0; i < 0 * items.size(); ++i) {
+      CreateItemRequest selection = items.get(i);
       Integer value =
           InputFieldUtilities.getQuantity(
               "Creating multiple "
@@ -120,10 +120,10 @@ public class CreateSpecialPanel extends InventoryPanel {
 
   @Override
   public void actionCancelled() {
-    Object[] items = this.getSelectedValues();
+    List<CreateItemRequest> items = this.getSelectedValues();
     // Disabled for now
-    for (int i = 0; i < 0 * items.length; ++i) {
-      CreateItemRequest selection = (CreateItemRequest) items[i];
+    for (int i = 0; i < 0 * items.size(); ++i) {
+      CreateItemRequest selection = items.get(i);
 
       int itemId = selection.getItemId();
       int maximum = UseItemRequest.maximumUses(itemId, ItemDatabase.getConsumptionType(itemId));
@@ -165,11 +165,11 @@ public class CreateSpecialPanel extends InventoryPanel {
       super(JSlider.VERTICAL, 0, 30, 18);
       this.setMinorTickSpacing(1);
       this.setMajorTickSpacing(5);
-      Hashtable h = new Hashtable();
-      h.put(IntegerPool.get(0), new JLabel("Free"));
-      h.put(IntegerPool.get(10), new JLabel("Autosell price"));
-      h.put(IntegerPool.get(20), new JLabel("Mall (or autosell if min-priced)"));
-      h.put(IntegerPool.get(30), new JLabel("Mall price"));
+      Hashtable<Integer, JLabel> h = new Hashtable<>();
+      h.put(0, new JLabel("Free"));
+      h.put(10, new JLabel("Autosell price"));
+      h.put(20, new JLabel("Mall (or autosell if min-priced)"));
+      h.put(30, new JLabel("Mall price"));
       this.setLabelTable(h);
       this.setPaintTicks(true);
       this.setSnapToTicks(true);
@@ -179,11 +179,13 @@ public class CreateSpecialPanel extends InventoryPanel {
       this.update();
     }
 
+    @Override
     public void stateChanged(ChangeEvent e) {
       // if ( this.getValueIsAdjusting() ) return;
       Preferences.setFloat("valueOfInventory", this.getValue() / 10.0f);
     }
 
+    @Override
     public void update() {
       this.setValue((int) ((Preferences.getFloat("valueOfInventory") + 0.05f) * 10.0f));
     }
@@ -224,6 +226,7 @@ public class CreateSpecialPanel extends InventoryPanel {
       this.addChangeListener(this);
     }
 
+    @Override
     public void stateChanged(ChangeEvent e) {
       // Change the setting to agree with the widget. If we
       // are currently loading the widget from the setting,
@@ -234,6 +237,7 @@ public class CreateSpecialPanel extends InventoryPanel {
       }
     }
 
+    @Override
     public void update() {
       // Change the widget to agree with the setting
       this.updating = true;

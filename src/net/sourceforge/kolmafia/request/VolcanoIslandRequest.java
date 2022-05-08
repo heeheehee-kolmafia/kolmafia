@@ -19,15 +19,15 @@ public class VolcanoIslandRequest extends GenericRequest {
   // Subactions
   private static final String SLIME = "getslime";
 
+  private VolcanoIslandRequest() {
+    this(NPC);
+  }
+
   /**
    * Constructs a new <code>VolcanoIslandRequest</code>.
    *
    * @param action The identifier for the action you're requesting
    */
-  private VolcanoIslandRequest() {
-    this(NPC);
-  }
-
   public VolcanoIslandRequest(final String action) {
     super("volcanoisland.php");
     this.addFormField("action", action);
@@ -44,26 +44,22 @@ public class VolcanoIslandRequest extends GenericRequest {
   }
 
   public static String npcName() {
-    String classType = KoLCharacter.getClassType();
-    if (classType.equals(KoLCharacter.SEAL_CLUBBER)) {
-      return "a Palm Tree Shelter";
+    switch (KoLCharacter.getAscensionClass()) {
+      case SEAL_CLUBBER:
+        return "a Palm Tree Shelter";
+      case TURTLE_TAMER:
+        return "a Guy in the Bushes";
+      case DISCO_BANDIT:
+        return "a Girl in a Black Dress";
+      case ACCORDION_THIEF:
+        return "the Fishing Village";
+      case PASTAMANCER:
+        return "a Protestor";
+      case SAUCEROR:
+        return "a Boat";
+      default:
+        return null;
     }
-    if (classType.equals(KoLCharacter.TURTLE_TAMER)) {
-      return "a Guy in the Bushes";
-    }
-    if (classType.equals(KoLCharacter.DISCO_BANDIT)) {
-      return "a Girl in a Black Dress";
-    }
-    if (classType.equals(KoLCharacter.ACCORDION_THIEF)) {
-      return "the Fishing Village";
-    }
-    if (classType.equals(KoLCharacter.PASTAMANCER)) {
-      return "a Protestor";
-    }
-    if (classType.equals(KoLCharacter.SAUCEROR)) {
-      return "a Boat";
-    }
-    return null;
   }
 
   private static String visitNPC(final String urlString) {
@@ -89,7 +85,7 @@ public class VolcanoIslandRequest extends GenericRequest {
       return "Visiting " + name + " on the Secret Tropical Island Volcano Lair";
     }
 
-    if (subaction.equals(SLIME) && KoLCharacter.getClassType().equals(KoLCharacter.SAUCEROR)) {
+    if (subaction.equals(SLIME) && KoLCharacter.isSauceror()) {
       return "[" + KoLAdventure.getAdventureCount() + "] Volcano Island (Drums of Slime)";
     }
 
@@ -117,7 +113,7 @@ public class VolcanoIslandRequest extends GenericRequest {
     // "A fierce wind whips through the chamber, first blowing back
     // your hood and then ripping the robe from your shoulders."
 
-    if (KoLCharacter.getClassType() == KoLCharacter.PASTAMANCER
+    if (KoLCharacter.isPastamancer()
         && responseText.indexOf("ripping the robe from your shoulders") != -1) {
       EquipmentManager.discardEquipment(ItemPool.SPAGHETTI_CULT_ROBE);
     }

@@ -1,7 +1,9 @@
 package net.sourceforge.kolmafia.persistence;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import net.sourceforge.kolmafia.KoLCharacter;
@@ -14,6 +16,8 @@ import net.sourceforge.kolmafia.utilities.StringUtilities;
 
 /** Provides utility functions for dealing with quests. */
 public class QuestDatabase {
+  private QuestDatabase() {}
+
   public enum Quest {
     LARVA("questL02Larva"),
     RAT("questL03Rat"),
@@ -113,6 +117,12 @@ public class QuestDatabase {
       this.pref = pref;
     }
 
+    public static Quest[] councilQuests() {
+      return Arrays.stream(values())
+          .filter(q -> q.getPref().startsWith("questL"))
+          .toArray(Quest[]::new);
+    }
+
     public String getPref() {
       return this.pref;
     }
@@ -171,39 +181,32 @@ public class QuestDatabase {
   }
 
   public static void reset() {
-    BufferedReader reader =
-        FileUtilities.getVersionedReader("questslog.txt", KoLConstants.QUESTSLOG_VERSION);
+    try (BufferedReader reader =
+        FileUtilities.getVersionedReader("questslog.txt", KoLConstants.QUESTSLOG_VERSION)) {
+      ArrayList<String[]> quests = new ArrayList<String[]>();
+      String[] data;
 
-    ArrayList<String[]> quests = new ArrayList<String[]>();
-    String[] data;
+      while ((data = FileUtilities.readData(reader)) != null) {
+        data[1] = data[1].replaceAll("<Player\\sName>", KoLCharacter.getUserName());
+        quests.add(data);
+      }
 
-    while ((data = FileUtilities.readData(reader)) != null) {
-      data[1] = data[1].replaceAll("<Player\\sName>", KoLCharacter.getUserName());
-      quests.add(data);
-    }
-
-    questLogData = quests.toArray(new String[quests.size()][]);
-
-    try {
-      reader.close();
-    } catch (Exception e) {
+      questLogData = quests.toArray(new String[quests.size()][]);
+    } catch (IOException e) {
       StaticEntity.printStackTrace(e);
     }
 
-    reader =
-        FileUtilities.getVersionedReader("questscouncil.txt", KoLConstants.QUESTSCOUNCIL_VERSION);
+    try (BufferedReader reader =
+        FileUtilities.getVersionedReader("questscouncil.txt", KoLConstants.QUESTSCOUNCIL_VERSION)) {
+      ArrayList<String[]> quests = new ArrayList<String[]>();
+      String[] data;
 
-    quests = new ArrayList<String[]>();
+      while ((data = FileUtilities.readData(reader)) != null) {
+        quests.add(data);
+      }
 
-    while ((data = FileUtilities.readData(reader)) != null) {
-      quests.add(data);
-    }
-
-    councilData = quests.toArray(new String[quests.size()][]);
-
-    try {
-      reader.close();
-    } catch (Exception e) {
+      councilData = quests.toArray(new String[quests.size()][]);
+    } catch (IOException e) {
       StaticEntity.printStackTrace(e);
     }
   }
@@ -698,8 +701,7 @@ public class QuestDatabase {
       Preferences.setInteger("lttQuestDifficulty", 3);
       return "step3";
     }
-    if (details.contains("Defeat Granny Hackleton.")) // Check this works!
-    {
+    if (details.contains("Defeat Granny Hackleton.")) { // Check this works!
       Preferences.setString("lttQuestName", "Wagon Train Escort Wanted");
       Preferences.setInteger("lttQuestDifficulty", 3);
       return "step4";
@@ -953,6 +955,7 @@ public class QuestDatabase {
     Preferences.resetToDefault("hiddenHospitalProgress");
     Preferences.resetToDefault("hiddenOfficeProgress");
     Preferences.resetToDefault("hiddenBowlingAlleyProgress");
+    Preferences.resetToDefault("zigguratLianas");
     Preferences.resetToDefault("blackForestProgress");
     Preferences.resetToDefault("nsChallenge1");
     Preferences.resetToDefault("nsChallenge2");
@@ -1048,6 +1051,14 @@ public class QuestDatabase {
     }
   }
 
+  public static String getQuest(Quest quest) {
+    return Preferences.getString(quest.getPref());
+  }
+
+  public static void setQuest(Quest quest, String progress) {
+    Preferences.setString(quest.getPref(), progress);
+  }
+
   public static void setQuestIfBetter(Quest quest, String progress) {
     if (quest == null) {
       return;
@@ -1096,7 +1107,7 @@ public class QuestDatabase {
     if (quest == null) {
       return false;
     }
-    return Preferences.getString(quest.getPref()).equals(second);
+    return getQuest(quest).equals(second);
   }
 
   public static boolean isQuestBefore(Quest quest, String first) {

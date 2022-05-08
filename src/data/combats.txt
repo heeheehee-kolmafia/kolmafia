@@ -211,6 +211,10 @@ Shivering Timbers	100	deadwood tree	fur tree	hangman's tree	pumpkin tree	toilet-
 Shop Class	100	out-of-control bandsaw	deadly vise	demonic jigsaw	screw golem	X-fingered Shop Teacher: 0
 Simple Tool-Making Cave	100	flint-scraping cave elf	hunter-gatherer cave elf	rock-banging cave elf	sinew-stretching cave elf
 Sinister Dodecahedron	100	death ray in a pear tree: 1	turtle mech: 2	Swiss hen: 3	killing bird: 4	golden ring: 5	goose a-laying: 6	swarm a-swarming: 7	blade a-spinning: 8	laser lancing: 9	borg a-beeping: 10	strangler strangling: 11	stomper stomping: 12
+Site Alpha Dormitory	100	gooified elf-thing	gooified dog-thing
+Site Alpha Greenhouse	100	gooified flower	gooified tree
+Site Alpha Quarry	100	gooified rock slab
+Site Alpha Primary Lab	100	massive goo construct
 Sleaziest Adventurer Contest	100	Grease Trapper	Ham Shaman	Porkpocket	Leonard: 0
 Sloppy Seconds Diner	100	Sloppy Seconds Sundae	Sloppy Seconds Burger	Sloppy Seconds Cocktail
 Smartest Adventurer Contest	100	Accountant-Barbarian	Metaphysical Gastronomist	Kleptobrainiac	The Mastermind: 0
@@ -273,9 +277,9 @@ The Cursed Village	100	cursed villager
 The Cursed Village Thieves' Guild	100	regular thief
 The Daily Dungeon	-1	apathetic lizardman	dairy ooze	dodecapede	giant giant moth	mayonnaise wasp	pencil golem	sabre-toothed lime	tonic water elemental	vampire clam
 The Dark and Spooky Swamp	-1	smell-o-the-wisp	swamp entity	swamp hag
-The Dark Elbow of the Woods	90	Demoninja	G imp	L imp
-The Dark Heart of the Woods	90	Fallen Archfiend	G imp	P imp
-The Dark Neck of the Woods	90	Hellion	P imp	W imp
+The Dark Elbow of the Woods	95	Demoninja	G imp	L imp
+The Dark Heart of the Woods	95	Fallen Archfiend	G imp	P imp
+The Dark Neck of the Woods	95	Hellion	P imp	W imp
 The Deep Dark Jungle	100	bigface	Mercenary of Fortune	smoke monster	Venus mantrap
 The Deep Machine Tunnels	-1	Performer of Actions	Thinker of Thoughts	Perceiver of Sensations
 The Defiled Alcove	85	corpulent zobmie	grave rober zmobie	modern zmobie: 0	conjoined zmombie: 0

@@ -114,8 +114,10 @@ public class DiscoCombatHelper {
   private static int counter = 0;
   private static final int[] sequence = new int[3];
 
+  private DiscoCombatHelper() {}
+
   public static final void initialize() {
-    DiscoCombatHelper.canCombo = KoLCharacter.getClassType().equals(KoLCharacter.DISCO_BANDIT);
+    DiscoCombatHelper.canCombo = KoLCharacter.isDiscoBandit();
 
     if (!DiscoCombatHelper.canCombo) {
       return;

@@ -3,6 +3,7 @@ package net.sourceforge.kolmafia.request;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -14,7 +15,6 @@ import net.sourceforge.kolmafia.RequestLogger;
 import net.sourceforge.kolmafia.persistence.ItemDatabase;
 import net.sourceforge.kolmafia.preferences.Preferences;
 import net.sourceforge.kolmafia.session.ResultProcessor;
-import net.sourceforge.kolmafia.utilities.AdventureResultArray;
 import net.sourceforge.kolmafia.utilities.StringUtilities;
 
 public class AutoSellRequest extends TransferItemRequest {
@@ -106,14 +106,16 @@ public class AutoSellRequest extends TransferItemRequest {
     // Look at all of the attachments and divide them into groups:
     // all, all but one, another quantity
 
-    AdventureResultArray all = new AdventureResultArray();
-    AdventureResultArray allButOne = new AdventureResultArray();
-    Set<AdventureResult> others = new HashSet<AdventureResult>();
+    List<AdventureResult> all = new ArrayList<>();
+    List<AdventureResult> allButOne = new ArrayList<>();
+    Set<AdventureResult> others = new HashSet<>();
 
-    for (int index = 0; index < this.attachments.length; ++index) {
-      AdventureResult item = this.attachments[index];
-
+    for (AdventureResult item : this.attachments) {
       if (item == null) {
+        continue;
+      }
+
+      if (item.getCount() == 0) {
         continue;
       }
 
@@ -164,7 +166,7 @@ public class AutoSellRequest extends TransferItemRequest {
     // Iterate over remaining items. Each distinct count goes into
     // its own subinstance
     while (others.size() > 0) {
-      AdventureResultArray sublist = new AdventureResultArray();
+      List<AdventureResult> sublist = new ArrayList<>();
       Iterator<AdventureResult> it = others.iterator();
 
       int count = -1;
@@ -180,19 +182,21 @@ public class AutoSellRequest extends TransferItemRequest {
         }
       }
 
-      TransferItemRequest subinstance = this.getSubInstance(sublist.toArray());
+      TransferItemRequest subinstance =
+          this.getSubInstance(sublist.toArray(new AdventureResult[0]));
       subinstance.isSubInstance = true;
       subinstances.add(subinstance);
     }
 
     if (allButOne.size() > 0) {
-      TransferItemRequest subinstance = this.getSubInstance(allButOne.toArray());
+      TransferItemRequest subinstance =
+          this.getSubInstance(allButOne.toArray(new AdventureResult[0]));
       subinstance.isSubInstance = true;
       subinstances.add(subinstance);
     }
 
     if (all.size() > 0) {
-      TransferItemRequest subinstance = this.getSubInstance(all.toArray());
+      TransferItemRequest subinstance = this.getSubInstance(all.toArray(new AdventureResult[0]));
       subinstance.isSubInstance = true;
       subinstances.add(subinstance);
     }
@@ -218,7 +222,7 @@ public class AutoSellRequest extends TransferItemRequest {
 
   public static final boolean parseTransfer(final String urlString, final String responseText) {
     if (urlString.startsWith("sellstuff.php")) {
-      return AutoSellRequest.parseCompactAutoSell(urlString, responseText);
+      return AutoSellRequest.parseCompactAutoSell(urlString);
     }
     if (urlString.startsWith("sellstuff_ugly.php")) {
       return AutoSellRequest.parseDetailedAutoSell(urlString, responseText);
@@ -226,8 +230,7 @@ public class AutoSellRequest extends TransferItemRequest {
     return false;
   }
 
-  public static final boolean parseCompactAutoSell(
-      final String urlString, final String responseText) {
+  public static final boolean parseCompactAutoSell(final String urlString) {
     int quantity = 1;
 
     Matcher quantityMatcher = TransferItemRequest.HOWMANY_PATTERN.matcher(urlString);
@@ -235,13 +238,13 @@ public class AutoSellRequest extends TransferItemRequest {
       quantity = StringUtilities.parseInt(quantityMatcher.group(1));
     }
 
-    if (urlString.indexOf("type=allbutone") != -1) {
+    if (urlString.contains("type=allbutone")) {
       quantity = -1;
-    } else if (urlString.indexOf("type=all") != -1) {
+    } else if (urlString.contains("type=all")) {
       quantity = 0;
     }
 
-    AdventureResultArray itemList =
+    List<AdventureResult> itemList =
         TransferItemRequest.getItemList(
             urlString, TransferItemRequest.ITEMID_PATTERN, null, KoLConstants.inventory, quantity);
 
@@ -263,13 +266,13 @@ public class AutoSellRequest extends TransferItemRequest {
       quantity = StringUtilities.parseInt(quantityMatcher.group(1));
     }
 
-    if (urlString.indexOf("mode=1") != -1) {
+    if (urlString.contains("mode=1")) {
       quantity = 0;
-    } else if (urlString.indexOf("mode=2") != -1) {
+    } else if (urlString.contains("mode=2")) {
       quantity = -1;
     }
 
-    AdventureResultArray itemList =
+    List<AdventureResult> itemList =
         TransferItemRequest.getItemList(
             urlString, AutoSellRequest.EMBEDDED_ID_PATTERN, null, KoLConstants.inventory, quantity);
 
@@ -282,12 +285,11 @@ public class AutoSellRequest extends TransferItemRequest {
     return true;
   }
 
-  private static void processMeat(AdventureResultArray itemList, String responseText) {
+  private static void processMeat(List<AdventureResult> itemList, String responseText) {
     if (KoLCharacter.inFistcore()) {
       int donation = 0;
 
-      for (int i = 0; i < itemList.size(); ++i) {
-        AdventureResult item = itemList.get(i);
+      for (AdventureResult item : itemList) {
         int price = ItemDatabase.getPriceById(item.getItemId());
         int count = item.getCount();
         donation += price * count;
@@ -348,8 +350,7 @@ public class AutoSellRequest extends TransferItemRequest {
   }
 
   public static final boolean registerRequest(final String urlString) {
-    Pattern itemPattern = null;
-    Pattern quantityPattern = null;
+    Pattern itemPattern;
     int quantity = 1;
 
     if (urlString.startsWith("sellstuff.php")) {
@@ -358,9 +359,9 @@ public class AutoSellRequest extends TransferItemRequest {
         quantity = StringUtilities.parseInt(quantityMatcher.group(1));
       }
 
-      if (urlString.indexOf("type=allbutone") != -1) {
+      if (urlString.contains("type=allbutone")) {
         quantity = -1;
-      } else if (urlString.indexOf("type=all") != -1) {
+      } else if (urlString.contains("type=all")) {
         quantity = 0;
       }
 
@@ -371,9 +372,9 @@ public class AutoSellRequest extends TransferItemRequest {
         quantity = StringUtilities.parseInt(quantityMatcher.group(1));
       }
 
-      if (urlString.indexOf("mode=1") != -1) {
+      if (urlString.contains("mode=1")) {
         quantity = 0;
-      } else if (urlString.indexOf("mode=2") != -1) {
+      } else if (urlString.contains("mode=2")) {
         quantity = -1;
       }
 
@@ -383,6 +384,6 @@ public class AutoSellRequest extends TransferItemRequest {
     }
 
     return TransferItemRequest.registerRequest(
-        "autosell", urlString, itemPattern, quantityPattern, KoLConstants.inventory, quantity);
+        "autosell", urlString, itemPattern, null, KoLConstants.inventory, quantity);
   }
 }

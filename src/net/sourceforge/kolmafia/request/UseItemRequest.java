@@ -1,10 +1,8 @@
 package net.sourceforge.kolmafia.request;
 
 import java.util.Arrays;
-import java.util.Calendar;
 import java.util.HashMap;
 import java.util.List;
-import java.util.TimeZone;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import net.sourceforge.kolmafia.AdventureResult;
@@ -19,12 +17,12 @@ import net.sourceforge.kolmafia.Modifiers;
 import net.sourceforge.kolmafia.RequestLogger;
 import net.sourceforge.kolmafia.RequestThread;
 import net.sourceforge.kolmafia.SpecialOutfit.Checkpoint;
+import net.sourceforge.kolmafia.ZodiacSign;
 import net.sourceforge.kolmafia.moods.ManaBurnManager;
 import net.sourceforge.kolmafia.moods.RecoveryManager;
 import net.sourceforge.kolmafia.objectpool.AdventurePool;
 import net.sourceforge.kolmafia.objectpool.EffectPool;
 import net.sourceforge.kolmafia.objectpool.FamiliarPool;
-import net.sourceforge.kolmafia.objectpool.IntegerPool;
 import net.sourceforge.kolmafia.objectpool.ItemPool;
 import net.sourceforge.kolmafia.objectpool.OutfitPool;
 import net.sourceforge.kolmafia.persistence.*;
@@ -113,10 +111,9 @@ public class UseItemRequest extends GenericRequest {
 
   static {
     UseItemRequest.LIMITED_USES.put(
-        IntegerPool.get(ItemPool.ASTRAL_MUSHROOM), EffectPool.get(EffectPool.HALF_ASTRAL));
+        ItemPool.ASTRAL_MUSHROOM, EffectPool.get(EffectPool.HALF_ASTRAL));
 
-    UseItemRequest.LIMITED_USES.put(
-        IntegerPool.get(ItemPool.ABSINTHE), EffectPool.get(EffectPool.ABSINTHE));
+    UseItemRequest.LIMITED_USES.put(ItemPool.ABSINTHE, EffectPool.get(EffectPool.ABSINTHE));
   }
 
   public static String lastUpdate = "";
@@ -415,7 +412,8 @@ public class UseItemRequest extends GenericRequest {
 
     if (KoLCharacter.inRobocore()
         && ItemDatabase.isPotion(itemId)
-        && !Preferences.getString("youRobotCPUUpgrades").contains("robot_potions")) {
+        && !KoLCharacter.canUsePotions()) {
+      UseItemRequest.limiter = "lack of necessary CPU upgrade";
       return 0;
     }
 
@@ -429,7 +427,7 @@ public class UseItemRequest extends GenericRequest {
         return 1;
       case KoLConstants.CONSUME_GUARDIAN:
         UseItemRequest.limiter = "character class";
-        return KoLCharacter.getClassType().equals(KoLCharacter.PASTAMANCER) ? 1 : 0;
+        return KoLCharacter.isPastamancer() ? 1 : 0;
     }
 
     // Delegate to specialized classes as appropriate
@@ -497,12 +495,12 @@ public class UseItemRequest extends GenericRequest {
         break;
 
       case ItemPool.FIELD_GAR_POTION:
-        // Disallow using potion if already Gar-ish
-        Calendar date = Calendar.getInstance(TimeZone.getTimeZone("GMT-0700"));
-        if (date.get(Calendar.DAY_OF_WEEK) == Calendar.MONDAY) {
+        // Disallow using potion on Monday
+        if (HolidayDatabase.isMonday()) {
           UseItemRequest.limiter = "uselessness on Mondays";
           return 0;
         }
+        // Disallow using potion if already Gar-ish
         if (KoLConstants.activeEffects.contains(EffectPool.get(EffectPool.GARISH))) {
           UseItemRequest.limiter = "existing effect";
           return 0;
@@ -646,7 +644,7 @@ public class UseItemRequest extends GenericRequest {
       case ItemPool.INIGO_BOOK:
       case ItemPool.INIGO_BOOK_USED:
         String bookClass = UseItemRequest.itemToClass(itemId);
-        if (!bookClass.equals(KoLCharacter.getClassType())) {
+        if (!bookClass.equals(KoLCharacter.getAscensionClassName())) {
           UseItemRequest.limiter = "your class";
           return 0;
         }
@@ -716,7 +714,7 @@ public class UseItemRequest extends GenericRequest {
         return EquipmentRequest.availableFolder() == -1 ? 0 : 1;
 
       case ItemPool.PASTA_ADDITIVE:
-        if (!KoLCharacter.getClassType().equals(KoLCharacter.PASTAMANCER)) {
+        if (!KoLCharacter.isPastamancer()) {
           UseItemRequest.limiter = "character class";
           return 0;
         }
@@ -727,7 +725,7 @@ public class UseItemRequest extends GenericRequest {
         break;
 
       case ItemPool.CHRONER_CROSS:
-        if (!KoLConstants.inventory.contains(ItemPool.get(ItemPool.CHRONER, 1))) {
+        if (InventoryManager.getCount(ItemPool.CHRONER) == 0) {
           UseItemRequest.limiter = "not having a Chroner";
           return 0;
         }
@@ -850,7 +848,7 @@ public class UseItemRequest extends GenericRequest {
         return 3;
     }
 
-    Integer key = IntegerPool.get(itemId);
+    Integer key = itemId;
 
     if (UseItemRequest.LIMITED_USES.containsKey(key)) {
       UseItemRequest.limiter = "unstackable effect";
@@ -1608,15 +1606,15 @@ public class UseItemRequest extends GenericRequest {
 
   private static final Pattern HEWN_SPOON_PATTERN = Pattern.compile("whichsign=(\\d+)");
 
-  private static String parseAscensionSign(String urlString) {
+  private static ZodiacSign parseAscensionSign(String urlString) {
     Matcher matcher = UseItemRequest.HEWN_SPOON_PATTERN.matcher(urlString);
     if (matcher.find()) {
       int num = StringUtilities.parseInt(matcher.group(1));
       if (num >= 1 && num <= 9) {
-        return KoLCharacter.ZODIACS[num - 1];
+        return ZodiacSign.find(num);
       }
     }
-    return null;
+    return ZodiacSign.NONE;
   }
 
   public void parseConsumption() {
@@ -1644,8 +1642,6 @@ public class UseItemRequest extends GenericRequest {
       return;
     }
 
-    // If you are in Beecore, certain items can't B used
-    // "You are too scared of Bs to xxx that item."
     if (responseText.contains("You don't have the item you're trying to use.")) {
       UseItemRequest.lastUpdate = "You don't have that item.";
       // If we think we do, then Mafia has the wrong information about inventory, so update it
@@ -1657,14 +1653,26 @@ public class UseItemRequest extends GenericRequest {
       KoLmafia.updateDisplay(MafiaState.ERROR, UseItemRequest.lastUpdate);
       return;
     }
+
+    // If you are in Beecore, certain items can't B used
+    // "You are too scared of Bs to xxx that item."
     if (KoLCharacter.inBeecore() && responseText.contains("You are too scared of Bs")) {
       UseItemRequest.lastUpdate = "You are too scared of Bs.";
       KoLmafia.updateDisplay(MafiaState.ERROR, UseItemRequest.lastUpdate);
       return;
     }
+
     if (KoLCharacter.inGLover()
         && responseText.contains("You are too in love with G to use that item right now.")) {
       UseItemRequest.lastUpdate = "You are too in love with G.";
+      KoLmafia.updateDisplay(MafiaState.ERROR, UseItemRequest.lastUpdate);
+      return;
+    }
+
+    if (KoLCharacter.inRobocore()
+        && responseText.contains("You can't figure out where to put that potion.")) {
+      UseItemRequest.lastUpdate =
+          "You need the Biomass Processing Function CPU upgrade to use potions.";
       KoLmafia.updateDisplay(MafiaState.ERROR, UseItemRequest.lastUpdate);
       return;
     }
@@ -1874,7 +1882,9 @@ public class UseItemRequest extends GenericRequest {
         return;
 
       case KoLConstants.MESSAGE_DISPLAY:
-        UseItemRequest.showItemUsage(showHTML, responseText);
+        if (!Preferences.getBoolean("suppressNegativeStatusPopup")) {
+          UseItemRequest.showItemUsage(showHTML, responseText);
+        }
         return;
     }
 
@@ -2832,6 +2842,7 @@ public class UseItemRequest extends GenericRequest {
       case ItemPool.THE_IMPLODED_WORLD:
       case ItemPool.THE_SPIRIT_OF_GIVING:
       case ItemPool.MANUAL_OF_LOCK_PICKING:
+      case ItemPool.SPINAL_FLUID_COVERED_EMOTION_CHIP:
         {
           // You insert the ROM in to your... ROM receptacle and
           // absorb the knowledge of optimality. You suspect you
@@ -3610,6 +3621,7 @@ public class UseItemRequest extends GenericRequest {
         }
 
         Preferences.setBoolean("_milkOfMagnesiumUsed", true);
+        Preferences.setBoolean("milkOfMagnesiumActive", true);
         KoLCharacter.updateStatus();
         ConcoctionDatabase.getUsables().sort();
         ConcoctionDatabase.queuedFood.touch();
@@ -5541,7 +5553,7 @@ public class UseItemRequest extends GenericRequest {
           // You did change sign and it succeeded.
           // This was redirected to inventory.php?action=message.
           // Need to extract the sign from the original URL.
-          String sign = UseItemRequest.parseAscensionSign(UseItemRequest.lastUrlString);
+          ZodiacSign sign = UseItemRequest.parseAscensionSign(UseItemRequest.lastUrlString);
           if (sign != null) {
             // Set the new sign.
             KoLCharacter.setSign(sign);
@@ -5753,7 +5765,7 @@ public class UseItemRequest extends GenericRequest {
         if (responseText.contains("You rip open your packet")
             || responseText.contains("You can't seem to rip the packet open")) {
           Preferences.setBoolean("universalSeasoningActive", true);
-          Preferences.setBoolean("_universalSeasoningUsed", true);
+          Preferences.increment("_universalSeasoningsUsed");
         }
         return;
 
@@ -5786,6 +5798,18 @@ public class UseItemRequest extends GenericRequest {
           Preferences.setBoolean("wildfirePumpGreased", true);
         }
         break;
+      case ItemPool.MEATBALL_MACHINE:
+        if (responseText.contains("You put your hand under the spout")
+            || responseText.contains("day's allottment of free meatballs")) {
+          Preferences.setBoolean("_meatballMachineUsed", true);
+        }
+        return;
+      case ItemPool.REFURBISHED_AIR_FRYER:
+        if (responseText.contains("collect your fried air")
+            || responseText.contains("fryer needs to cool down")) {
+          Preferences.setBoolean("_airFryerUsed", true);
+        }
+        return;
     }
 
     if (CampgroundRequest.isWorkshedItem(itemId)) {
@@ -6418,8 +6442,8 @@ public class UseItemRequest extends GenericRequest {
 
       case ItemPool.HEWN_MOON_RUNE_SPOON:
         {
-          String sign = parseAscensionSign(urlString);
-          if (sign != null && urlString.contains("doit=96")) {
+          ZodiacSign sign = parseAscensionSign(urlString);
+          if (sign != ZodiacSign.NONE && urlString.contains("doit=96")) {
             useString = "tuning moon to The " + sign;
           }
         }

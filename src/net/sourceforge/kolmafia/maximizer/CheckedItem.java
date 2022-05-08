@@ -1,19 +1,21 @@
 package net.sourceforge.kolmafia.maximizer;
 
-import java.util.List;
 import net.sourceforge.kolmafia.AdventureResult;
 import net.sourceforge.kolmafia.KoLCharacter;
 import net.sourceforge.kolmafia.KoLConstants;
+import net.sourceforge.kolmafia.KoLmafia;
 import net.sourceforge.kolmafia.objectpool.Concoction;
 import net.sourceforge.kolmafia.objectpool.ConcoctionPool;
 import net.sourceforge.kolmafia.objectpool.ItemPool;
 import net.sourceforge.kolmafia.persistence.ItemDatabase;
+import net.sourceforge.kolmafia.persistence.ItemDatabase.FoldGroup;
 import net.sourceforge.kolmafia.persistence.MallPriceDatabase;
+import net.sourceforge.kolmafia.persistence.NPCStoreDatabase;
 import net.sourceforge.kolmafia.preferences.Preferences;
 import net.sourceforge.kolmafia.request.MrStoreRequest;
 import net.sourceforge.kolmafia.request.StandardRequest;
 import net.sourceforge.kolmafia.session.InventoryManager;
-import net.sourceforge.kolmafia.session.StoreManager;
+import net.sourceforge.kolmafia.session.MallPriceManager;
 
 public class CheckedItem extends AdventureResult {
   public CheckedItem(int itemId, int equipScope, int maxPrice, int priceLevel) {
@@ -34,10 +36,10 @@ public class CheckedItem extends AdventureResult {
     this.foldable = 0;
 
     if (itemId > 0 && Preferences.getBoolean("maximizerFoldables")) {
-      List group = ItemDatabase.getFoldGroup(itemName);
+      FoldGroup group = ItemDatabase.getFoldGroup(itemName);
       if (group != null) {
-        for (int i = 1; i < group.size(); ++i) {
-          String form = (String) group.get(i);
+        for (int i = 0; i < group.names.size(); ++i) {
+          String form = group.names.get(i);
           if (!form.equals(itemName)) {
             int foldItemId = ItemDatabase.getItemId(form);
             int count = InventoryManager.getAccessibleCount(foldItemId);
@@ -47,9 +49,9 @@ public class CheckedItem extends AdventureResult {
             }
           }
         }
-        // Cannot have more than one item from Januuary's Garbage Tote, no matter how many you have
+        // Cannot have more than one item from January's Garbage Tote, no matter how many you have
         // Fold groups are stored in lower case
-        if (group.get(1).equals("january's garbage tote")) {
+        if (group.names.get(0).equals("january's garbage tote")) {
           if (this.foldable + this.initial > 1) {
             this.foldable = 1 - this.initial;
           }
@@ -122,10 +124,10 @@ public class CheckedItem extends AdventureResult {
 
       this.pullfoldable = 0;
       if (itemId > 0 && Preferences.getBoolean("maximizerFoldables")) {
-        List group = ItemDatabase.getFoldGroup(itemName);
+        FoldGroup group = ItemDatabase.getFoldGroup(itemName);
         if (group != null) {
-          for (int i = 1; i < group.size(); ++i) {
-            String form = (String) group.get(i);
+          for (int i = 0; i < group.names.size(); ++i) {
+            String form = group.names.get(i);
             if (!form.equals(itemName)) {
               int foldItemId = ItemDatabase.getItemId(form);
               AdventureResult foldItem = ItemPool.get(foldItemId);
@@ -136,9 +138,9 @@ public class CheckedItem extends AdventureResult {
               }
             }
           }
-          // Cannot have more than one item from Januuary's Garbage Tote, no matter how many you
+          // Cannot have more than one item from January's Garbage Tote, no matter how many you
           // have
-          if (group.get(1).equals("january's garbage tote")) {
+          if (group.names.get(0).equals("january's garbage tote")) {
             if (this.pullfoldable > 1) {
               this.pullfoldable = 1;
             }
@@ -184,7 +186,11 @@ public class CheckedItem extends AdventureResult {
         + this.pullBuyable;
   }
 
-  public void validate(int maxPrice, int priceLevel) {
+  public void validate(int maxPrice, int priceLevel) throws MaximizerInterruptedException {
+    if (!KoLmafia.permitsContinue()) {
+      throw new MaximizerInterruptedException();
+    }
+
     if (priceLevel <= 0) {
       return;
     }
@@ -194,7 +200,7 @@ public class CheckedItem extends AdventureResult {
     }
 
     // Check mall price
-    int price = StoreManager.getMallPrice(this);
+    int price = MallPriceManager.getMallPrice(this.getItemId());
 
     // Check if too expensive for max price settings
     if (price <= 0 || price > maxPrice) {
@@ -214,18 +220,8 @@ public class CheckedItem extends AdventureResult {
   }
 
   private static int limitBuyable(final int itemId) {
-    switch (itemId) {
-      case ItemPool.MIRACLE_WHIP:
-        return Preferences.getBoolean("_mayoDeviceRented")
-                || Preferences.getBoolean("itemBoughtPerAscension8266")
-            ? 0
-            : 1;
-      case ItemPool.SPHYGMAYOMANOMETER:
-      case ItemPool.REFLEX_HAMMER:
-      case ItemPool.MAYO_LANCE:
-        return Preferences.getBoolean("_mayoDeviceRented") ? 0 : 1;
-    }
-    return Integer.MAX_VALUE;
+    var possibleQuantity = NPCStoreDatabase.getQuantity(itemId);
+    return possibleQuantity.orElse(Integer.MAX_VALUE);
   }
 
   public static final int TOTAL_MASK = 0xFF;

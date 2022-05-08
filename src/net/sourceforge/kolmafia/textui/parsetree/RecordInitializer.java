@@ -1,16 +1,21 @@
 package net.sourceforge.kolmafia.textui.parsetree;
 
+import java.util.Collections;
 import java.util.List;
 import net.sourceforge.kolmafia.textui.AshRuntime;
 import net.sourceforge.kolmafia.textui.DataTypes;
 import net.sourceforge.kolmafia.textui.ScriptRuntime;
 
 public class RecordInitializer extends TypeInitializer {
-  List<Value> params;
+  private final List<Evaluable> params;
 
-  public RecordInitializer(final RecordType type, List<Value> params) {
+  public RecordInitializer(final RecordType type, List<Evaluable> params) {
     super(type);
     this.params = params;
+  }
+
+  List<Evaluable> getParams() {
+    return Collections.unmodifiableList(this.params);
   }
 
   @Override
@@ -23,8 +28,8 @@ public class RecordInitializer extends TypeInitializer {
     interpreter.traceIndent();
 
     int fieldCount = 0;
-    for (Value fieldValue : this.params) {
-      if (fieldValue == DataTypes.VOID_VALUE) {
+    for (Evaluable fieldValue : this.params) {
+      if (fieldValue.evaluatesTo(DataTypes.VOID_VALUE)) {
         fieldCount++;
         continue;
       }

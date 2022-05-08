@@ -2,25 +2,25 @@ package net.sourceforge.kolmafia.request;
 
 import java.io.BufferedReader;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import net.java.dev.spellcast.utilities.LockableListModel;
+import net.java.dev.spellcast.utilities.SortedListModel;
 import net.sourceforge.kolmafia.AdventureResult;
 import net.sourceforge.kolmafia.KoLCharacter;
 import net.sourceforge.kolmafia.KoLConstants;
 import net.sourceforge.kolmafia.KoLConstants.MafiaState;
 import net.sourceforge.kolmafia.KoLmafia;
 import net.sourceforge.kolmafia.RequestLogger;
-import net.sourceforge.kolmafia.objectpool.IntegerPool;
 import net.sourceforge.kolmafia.objectpool.ItemPool;
 import net.sourceforge.kolmafia.persistence.ItemDatabase;
 import net.sourceforge.kolmafia.preferences.Preferences;
 import net.sourceforge.kolmafia.session.InventoryManager;
 import net.sourceforge.kolmafia.session.ResultProcessor;
-import net.sourceforge.kolmafia.utilities.BooleanArray;
 import net.sourceforge.kolmafia.utilities.FileUtilities;
 import net.sourceforge.kolmafia.utilities.StringUtilities;
 
@@ -29,9 +29,7 @@ public class ZapRequest extends GenericRequest {
   private static final Pattern OPTION_PATTERN =
       Pattern.compile("<option value=(\\d+) descid='.*?'>.*?</option>");
 
-  private static final BooleanArray isZappable = new BooleanArray();
-  private static final List<AdventureResult> zappableItems = new ArrayList<AdventureResult>();
-  private static final Map<Integer, String[]> zapGroups = new HashMap<>();
+  private static final Map<Integer, List<String>> zapGroups = new HashMap<>();
 
   private AdventureResult item;
 
@@ -52,27 +50,23 @@ public class ZapRequest extends GenericRequest {
   }
 
   private static void initializeList() {
-    if (!ZapRequest.zappableItems.isEmpty()) {
+    if (!ZapRequest.zapGroups.isEmpty()) {
       return;
     }
 
-    try {
+    try (BufferedReader reader =
+        FileUtilities.getVersionedReader("zapgroups.txt", KoLConstants.ZAPGROUPS_VERSION)) {
       String line;
-      BufferedReader reader =
-          FileUtilities.getVersionedReader("zapgroups.txt", KoLConstants.ZAPGROUPS_VERSION);
 
       while ((line = FileUtilities.readLine(reader)) != null) {
-        String[] list = line.split("\\s*,\\s*");
-        for (int i = 0; i < list.length; ++i) {
-          String name = list[i];
+        List<String> list = StringUtilities.tokenizeString(line);
+        for (String name : list) {
           int itemId = ItemDatabase.getItemId(name, 1, false);
           if (itemId < 0) {
             RequestLogger.printLine("Unknown item in zap group: " + name);
             continue;
           }
-          ZapRequest.zappableItems.add(ItemPool.get(itemId));
-          ZapRequest.isZappable.set(itemId, true);
-          ZapRequest.zapGroups.put(IntegerPool.get(itemId), list);
+          ZapRequest.zapGroups.put(itemId, list);
         }
       }
     } catch (Exception e) {
@@ -81,23 +75,25 @@ public class ZapRequest extends GenericRequest {
     Collections.sort(ZapRequest.zappableItems);
   }
 
-  public static final List<AdventureResult> getZappableItems() {
+  public static LockableListModel<AdventureResult> getZappableItems() {
     ZapRequest.initializeList();
 
-    List<AdventureResult> matchingItems = new ArrayList<>();
-    matchingItems.addAll(KoLConstants.inventory);
+    SortedListModel<AdventureResult> matchingItems = new SortedListModel<>();
     if (Preferences.getBoolean("relayTrimsZapList")) {
-      matchingItems.retainAll(ZapRequest.zappableItems);
+      matchingItems.addAll(
+          KoLConstants.inventory.stream()
+              .filter(i -> ZapRequest.zapGroups.containsKey(i.getItemId()))
+              .collect(Collectors.toList()));
+    } else {
+      matchingItems.addAll(KoLConstants.inventory);
     }
     return matchingItems;
   }
 
-  public static final String[] getZapGroup(int itemId) {
+  public static List<String> getZapGroup(int itemId) {
     ZapRequest.initializeList();
 
-    String[] rv = ZapRequest.zapGroups.get(IntegerPool.get(itemId));
-    if (rv == null) return new String[0];
-    return rv;
+    return ZapRequest.zapGroups.getOrDefault(itemId, new ArrayList<>());
   }
 
   @Override
@@ -131,7 +127,7 @@ public class ZapRequest extends GenericRequest {
 
     // "The Crown of the Goblin King shudders for a moment, but
     // nothing happens."
-    if (this.responseText.indexOf("nothing happens") != -1) {
+    if (this.responseText.contains("nothing happens")) {
       KoLmafia.updateDisplay(MafiaState.ERROR, "The " + this.item.getName() + " is not zappable.");
       return;
     }
@@ -140,20 +136,22 @@ public class ZapRequest extends GenericRequest {
     KoLmafia.updateDisplay(this.item.getName() + " has been transformed.");
   }
 
-  public static final void parseResponse(final String urlString, final String responseText) {
+  public static void parseResponse(final String urlString, final String responseText) {
     if (!urlString.startsWith("wand.php")) {
       return;
     }
 
-    if (responseText.indexOf("nothing happens") != -1) {
+    if (responseText.contains("nothing happens")) {
       return;
     }
 
     // If it blew up, remove wand and zero usages
-    if (responseText.indexOf("abruptly explodes") != -1) {
+    if (responseText.contains("abruptly explodes")) {
       ResultProcessor.processResult(KoLCharacter.getZapper().getNegation());
       // set to -1 because will be incremented below
       Preferences.setInteger("_zapCount", -1);
+      // a new wand can be made in 3 days
+      Preferences.setInteger("lastZapperWandExplosionDay", KoLCharacter.getCurrentDays());
     }
 
     Matcher itemMatcher = ZapRequest.ZAP_PATTERN.matcher(urlString);
@@ -169,7 +167,7 @@ public class ZapRequest extends GenericRequest {
     Preferences.increment("_zapCount");
   }
 
-  public static final void decorate(final StringBuffer buffer) {
+  public static void decorate(final StringBuffer buffer) {
     // Don't trim the list if user wants to see all items
     if (!Preferences.getBoolean("relayTrimsZapList")) return;
 
@@ -184,15 +182,15 @@ public class ZapRequest extends GenericRequest {
     buffer.delete(selectIndex, endSelectIndex);
 
     int itemId;
-    StringBuffer zappableOptions = new StringBuffer();
+    StringBuilder zappableOptions = new StringBuilder();
     while (optionMatcher.find()) {
       itemId = Integer.parseInt(optionMatcher.group(1));
-      if (itemId == 0 || ZapRequest.isZappable.get(itemId)) {
+      if (itemId == 0 || ZapRequest.zapGroups.containsKey(itemId)) {
         zappableOptions.append(optionMatcher.group());
       }
     }
 
-    buffer.insert(selectIndex, zappableOptions.toString());
+    buffer.insert(selectIndex, zappableOptions);
     int pos = buffer.lastIndexOf("</center>");
     buffer.insert(
         pos,
@@ -201,7 +199,7 @@ public class ZapRequest extends GenericRequest {
             + "&notrim=1\">Click here</a> for the full list.");
   }
 
-  public static final boolean registerRequest(final String urlString) {
+  public static boolean registerRequest(final String urlString) {
     if (!urlString.startsWith("wand.php")) {
       return false;
     }

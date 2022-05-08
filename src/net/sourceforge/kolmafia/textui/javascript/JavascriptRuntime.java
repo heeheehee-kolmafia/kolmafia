@@ -116,16 +116,19 @@ public class JavascriptRuntime extends AbstractRuntime {
     int permanentReadOnly = ScriptableObject.PERMANENT | ScriptableObject.READONLY;
 
     for (String libraryFunctionName : uniqueFunctionNames) {
+      String jsName = toCamelCase(libraryFunctionName);
       ScriptableObject.defineProperty(
           stdLib,
-          toCamelCase(libraryFunctionName),
-          new LibraryFunctionStub(this, libraryFunctionName),
+          jsName,
+          new LibraryFunctionStub(
+              stdLib, ScriptableObject.getFunctionPrototype(stdLib), this, libraryFunctionName),
           permanentReadOnly);
       if (addToTopScope) {
         ScriptableObject.defineProperty(
             scope,
-            toCamelCase(libraryFunctionName),
-            new LibraryFunctionStub(this, libraryFunctionName),
+            jsName,
+            new LibraryFunctionStub(
+                scope, ScriptableObject.getFunctionPrototype(scope), this, libraryFunctionName),
             ScriptableObject.DONTENUM);
       }
     }
@@ -136,13 +139,17 @@ public class JavascriptRuntime extends AbstractRuntime {
   }
 
   private static void initEnumeratedType(
-      Context cx, Scriptable scope, Class<?> recordValueClass, Type valueType) {
+      Context cx,
+      Scriptable scope,
+      Scriptable runtimeLibrary,
+      Class<?> recordValueClass,
+      Type valueType) {
     EnumeratedWrapperPrototype prototype =
         new EnumeratedWrapperPrototype(recordValueClass, valueType);
-    prototype.initToScope(cx, scope);
+    prototype.initToScope(cx, scope, runtimeLibrary);
   }
 
-  private static void initEnumeratedTypes(Context cx, Scriptable scope) {
+  private static void initEnumeratedTypes(Context cx, Scriptable scope, Scriptable runtimeLibrary) {
     for (Type valueType : DataTypes.enumeratedTypes) {
       String typeName = capitalize(valueType.getName());
       Class<?> proxyRecordValueClass = Value.class;
@@ -152,10 +159,11 @@ public class JavascriptRuntime extends AbstractRuntime {
         }
       }
 
-      initEnumeratedType(cx, scope, proxyRecordValueClass, valueType);
+      initEnumeratedType(cx, scope, runtimeLibrary, proxyRecordValueClass, valueType);
     }
   }
 
+  @Override
   public Value execute(
       final String functionName, final Object[] arguments, final boolean executeTopLevel) {
     if (!executeTopLevel) {
@@ -181,7 +189,7 @@ public class JavascriptRuntime extends AbstractRuntime {
     try {
       // If executing from GCLI (and not file), add std lib to top scope.
       currentStdLib = initRuntimeLibrary(cx, scope, scriptFile == null);
-      initEnumeratedTypes(cx, scope);
+      initEnumeratedTypes(cx, scope, currentStdLib);
 
       setState(State.NORMAL);
 
@@ -288,9 +296,12 @@ public class JavascriptRuntime extends AbstractRuntime {
   }
 
   public static void checkInterrupted() {
-    if (Thread.interrupted() || !KoLmafia.permitsContinue()) {
-      KoLmafia.forceContinue();
+    if (Thread.interrupted()) {
       throw new JavaScriptException("Script interrupted.", null, 0);
+    }
+    if (!KoLmafia.permitsContinue()) {
+      KoLmafia.forceContinue();
+      throw new JavaScriptException("KoLmafia error: " + KoLmafia.getLastMessage(), null, 0);
     }
   }
 

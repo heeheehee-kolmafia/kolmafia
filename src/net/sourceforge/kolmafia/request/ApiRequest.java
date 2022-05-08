@@ -1,11 +1,15 @@
 package net.sourceforge.kolmafia.request;
 
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import net.sourceforge.kolmafia.KoLCharacter;
 import net.sourceforge.kolmafia.KoLConstants;
 import net.sourceforge.kolmafia.KoLmafia;
 import net.sourceforge.kolmafia.StaticEntity;
+import net.sourceforge.kolmafia.preferences.Preferences;
 import net.sourceforge.kolmafia.session.EquipmentManager;
 import net.sourceforge.kolmafia.session.InventoryManager;
 import net.sourceforge.kolmafia.session.Limitmode;
@@ -47,11 +51,6 @@ public class ApiRequest extends GenericRequest {
     this(what, String.valueOf(id));
   }
 
-  public static String updateStatusFromCharpane() {
-    ApiRequest.CHARPANE.run();
-    return ApiRequest.CHARPANE.redirectLocation;
-  }
-
   public static String updateStatus() {
     return ApiRequest.updateStatus(false);
   }
@@ -65,17 +64,21 @@ public class ApiRequest extends GenericRequest {
 
     // If in limitmode, Noobcore, PokeFam, and Disguises Delimit,
     // API status doesn't contain the full information, so use
-    // Character Sheet instead.
+    // Character Pane instead.
     if (KoLCharacter.getLimitmode() != null
         || KoLCharacter.inNoobcore()
         || KoLCharacter.inPokefam()
-        || KoLCharacter.inDisguise()
-        || KoLCharacter.inRobocore()) {
+        || KoLCharacter.inDisguise()) {
       return ApiRequest.updateStatusFromCharpane();
     }
     ApiRequest.INSTANCE.silent = silent;
     ApiRequest.INSTANCE.run();
     return ApiRequest.INSTANCE.redirectLocation;
+  }
+
+  public static String updateStatusFromCharpane() {
+    ApiRequest.CHARPANE.run();
+    return ApiRequest.CHARPANE.redirectLocation;
   }
 
   public static String updateInventory() {
@@ -348,6 +351,10 @@ public class ApiRequest extends GenericRequest {
       // Many things from the Char Sheet are available
       CharSheetRequest.parseStatus(JSON);
 
+      // It's not possible to tell if some IotMs are bound to
+      // the player's account or if they've used a one-day ticket without coolitems
+      parseCoolItems(JSON.getString("coolitems"));
+
       String limitmode = KoLCharacter.getLimitmode();
       if (limitmode == Limitmode.SPELUNKY) {
         // Parse Spelunky equipment
@@ -372,6 +379,51 @@ public class ApiRequest extends GenericRequest {
       LockableListFactory.sort(KoLConstants.summoningSkills);
       LockableListFactory.sort(KoLConstants.usableSkills);
     }
+  }
+
+  private static Map<String, Map.Entry<String, String>> PREF_TO_COOL_ITEM =
+      Map.ofEntries(
+          Map.entry("airport1", Map.entry("sleazeAirportAlways", "_sleazeAirportToday")),
+          Map.entry("airport2", Map.entry("spookyAirportAlways", "_spookyAirportToday")),
+          Map.entry("airport3", Map.entry("stenchAirportAlways", "_stenchAirportToday")),
+          Map.entry("airport4", Map.entry("hotAirportAlways", "_hotAirportToday")),
+          Map.entry("airport5", Map.entry("coldAirportAlways", "_coldAirportToday")),
+          Map.entry(
+              "gingerbreadcity", Map.entry("gingerbreadCityAvailable", "_gingerbreadCityToday")),
+          Map.entry("spacegate", Map.entry("spacegateAlways", "_spacegateToday")),
+          Map.entry("fantasyrealm", Map.entry("frAlways", "_frToday")),
+          Map.entry("piraterealm", Map.entry("prAlways", "_prToday")),
+          Map.entry(
+              "neverendingparty", Map.entry("neverendingPartyAlways", "_neverendingPartyToday")),
+          Map.entry("voterregistered", Map.entry("voteAlways", "_voteToday")),
+          Map.entry("boxingdaycare", Map.entry("daycareOpen", "_daycareToday")));
+
+  private static final void parseCoolItems(final String coolItems) {
+    if (coolItems == null) {
+      return;
+    }
+
+    List<String> owned = Arrays.asList(coolItems.split(","));
+
+    PREF_TO_COOL_ITEM.forEach(
+        (coolItem, entry) -> {
+          String alwaysPref = entry.getKey();
+          String todayPref = entry.getValue();
+          boolean haveAccess = owned.contains(coolItem);
+
+          // If they have access to the iotm
+          if (haveAccess) {
+            // If they have used a day pass
+            boolean usedDayPass = Preferences.getBoolean(todayPref);
+
+            // If they have used a day pass, they do not always have access
+            Preferences.setBoolean(alwaysPref, !usedDayPass);
+          } else {
+            // No access to the iotm, so set both preferences to false
+            Preferences.setBoolean(todayPref, false);
+            Preferences.setBoolean(alwaysPref, false);
+          }
+        });
   }
 
   public static final void parseInventory(final String responseText) {

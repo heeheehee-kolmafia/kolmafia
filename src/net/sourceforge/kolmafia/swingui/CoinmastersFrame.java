@@ -27,7 +27,6 @@ import net.sourceforge.kolmafia.listener.Listener;
 import net.sourceforge.kolmafia.listener.NamedListenerRegistry;
 import net.sourceforge.kolmafia.listener.PreferenceListenerRegistry;
 import net.sourceforge.kolmafia.objectpool.Concoction;
-import net.sourceforge.kolmafia.objectpool.IntegerPool;
 import net.sourceforge.kolmafia.objectpool.ItemPool;
 import net.sourceforge.kolmafia.persistence.CoinmastersDatabase;
 import net.sourceforge.kolmafia.persistence.ConcoctionDatabase;
@@ -551,6 +550,7 @@ public class CoinmastersFrame extends GenericFrame implements ChangeListener {
    * Whenever the tab changes, this method is used to change the title to count the coins of the new
    * tab
    */
+  @Override
   public void stateChanged(final ChangeEvent e) {
     CoinmasterPanel current = this.currentPanel();
     if (current != null) {
@@ -851,7 +851,7 @@ public class CoinmastersFrame extends GenericFrame implements ChangeListener {
     }
 
     public AdventureResult[] getDesiredItems() {
-      Object[] items = this.buyPanel.getSelectedValues();
+      AdventureResult[] items = this.buyPanel.getSelectedValues().toArray(new AdventureResult[0]);
       return this.getDesiredBuyItems(items, false);
     }
 
@@ -1443,6 +1443,7 @@ public class CoinmastersFrame extends GenericFrame implements ChangeListener {
       this.storageInTitle = this.data.getStorageAction() != null;
     }
 
+    @Override
     public void update() {
       // (coinmaster) is fired when tokens change
       this.setTitle();
@@ -1569,7 +1570,8 @@ public class CoinmastersFrame extends GenericFrame implements ChangeListener {
       }
     }
 
-    public AdventureResult[] getDesiredBuyItems(Object[] items, final boolean fromStorage) {
+    public AdventureResult[] getDesiredBuyItems(
+        final AdventureResult[] items, final boolean fromStorage) {
       if (items.length == 0) {
         return null;
       }
@@ -1580,7 +1582,7 @@ public class CoinmastersFrame extends GenericFrame implements ChangeListener {
       int neededSize = items.length;
 
       for (int i = 0; i < items.length; ++i) {
-        AdventureResult item = (AdventureResult) items[i];
+        AdventureResult item = items[i];
         int itemId = item.getItemId();
 
         if (!data.availableItem(itemId)) {
@@ -1591,14 +1593,14 @@ public class CoinmastersFrame extends GenericFrame implements ChangeListener {
         }
 
         AdventureResult cost = data.itemBuyPrice(itemId);
-        Integer currency = IntegerPool.get(cost.getItemId());
+        Integer currency = cost.getItemId();
         int price = cost.getCount();
 
         Integer value = originalBalances.get(currency);
         if (value == null) {
           int newValue =
               fromStorage ? data.availableStorageTokens(cost) : data.availableTokens(cost);
-          value = IntegerPool.get(newValue);
+          value = newValue;
           originalBalances.put(currency, value);
           balances.put(currency, value);
         }
@@ -1641,7 +1643,7 @@ public class CoinmastersFrame extends GenericFrame implements ChangeListener {
 
         items[i] = item.getInstance(quantity);
         balance -= quantity * price;
-        balances.put(currency, IntegerPool.get(balance));
+        balances.put(currency, balance);
       }
 
       // Shrink the array which will be returned so
@@ -1656,7 +1658,7 @@ public class CoinmastersFrame extends GenericFrame implements ChangeListener {
 
       for (int i = 0; i < items.length; ++i) {
         if (items[i] != null) {
-          desiredItems[neededSize++] = (AdventureResult) items[i];
+          desiredItems[neededSize++] = items[i];
         }
       }
 
@@ -1667,9 +1669,9 @@ public class CoinmastersFrame extends GenericFrame implements ChangeListener {
       return this.data.canBuyItem(item.getItemId());
     }
 
-    public class SellPanel extends ItemListManagePanel {
+    public class SellPanel extends ItemListManagePanel<AdventureResult> {
       public SellPanel() {
-        super((SortedListModel) KoLConstants.inventory);
+        super((SortedListModel<AdventureResult>) KoLConstants.inventory);
         this.setButtons(
             true,
             new ActionListener[] {
@@ -1699,7 +1701,7 @@ public class CoinmastersFrame extends GenericFrame implements ChangeListener {
       }
 
       @Override
-      public AutoFilterTextField getWordFilter() {
+      public AutoFilterTextField<AdventureResult> getWordFilter() {
         return new SellableFilterField();
       }
 
@@ -1753,9 +1755,9 @@ public class CoinmastersFrame extends GenericFrame implements ChangeListener {
       }
     }
 
-    public class BuyPanel extends ItemListManagePanel {
+    public class BuyPanel extends ItemListManagePanel<AdventureResult> {
       public BuyPanel(ActionListener[] listeners) {
-        super((LockableListModel) CoinmasterPanel.this.data.getBuyItems());
+        super((LockableListModel<AdventureResult>) CoinmasterPanel.this.data.getBuyItems());
 
         this.eastPanel.add(
             new InvocationButton("visit", CoinmasterPanel.this, "check"), BorderLayout.SOUTH);
@@ -1812,12 +1814,12 @@ public class CoinmastersFrame extends GenericFrame implements ChangeListener {
       public void addMovers() {}
 
       @Override
-      public AutoFilterTextField getWordFilter() {
+      public AutoFilterTextField<AdventureResult> getWordFilter() {
         return new BuyableFilterField();
       }
 
       public AdventureResult[] getDesiredItems(final boolean fromStorage) {
-        Object[] items = this.getSelectedValues();
+        AdventureResult[] items = this.getSelectedValues().toArray(new AdventureResult[0]);
         return CoinmasterPanel.this.getDesiredBuyItems(items, fromStorage);
       }
 
@@ -1896,7 +1898,7 @@ public class CoinmastersFrame extends GenericFrame implements ChangeListener {
 
     @Override
     public Component getListCellRendererComponent(
-        final JList list,
+        final JList<?> list,
         final Object value,
         final int index,
         final boolean isSelected,

@@ -42,7 +42,6 @@ import net.sourceforge.kolmafia.listener.CharacterListener;
 import net.sourceforge.kolmafia.listener.CharacterListenerRegistry;
 import net.sourceforge.kolmafia.objectpool.EffectPool;
 import net.sourceforge.kolmafia.objectpool.FamiliarPool;
-import net.sourceforge.kolmafia.objectpool.IntegerPool;
 import net.sourceforge.kolmafia.objectpool.ItemPool;
 import net.sourceforge.kolmafia.persistence.FamiliarDatabase;
 import net.sourceforge.kolmafia.preferences.Preferences;
@@ -165,7 +164,7 @@ public class FamiliarTrainingFrame extends GenericFrame {
 
   private class FamiliarTrainingPanel extends JPanel {
     private FamiliarData familiar;
-    private final JComboBox familiars;
+    private final JComboBox<FamiliarData> familiars;
     private final JLabel winCount;
     private final JLabel prizeCounter;
     private final JLabel totalWeight;
@@ -246,6 +245,7 @@ public class FamiliarTrainingFrame extends GenericFrame {
         this.run();
       }
 
+      @Override
       public void run() {
         // Arena wins
         int arenaWins = KoLCharacter.getArenaWins();
@@ -275,13 +275,13 @@ public class FamiliarTrainingFrame extends GenericFrame {
     private class OpponentsPanel extends JPanel {
       public OpponentsPanel() {
         // Get current opponents
-        LockableListModel opponents = CakeArenaManager.getOpponentList();
+        LockableListModel<ArenaOpponent> opponents = CakeArenaManager.getOpponentList();
         int opponentCount = opponents.size();
 
         this.setLayout(new GridLayout(opponentCount, 1, 0, 20));
 
         for (int i = 0; i < opponentCount; ++i) {
-          this.add(new OpponentLabel((ArenaOpponent) opponents.get(i)));
+          this.add(new OpponentLabel(opponents.get(i)));
         }
       }
 
@@ -456,6 +456,7 @@ public class FamiliarTrainingFrame extends GenericFrame {
           try {
             SwingUtilities.invokeAndWait(
                 new Runnable() {
+                  @Override
                   public void run() {
                     SaveListener.this.output =
                         InputFieldUtilities.chooseOutputFile(
@@ -575,8 +576,8 @@ public class FamiliarTrainingFrame extends GenericFrame {
       }
     }
 
-    private class ChangeComboBox extends JComboBox {
-      public ChangeComboBox(final LockableListModel selector) {
+    private class ChangeComboBox extends JComboBox<FamiliarData> {
+      public ChangeComboBox(final LockableListModel<FamiliarData> selector) {
         super(selector);
         this.addActionListener(new ChangeComboBoxListener());
       }
@@ -612,7 +613,6 @@ public class FamiliarTrainingFrame extends GenericFrame {
    *
    * @param goal Weight goal for the familiar
    * @param type BASE, BUFF, or TURNS
-   * @param buffs true if should cast buffs during training
    * @param debug true if we are debugging
    */
   public static final boolean levelFamiliar(final int goal, final int type, final boolean debug) {
@@ -674,7 +674,7 @@ public class FamiliarTrainingFrame extends GenericFrame {
     FamiliarTrainingFrame.results.append("<br>");
 
     // Get opponent list
-    LockableListModel opponents = CakeArenaManager.getOpponentList();
+    LockableListModel<ArenaOpponent> opponents = CakeArenaManager.getOpponentList();
 
     // Print the opponents
     FamiliarTrainingFrame.printOpponents(opponents);
@@ -804,7 +804,7 @@ public class FamiliarTrainingFrame extends GenericFrame {
     FamiliarTrainingFrame.results.append("<br>");
 
     // Get opponent list
-    LockableListModel opponents = CakeArenaManager.getOpponentList();
+    LockableListModel<ArenaOpponent> opponents = CakeArenaManager.getOpponentList();
 
     // Print the opponents
     FamiliarTrainingFrame.printOpponents(opponents);
@@ -1135,11 +1135,11 @@ public class FamiliarTrainingFrame extends GenericFrame {
         "Training " + name + " the " + weight + " lb. " + race + hope + ".<br>");
   }
 
-  private static void printOpponents(final LockableListModel opponents) {
+  private static void printOpponents(final LockableListModel<ArenaOpponent> opponents) {
     FamiliarTrainingFrame.results.append("Opponents:<br>");
     int opponentCount = opponents.size();
     for (int i = 0; i < opponentCount; ++i) {
-      ArenaOpponent opponent = (ArenaOpponent) opponents.get(i);
+      ArenaOpponent opponent = opponents.get(i);
       String name = opponent.getName();
       String race = opponent.getRace();
       int weight = opponent.getWeight();
@@ -1303,7 +1303,7 @@ public class FamiliarTrainingFrame extends GenericFrame {
       this.checkCurrentEquipment();
 
       // Check available equipment
-      this.checkAvailableEquipment((SortedListModel) KoLConstants.inventory);
+      this.checkAvailableEquipment((SortedListModel<AdventureResult>) KoLConstants.inventory);
     }
 
     private void checkSkills() {
@@ -1501,7 +1501,7 @@ public class FamiliarTrainingFrame extends GenericFrame {
       return false;
     }
 
-    private void checkAvailableEquipment(final LockableListModel inventory) {
+    private void checkAvailableEquipment(final LockableListModel<AdventureResult> inventory) {
       // If not wearing a pith helmet, search inventory
       this.pithHelmet |=
           FamiliarTrainingFrame.PITH_HELMET.getCount(inventory) > 0
@@ -1593,9 +1593,9 @@ public class FamiliarTrainingFrame extends GenericFrame {
 
       // Find first familiar with item
 
-      List familiars = KoLCharacter.getFamiliarList();
+      List<FamiliarData> familiars = KoLCharacter.getFamiliarList();
       for (int i = 0; i < familiars.size(); ++i) {
-        FamiliarData familiar = (FamiliarData) familiars.get(i);
+        FamiliarData familiar = familiars.get(i);
         AdventureResult item = familiar.getItem();
 
         if (item == null) {
@@ -1677,12 +1677,12 @@ public class FamiliarTrainingFrame extends GenericFrame {
       this.getItemWeights(weight);
 
       // Make an array to hold values
-      Object[] vals = this.weights.toArray();
+      Integer[] vals = this.weights.toArray(new Integer[0]);
       int[] value = new int[vals.length];
 
       // Read Integers from the set and store ints
       for (int i = 0; i < vals.length; ++i) {
-        value[i] = ((Integer) vals[i]).intValue();
+        value[i] = vals[i].intValue();
       }
 
       return value;
@@ -1764,16 +1764,16 @@ public class FamiliarTrainingFrame extends GenericFrame {
     private void getHatWeights(final int weight) {
       // Add weight with helmet
       if (this.pithHelmet) {
-        this.weights.add(IntegerPool.get(Math.max(weight + 5, 1)));
+        this.weights.add(Math.max(weight + 5, 1));
       }
 
       // Add weight with fedora
       if (this.crumpledFedora) {
-        this.weights.add(IntegerPool.get(Math.max(weight + 10, 1)));
+        this.weights.add(Math.max(weight + 10, 1));
       }
 
       // Add weight with no helmet
-      this.weights.add(IntegerPool.get(Math.max(weight, 1)));
+      this.weights.add(Math.max(weight, 1));
     }
 
     /** *********************************************************** */
@@ -2592,6 +2592,7 @@ public class FamiliarTrainingFrame extends GenericFrame {
             this.weapon, this.offhand, this.acc1, this.acc2, this.acc3, this.item, this.hat);
       }
 
+      @Override
       public int compareTo(final GearSet o) {
         // Keep in mind that all unequips are considered
         // better than equips, so unequips have a change
@@ -2716,6 +2717,7 @@ public class FamiliarTrainingFrame extends GenericFrame {
       this.addActionListener(this);
     }
 
+    @Override
     public void actionPerformed(ActionEvent e) {
       boolean toggleValue = Preferences.getBoolean(this.property);
       Preferences.setBoolean(this.property, toggleValue);

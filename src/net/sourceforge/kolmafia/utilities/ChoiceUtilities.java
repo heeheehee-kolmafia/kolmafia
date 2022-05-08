@@ -7,7 +7,6 @@ import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import net.sourceforge.kolmafia.RequestLogger;
-import net.sourceforge.kolmafia.objectpool.IntegerPool;
 import net.sourceforge.kolmafia.session.ChoiceManager;
 
 /** Utilities for extracting data from a choice.php response */
@@ -29,6 +28,8 @@ public class ChoiceUtilities {
     Pattern.compile("whichchoice=(\\d+)"),
   };
 
+  private ChoiceUtilities() {}
+
   public static int extractChoice(final String responseText) {
     for (Pattern pattern : ChoiceUtilities.CHOICE_PATTERNS) {
       Matcher matcher = pattern.matcher(responseText);
@@ -43,6 +44,10 @@ public class ChoiceUtilities {
       return 798;
     } else if (responseText.contains("<b>The WLF Bunker</b>")) {
       return 1093;
+    } else if (responseText.contains("<b>Lyle, LyleCo CEO</b>")) {
+      return 1309;
+    } else if (responseText.contains("<b>What the Future Holds</b>")) {
+      return 1462;
     }
 
     return 0;
@@ -65,7 +70,7 @@ public class ChoiceUtilities {
         continue;
       }
       int decision = Integer.parseInt(optMatcher.group(1));
-      Integer key = IntegerPool.get(decision);
+      Integer key = decision;
       if (rv.get(key) != null) {
         continue;
       }
@@ -92,7 +97,7 @@ public class ChoiceUtilities {
         continue;
       }
       int decision = Integer.parseInt(optMatcher.group(1));
-      Integer key = IntegerPool.get(decision);
+      Integer key = decision;
       if (rv.get(key) != null) {
         continue;
       }
@@ -164,9 +169,9 @@ public class ChoiceUtilities {
 
   // <select name=tossid>><option value=7375>actual tapas  (5 casualties)</option>
   private static final Pattern SELECT_PATTERN =
-      Pattern.compile("<select .*?name=['\"]?(.*?)['\"]?>(.*?)</select>", Pattern.DOTALL);
+      Pattern.compile("<select .*?name=['\"]?(\\w*)['\"]?.*?>(.*?)</select>", Pattern.DOTALL);
   private static final Pattern SELECT_OPTION_PATTERN =
-      Pattern.compile("<option value=['\"]?(.*?)['\"]?>(.*?)</option>");
+      Pattern.compile("<option value=['\"]?(\\d*)['\"]?.*?>(.*?)</option>");
 
   public static Map<Integer, Map<String, Set<String>>> parseSelectInputs(
       final String responseText) {
@@ -389,7 +394,7 @@ public class ChoiceUtilities {
     Map<Integer, Set<String>> formTexts = ChoiceUtilities.parseTextInputs(responseText);
 
     // Does the decision have extra select or text inputs?
-    Integer key = IntegerPool.get(StringUtilities.parseInt(decision));
+    Integer key = StringUtilities.parseInt(decision);
     Map<String, Set<String>> selects = formSelects.get(key);
     Set<String> texts = formTexts.get(key);
 

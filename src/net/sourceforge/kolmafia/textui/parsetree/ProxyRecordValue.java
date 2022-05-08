@@ -6,6 +6,7 @@ import java.util.Iterator;
 import java.util.List;
 import net.sourceforge.kolmafia.AdventureResult;
 import net.sourceforge.kolmafia.AreaCombatData;
+import net.sourceforge.kolmafia.AscensionClass;
 import net.sourceforge.kolmafia.CoinmasterData;
 import net.sourceforge.kolmafia.CoinmasterRegistry;
 import net.sourceforge.kolmafia.EdServantData;
@@ -15,6 +16,7 @@ import net.sourceforge.kolmafia.KoLCharacter;
 import net.sourceforge.kolmafia.KoLConstants;
 import net.sourceforge.kolmafia.MonsterData;
 import net.sourceforge.kolmafia.PastaThrallData;
+import net.sourceforge.kolmafia.PastaThrallData.PastaThrallType;
 import net.sourceforge.kolmafia.PokefamData;
 import net.sourceforge.kolmafia.VYKEACompanionData;
 import net.sourceforge.kolmafia.persistence.*;
@@ -151,9 +153,16 @@ public class ProxyRecordValue extends RecordValue {
     }
 
     public Value get_primestat() {
-      int primeIndex = KoLCharacter.getPrimeIndex(this.contentString);
+      if (this.content == null) {
+        return DataTypes.STAT_INIT;
+      }
 
-      String name = AdventureResult.STAT_NAMES[primeIndex];
+      int primeIndex = ((AscensionClass) this.content).getPrimeStatIndex();
+
+      String name = null;
+      if (primeIndex > -1 && primeIndex < AdventureResult.STAT_NAMES.length) {
+        name = AdventureResult.STAT_NAMES[primeIndex];
+      }
 
       return DataTypes.parseStatValue(name, true);
     }
@@ -199,6 +208,7 @@ public class ProxyRecordValue extends RecordValue {
             .add("candy", DataTypes.BOOLEAN_TYPE)
             .add("candy_type", DataTypes.STRING_TYPE)
             .add("chocolate", DataTypes.BOOLEAN_TYPE)
+            .add("potion", DataTypes.BOOLEAN_TYPE)
             .add("seller", DataTypes.COINMASTER_TYPE)
             .add("buyer", DataTypes.COINMASTER_TYPE)
             .add("name_length", DataTypes.INT_TYPE)
@@ -583,6 +593,15 @@ public class ProxyRecordValue extends RecordValue {
     }
 
     /**
+     * Returns `true` if the Item is a potion, else `false`.
+     *
+     * @return Whether the Item is a potion
+     */
+    public boolean get_potion() {
+      return ItemDatabase.isPotion((int) this.contentLong);
+    }
+
+    /**
      * Returns which Coinmaster sells this Item, if any.
      *
      * @return The coinmaster who sells this Item
@@ -915,7 +934,7 @@ public class ProxyRecordValue extends RecordValue {
     }
 
     public int get_id() {
-      Object[] data = (Object[]) this.content;
+      PastaThrallType data = (PastaThrallType) this.content;
       return data == null ? 0 : PastaThrallData.dataToId(data);
     }
 
@@ -930,17 +949,17 @@ public class ProxyRecordValue extends RecordValue {
     }
 
     public String get_image() {
-      Object[] data = (Object[]) this.content;
+      PastaThrallType data = (PastaThrallType) this.content;
       return data == null ? "" : PastaThrallData.dataToImage(data);
     }
 
     public String get_tinyimage() {
-      Object[] data = (Object[]) this.content;
+      PastaThrallType data = (PastaThrallType) this.content;
       return data == null ? "" : PastaThrallData.dataToTinyImage(data);
     }
 
     public Value get_skill() {
-      Object[] data = (Object[]) this.content;
+      PastaThrallType data = (PastaThrallType) this.content;
       return DataTypes.makeSkillValue(data == null ? 0 : PastaThrallData.dataToSkillId(data), true);
     }
 
@@ -1183,6 +1202,7 @@ public class ProxyRecordValue extends RecordValue {
             .add("candy_tier", DataTypes.INT_TYPE)
             .add("quality", DataTypes.STRING_TYPE)
             .add("attributes", DataTypes.STRING_TYPE)
+            .add("song", DataTypes.BOOLEAN_TYPE)
             .finish("effect proxy");
 
     public EffectProxy(Value obj) {
@@ -1229,6 +1249,10 @@ public class ProxyRecordValue extends RecordValue {
 
     public int get_candy_tier() {
       return CandyDatabase.getEffectTier((int) this.contentLong);
+    }
+
+    public boolean get_song() {
+      return EffectDatabase.isSong((int) this.contentLong);
     }
   }
 

@@ -11,18 +11,18 @@ import net.sourceforge.kolmafia.request.UseItemRequest;
 import net.sourceforge.kolmafia.swingui.widget.AutoFilterTextField;
 import net.sourceforge.kolmafia.webui.RelayLoader;
 
-public class RestorativeItemPanel extends ItemTableManagePanel {
+public class RestorativeItemPanel extends ItemTableManagePanel<AdventureResult> {
   public RestorativeItemPanel() {
     super(
         "use item",
         "check wiki",
-        (SortedListModel) KoLConstants.inventory,
+        (SortedListModel<AdventureResult>) KoLConstants.inventory,
         new boolean[] {false, true});
     this.filterItems();
   }
 
   @Override
-  public AutoFilterTextField getWordFilter() {
+  public AutoFilterTextField<AdventureResult> getWordFilter() {
     return new RestorativeItemFilterField();
   }
 
@@ -41,10 +41,9 @@ public class RestorativeItemPanel extends ItemTableManagePanel {
   @Override
   public void actionCancelled() {
     String name;
-    Object[] values = this.getSelectedValues();
 
-    for (int i = 0; i < values.length; ++i) {
-      name = ((AdventureResult) values[i]).getName();
+    for (final AdventureResult value : this.getSelectedValues()) {
+      name = value.getName();
       if (name != null) {
         RelayLoader.openSystemBrowser(
             "http://kol.coldfront.net/thekolwiki/index.php/Special:Search?search=" + name);

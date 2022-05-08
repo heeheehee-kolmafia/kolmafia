@@ -14,7 +14,6 @@ import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import net.java.dev.spellcast.utilities.LockableListModel;
-import net.sourceforge.kolmafia.AdventureResult;
 import net.sourceforge.kolmafia.BuffBotHome;
 import net.sourceforge.kolmafia.CreateFrameRunnable;
 import net.sourceforge.kolmafia.EdServantData;
@@ -32,7 +31,6 @@ import net.sourceforge.kolmafia.request.ApiRequest;
 import net.sourceforge.kolmafia.request.ChannelColorsRequest;
 import net.sourceforge.kolmafia.request.LoginRequest;
 import net.sourceforge.kolmafia.request.SendMailRequest;
-import net.sourceforge.kolmafia.request.UneffectRequest;
 import net.sourceforge.kolmafia.session.ClanManager;
 import net.sourceforge.kolmafia.session.EventManager;
 import net.sourceforge.kolmafia.swingui.ChatFrame;
@@ -45,12 +43,12 @@ import net.sourceforge.kolmafia.utilities.RollingLinkedList;
 import net.sourceforge.kolmafia.utilities.StringUtilities;
 
 public abstract class ChatManager {
-  private static final LinkedList<Object> clanMessages = new RollingLinkedList(20);
+  private static final LinkedList<ChatMessage> clanMessages = new RollingLinkedList<>(20);
   private static final Set<String> validChatReplyRecipients = new HashSet<String>();
 
   private static final TreeMap<String, StyledChatBuffer> instantMessageBuffers =
       new TreeMap<String, StyledChatBuffer>();
-  private static Entry<String, StyledChatBuffer>[] bufferEntries = new Entry[0];
+  private static List<Entry<String, StyledChatBuffer>> bufferEntries = new ArrayList<>(0);
 
   private static boolean isRunning = false;
   private static boolean checkedLiteracy = false;
@@ -79,7 +77,7 @@ public abstract class ChatManager {
 
     ChatManager.clanMessages.clear();
     ChatManager.instantMessageBuffers.clear();
-    ChatManager.bufferEntries = new Entry[0];
+    ChatManager.bufferEntries = new ArrayList<>(0);
     ChatManager.activeChannels.clear();
     ChatManager.currentChannel = null;
 
@@ -236,8 +234,8 @@ public abstract class ChatManager {
 
     synchronized (ChatManager.bufferEntries) {
       ChatManager.instantMessageBuffers.put(bufferKey, buffer);
-      ChatManager.bufferEntries = new Entry[ChatManager.instantMessageBuffers.size()];
-      ChatManager.instantMessageBuffers.entrySet().toArray(ChatManager.bufferEntries);
+      ChatManager.bufferEntries = new ArrayList<>(ChatManager.instantMessageBuffers.size());
+      ChatManager.bufferEntries.addAll(ChatManager.instantMessageBuffers.entrySet());
     }
 
     return buffer;
@@ -443,22 +441,7 @@ public abstract class ChatManager {
     }
 
     if (content.contains(" has ")) {
-      // This is a nice idea, but if we are doing other
-      // things, we may already have seen api.php or
-      // charpane.php and have up-to-date effects
-      if (false) {
-        Matcher buffMatcher = BUFF_PATTERN.matcher(content);
-        if (buffMatcher.find()) {
-          String skillName = buffMatcher.group(1);
-          String effectName = UneffectRequest.skillToEffect(skillName);
-          int duration = StringUtilities.parseInt(buffMatcher.group(2));
-          AdventureResult effect = new AdventureResult(effectName, duration, true);
-          AdventureResult.addResultToList(KoLConstants.activeEffects, effect);
-          return;
-        }
-      }
-
-      // If we can't figure it out, refresh effects via api.php
+      // Refresh effects via api.php
       ApiRequest.updateStatus(true);
     }
   }
@@ -573,10 +556,10 @@ public abstract class ChatManager {
 
       StringBuilder mailContent = new StringBuilder();
 
-      Iterator<Object> clanMessageIterator = ChatManager.clanMessages.iterator();
+      Iterator<ChatMessage> clanMessageIterator = ChatManager.clanMessages.iterator();
 
       while (clanMessageIterator.hasNext()) {
-        ChatMessage message = (ChatMessage) clanMessageIterator.next();
+        ChatMessage message = clanMessageIterator.next();
         String cleanMessage =
             KoLConstants.ANYTAG_PATTERN
                 .matcher(ChatFormatter.formatChatMessage(message))

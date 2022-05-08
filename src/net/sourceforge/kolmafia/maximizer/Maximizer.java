@@ -48,8 +48,8 @@ import net.sourceforge.kolmafia.session.BeachManager.BeachHead;
 import net.sourceforge.kolmafia.session.EquipmentManager;
 import net.sourceforge.kolmafia.session.InventoryManager;
 import net.sourceforge.kolmafia.session.Limitmode;
+import net.sourceforge.kolmafia.session.MallPriceManager;
 import net.sourceforge.kolmafia.session.RabbitHoleManager;
-import net.sourceforge.kolmafia.session.StoreManager;
 import net.sourceforge.kolmafia.swingui.MaximizerFrame;
 import net.sourceforge.kolmafia.utilities.StringUtilities;
 
@@ -73,6 +73,8 @@ public class Maximizer {
   static MaximizerSpeculation best;
   static int bestChecked;
   static long bestUpdate;
+
+  private Maximizer() {}
 
   public static boolean maximize(
       String maximizerString, int maxPrice, int priceLevel, boolean isSpeculationOnly) {
@@ -222,60 +224,16 @@ public class Maximizer {
         // Iterate over items to see if we have access to them
         int count = 0;
         for (int itemId : itemList) {
-          CheckedItem checkedItem = new CheckedItem(itemId, equipScope, maxPrice, priceLevel);
-          // We won't include unavailable items, as this just gets far too large
-          String cmd, text;
-          int price = 0;
-          AdventureResult item = ItemPool.get(itemId);
-          cmd = "absorb \u00B6" + itemId;
-          text = "absorb " + item.getName() + " (" + name + ", ";
-          if (checkedItem.inventory > 0) {
-          } else if (checkedItem.initial > 0) {
-            String method = InventoryManager.simRetrieveItem(item, equipScope == -1, false);
-            if (!method.equals("have")) {
-              text = method + " & " + text;
-            }
-            if (method.equals("uncloset")) {
-              cmd = "closet take 1 \u00B6" + itemId + ";" + cmd;
-            }
-            // Should be only hitting this after Ronin I think
-            else if (method.equals("pull")) {
-              cmd = "pull 1 \u00B6" + itemId + ";" + cmd;
-            }
-          } else if (checkedItem.creatable > 0) {
-            text = "make & " + text;
-            cmd = "make \u00B6" + itemId + ";" + cmd;
-            price = ConcoctionPool.get(item).price;
-          } else if (checkedItem.npcBuyable > 0) {
-            text = "buy & " + text;
-            cmd = "buy 1 \u00B6" + itemId + ";" + cmd;
-            price = ConcoctionPool.get(item).price;
-          } else if (checkedItem.pullable > 0) {
-            text = "pull & " + text;
-            cmd = "pull \u00B6" + itemId + ";" + cmd;
-          } else if (checkedItem.mallBuyable > 0) {
-            text = "acquire & " + text;
-            if (priceLevel > 0) {
-              price = StoreManager.getMallPrice(item);
-            }
-          } else if (checkedItem.pullBuyable > 0) {
-            text = "buy & pull & " + text;
-            cmd = "buy using storage 1 \u00B6" + itemId + ";pull \u00B6" + itemId + ";" + cmd;
-            if (priceLevel > 0) {
-              price = StoreManager.getMallPrice(item);
-            }
-          } else {
-            continue;
-          }
-          if (price > 0) {
-            text = text + KoLConstants.COMMA_FORMAT.format(price) + " meat, ";
-          }
+          var makeable = getAbsorbable(itemId, equipScope, maxPrice, priceLevel);
+          if (!makeable.canMake) continue;
+          String cmd = makeable.cmd;
+          String text = makeable.txt;
           text = text + KoLConstants.MODIFIER_FORMAT.format(delta) + ")";
           text = text + " [" + absorbsLeft + " absorbs remaining]";
           if (count > 0) {
             text = "  or " + text;
           }
-          Maximizer.boosts.add(new Boost(cmd, text, item, delta));
+          Maximizer.boosts.add(new Boost(cmd, text, ItemPool.get(itemId), delta));
           count++;
         }
       }
@@ -326,55 +284,11 @@ public class Maximizer {
         if (delta <= 0.0) {
           continue;
         }
-        // Check if we have access to item
-        CheckedItem checkedItem = new CheckedItem(itemId, equipScope, maxPrice, priceLevel);
-        // We won't include unavailable items, as this just gets far too large
-        String cmd, text;
-        int price = 0;
-        AdventureResult item = ItemPool.get(itemId);
-        cmd = "absorb \u00B6" + itemId;
-        text = "absorb " + item.getName() + " (";
-        if (checkedItem.inventory > 0) {
-        } else if (checkedItem.initial > 0) {
-          String method = InventoryManager.simRetrieveItem(item, equipScope == -1, false);
-          if (!method.equals("have")) {
-            text = method + " & " + text;
-          }
-          if (method.equals("uncloset")) {
-            cmd = "closet take 1 \u00B6" + itemId + ";" + cmd;
-          }
-          // Should be only hitting this after Ronin I think
-          else if (method.equals("pull")) {
-            cmd = "pull 1 \u00B6" + itemId + ";" + cmd;
-          }
-        } else if (checkedItem.creatable > 0) {
-          text = "make & " + text;
-          cmd = "make \u00B6" + itemId + ";" + cmd;
-          price = ConcoctionPool.get(item).price;
-        } else if (checkedItem.npcBuyable > 0) {
-          text = "buy & " + text;
-          cmd = "buy 1 \u00B6" + itemId + ";" + cmd;
-          price = ConcoctionPool.get(item).price;
-        } else if (checkedItem.pullable > 0) {
-          text = "pull & " + text;
-          cmd = "pull \u00B6" + itemId + ";" + cmd;
-        } else if (checkedItem.mallBuyable > 0) {
-          text = "acquire & " + text;
-          if (priceLevel > 0) {
-            price = StoreManager.getMallPrice(item);
-          }
-        } else if (checkedItem.pullBuyable > 0) {
-          text = "buy & pull & " + text;
-          cmd = "buy using storage 1 \u00B6" + itemId + ";pull \u00B6" + itemId + ";" + cmd;
-          if (priceLevel > 0) {
-            price = StoreManager.getMallPrice(item);
-          }
-        } else {
-          continue;
-        }
-        if (price > 0) {
-          text = text + KoLConstants.COMMA_FORMAT.format(price) + " meat, ";
-        }
+        var makeable = getAbsorbable(itemId, equipScope, maxPrice, priceLevel);
+        if (!makeable.canMake) continue;
+        String cmd = makeable.cmd;
+        String text = makeable.txt;
+        CheckedItem checkedItem = makeable.checkedItem;
         text = text + "lasts til end of day, ";
         text = text + KoLConstants.MODIFIER_FORMAT.format(delta) + ")";
         text = text + " [" + absorbsLeft + " absorbs remaining";
@@ -394,7 +308,7 @@ public class Maximizer {
           text = text + ", " + checkedItem.pullable + " pullable";
         }
         text = text + "]";
-        Maximizer.boosts.add(new Boost(cmd, text, item, delta));
+        Maximizer.boosts.add(new Boost(cmd, text, ItemPool.get(itemId), delta));
       }
 
       if (lookup.startsWith("Horsery:")
@@ -582,8 +496,7 @@ public class Maximizer {
             if (!filter.getOrDefault(KoLConstants.filterType.OTHER, false)) continue;
         }
 
-        if (cmd.startsWith("#")) // usage note, no command
-        {
+        if (cmd.startsWith("#")) { // usage note, no command
           if (includeAll) {
             if (cmd.contains("BM") && !KoLCharacter.inBadMoon()) {
               continue; // no use displaying this in non-BM
@@ -598,8 +511,7 @@ public class Maximizer {
           text = text + " (to remove " + name + ")";
         }
 
-        if (cmd.startsWith("(")) // preformatted note
-        {
+        if (cmd.startsWith("(")) { // preformatted note
           cmd = "";
           orFlag = false;
         } else if (cmd.startsWith("use ")
@@ -1303,7 +1215,7 @@ public class Maximizer {
         if (item != null) {
           String iname = item.getName();
 
-          if (KoLCharacter.inBeecore() && KoLCharacter.getBeeosity(iname) > 0) {
+          if (KoLCharacter.inBeecore() && KoLCharacter.hasBeeosity(iname)) {
             continue;
           }
 
@@ -1373,30 +1285,30 @@ public class Maximizer {
             } else if (checkedItem.mallBuyable > 0) {
               text = "acquire & " + text;
               if (priceLevel > 0) {
-                if (MallPriceDatabase.getPrice(item.getItemId()) > maxPrice * 2) {
+                if (MallPriceDatabase.getPrice(itemId) > maxPrice * 2) {
                   continue;
                 }
 
                 // Depending on preference, either get historical mall price or look it up
                 if (Preferences.getBoolean("maximizerCurrentMallPrices")) {
-                  price = StoreManager.getMallPrice(item);
+                  price = MallPriceManager.getMallPrice(itemId);
                 } else {
-                  price = StoreManager.getMallPrice(item, 7.0f);
+                  price = MallPriceManager.getMallPrice(itemId, 7.0f);
                 }
               }
             } else if (checkedItem.pullBuyable > 0) {
               text = "buy & pull & " + text;
               cmd = "buy using storage 1 \u00B6" + itemId + ";pull \u00B6" + itemId + ";" + cmd;
               if (priceLevel > 0) {
-                if (MallPriceDatabase.getPrice(item.getItemId()) > maxPrice * 2) {
+                if (MallPriceDatabase.getPrice(itemId) > maxPrice * 2) {
                   continue;
                 }
 
                 // Depending on preference, either get historical mall price or look it up
                 if (Preferences.getBoolean("maximizerCurrentMallPrices")) {
-                  price = StoreManager.getMallPrice(item);
+                  price = MallPriceManager.getMallPrice(itemId);
                 } else {
-                  price = StoreManager.getMallPrice(item, 7.0f);
+                  price = MallPriceManager.getMallPrice(itemId, 7.0f);
                 }
               }
             } else {
@@ -1417,9 +1329,9 @@ public class Maximizer {
 
                 // Depending on preference, either get historical mall price or look it up
                 if (Preferences.getBoolean("maximizerCurrentMallPrices")) {
-                  price = StoreManager.getMallPrice(item);
+                  price = MallPriceManager.getMallPrice(itemId);
                 } else {
-                  price = StoreManager.getMallPrice(item, 7.0f);
+                  price = MallPriceManager.getMallPrice(itemId, 7.0f);
                 }
               }
             }
@@ -1635,6 +1547,7 @@ public class Maximizer {
     String snowsuit = Maximizer.best.getSnowsuit();
     String retroCape = Maximizer.best.getRetroCape();
     String backupCamera = Maximizer.best.getBackupCamera();
+    String unbreakableUmbrella = Maximizer.best.getUnbreakableUmbrella();
     AdventureResult curr = EquipmentManager.getEquipment(slot);
     FamiliarData currEnthroned = KoLCharacter.getEnthroned();
     FamiliarData currBjorned = KoLCharacter.getBjorned();
@@ -1649,6 +1562,8 @@ public class Maximizer {
     Boolean setRetroCape = false;
     String currBackupCamera = Preferences.getString("backupCameraMode");
     Boolean setBackupCamera = false;
+    String currUmbrella = Preferences.getString("umbrellaState");
+    Boolean setUmbrella = false;
 
     if (item == null || item.getItemId() == 0) {
       item = EquipmentRequest.UNEQUIP;
@@ -1666,6 +1581,10 @@ public class Maximizer {
         itemId == ItemPool.BACKUP_CAMERA
             && backupCamera != null
             && !backupCamera.equals(currBackupCamera);
+    boolean changeUmbrella =
+        itemId == ItemPool.UNBREAKABLE_UMBRELLA
+            && unbreakableUmbrella != null
+            && !unbreakableUmbrella.equals(currUmbrella);
     boolean changeEdPiece =
         itemId == ItemPool.CROWN_OF_ED && edPiece != null && !edPiece.equals(currEdPiece);
     boolean changeSnowSuit =
@@ -1678,6 +1597,7 @@ public class Maximizer {
         && !changeSnowSuit
         && !(changeRetroCape)
         && !(changeBackupCamera)
+        && !(changeUmbrella)
         && !(itemId == ItemPool.BROKEN_CHAMPAGNE
             && Preferences.getInteger("garbageChampagneCharge") == 0
             && !Preferences.getBoolean("_garbageItemChanged"))
@@ -1707,6 +1627,8 @@ public class Maximizer {
       spec.setRetroCape(retroCape);
     } else if (itemId == ItemPool.BACKUP_CAMERA) {
       spec.setBackupCamera(backupCamera);
+    } else if (itemId == ItemPool.UNBREAKABLE_UMBRELLA) {
+      spec.setUnbreakableUmbrella(unbreakableUmbrella);
     }
 
     double delta = spec.getScore() - current;
@@ -1739,6 +1661,16 @@ public class Maximizer {
         cmd = "backupcamera " + backupCamera + "; equip " + slotname + " \u00B6" + item.getItemId();
         text = "backupcamera " + backupCamera;
         setBackupCamera = true;
+      } else if (changeUmbrella) {
+        cmd =
+            "umbrella "
+                + unbreakableUmbrella
+                + "; equip "
+                + slotname
+                + " \u00B6"
+                + item.getItemId();
+        text = "umbrella " + unbreakableUmbrella;
+        setUmbrella = true;
       } else {
         cmd = "equip " + slotname + " \u00B6" + item.getItemId();
         text = "equip " + slotname + " " + item.getName();
@@ -1762,16 +1694,13 @@ public class Maximizer {
             count++;
           }
         }
-      } else
-      // Otherwise we iterate through the maximization set so far
-      {
-        Iterator i = Maximizer.boosts.iterator();
+      } else {
+        // Otherwise we iterate through the maximization set so far
+        Iterator<Boost> i = Maximizer.boosts.iterator();
         while (i.hasNext()) {
-          Object boost = i.next();
-          if (boost instanceof Boost) {
-            if (item.equals(((Boost) boost).getItem())) {
-              count++;
-            }
+          Boost boost = i.next();
+          if (item.equals(boost.getItem())) {
+            count++;
           }
         }
       }
@@ -1860,13 +1789,12 @@ public class Maximizer {
         text = "buy & pull & " + text;
         cmd = "buy using storage 1 \u00B6" + itemId + ";pull \u00B6" + itemId + ";" + cmd;
         if (priceLevel > 0) {
-          price = StoreManager.getMallPrice(item);
+          price = MallPriceManager.getMallPrice(itemId);
         }
-      } else // Mall buyable
-      {
+      } else { // Mall buyable
         text = "acquire & " + text;
         if (priceLevel > 0) {
-          price = StoreManager.getMallPrice(item);
+          price = MallPriceManager.getMallPrice(itemId);
         }
       }
 
@@ -1890,6 +1818,10 @@ public class Maximizer {
 
     if (!setBackupCamera) {
       backupCamera = null;
+    }
+
+    if (!setUmbrella) {
+      unbreakableUmbrella = null;
     }
 
     Boost boost =
@@ -1925,5 +1857,73 @@ public class Maximizer {
         return true;
     }
     return false;
+  }
+
+  private static class Makeable {
+    final String cmd;
+    final String txt;
+    final boolean canMake;
+    final CheckedItem checkedItem;
+
+    private Makeable(String cmd, String txt, boolean canMake, CheckedItem checkedItem) {
+      this.cmd = cmd;
+      this.txt = txt;
+      this.canMake = canMake;
+      this.checkedItem = checkedItem;
+    }
+  }
+
+  private static Makeable getAbsorbable(int itemId, int equipScope, int maxPrice, int priceLevel) {
+    // Check if we have access to item
+    CheckedItem checkedItem = new CheckedItem(itemId, equipScope, maxPrice, priceLevel);
+    // We won't include unavailable items, as this just gets far too large
+    String cmd, text;
+    int price = 0;
+    boolean canMake = true;
+    AdventureResult item = ItemPool.get(itemId);
+    cmd = "absorb \u00B6" + itemId;
+    text = "absorb " + item.getName() + " (";
+    if (checkedItem.inventory > 0) {
+    } else if (checkedItem.initial > 0) {
+      String method = InventoryManager.simRetrieveItem(item, equipScope == -1, false);
+      if (!method.equals("have")) {
+        text = method + " & " + text;
+      }
+      if (method.equals("uncloset")) {
+        cmd = "closet take 1 \u00B6" + itemId + ";" + cmd;
+      }
+      // Should be only hitting this after Ronin I think
+      else if (method.equals("pull")) {
+        cmd = "pull 1 \u00B6" + itemId + ";" + cmd;
+      }
+    } else if (checkedItem.creatable > 0) {
+      text = "make & " + text;
+      cmd = "make \u00B6" + itemId + ";" + cmd;
+      price = ConcoctionPool.get(item).price;
+    } else if (checkedItem.npcBuyable > 0) {
+      text = "buy & " + text;
+      cmd = "buy 1 \u00B6" + itemId + ";" + cmd;
+      price = ConcoctionPool.get(item).price;
+    } else if (checkedItem.pullable > 0) {
+      text = "pull & " + text;
+      cmd = "pull \u00B6" + itemId + ";" + cmd;
+    } else if (checkedItem.mallBuyable > 0) {
+      text = "acquire & " + text;
+      if (priceLevel > 0) {
+        price = MallPriceManager.getMallPrice(itemId);
+      }
+    } else if (checkedItem.pullBuyable > 0) {
+      text = "buy & pull & " + text;
+      cmd = "buy using storage 1 \u00B6" + itemId + ";pull \u00B6" + itemId + ";" + cmd;
+      if (priceLevel > 0) {
+        price = MallPriceManager.getMallPrice(itemId);
+      }
+    } else {
+      canMake = false;
+    }
+    if (price > 0) {
+      text = text + KoLConstants.COMMA_FORMAT.format(price) + " meat, ";
+    }
+    return new Makeable(cmd, text, canMake, checkedItem);
   }
 }

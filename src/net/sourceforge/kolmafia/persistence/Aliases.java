@@ -2,6 +2,7 @@ package net.sourceforge.kolmafia.persistence;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.IOException;
 import java.io.PrintStream;
 import java.util.Iterator;
 import java.util.Map.Entry;
@@ -18,10 +19,12 @@ import net.sourceforge.kolmafia.utilities.StringUtilities;
 public class Aliases {
   private static final File ALIAS_FILE =
       new File(KoLConstants.SETTINGS_LOCATION, "GLOBAL_aliases.txt");
-  private static final TreeMap aliasMap = new TreeMap();
+  private static final TreeMap<String, String> aliasMap = new TreeMap<>();
 
   private static boolean loadedAliases = false;
-  private static Set aliasSet = null;
+  private static Set<Entry<String, String>> aliasSet = null;
+
+  private Aliases() {}
 
   private static void load() {
     if (loadedAliases) {
@@ -35,21 +38,18 @@ public class Aliases {
 
     Aliases.aliasMap.clear();
 
-    BufferedReader reader = FileUtilities.getReader(Aliases.ALIAS_FILE);
-    if (reader != null) {
-      String[] data;
+    try (BufferedReader reader = FileUtilities.getReader(Aliases.ALIAS_FILE)) {
+      if (reader != null) {
+        String[] data;
 
-      while ((data = FileUtilities.readData(reader)) != null) {
-        if (data.length >= 2) {
-          Aliases.aliasMap.put(" " + data[0] + " ", " " + data[1] + " ");
+        while ((data = FileUtilities.readData(reader)) != null) {
+          if (data.length >= 2) {
+            Aliases.aliasMap.put(" " + data[0] + " ", " " + data[1] + " ");
+          }
         }
       }
-
-      try {
-        reader.close();
-      } catch (Exception e) {
-        StaticEntity.printStackTrace(e);
-      }
+    } catch (IOException e) {
+      StaticEntity.printStackTrace(e);
     }
 
     Aliases.aliasSet = Aliases.aliasMap.entrySet();
@@ -59,11 +59,11 @@ public class Aliases {
   public static void save() {
     PrintStream aliasStream = LogStream.openStream(Aliases.ALIAS_FILE, true);
 
-    Iterator it = Aliases.aliasSet.iterator();
+    Iterator<Entry<String, String>> it = Aliases.aliasSet.iterator();
     while (it.hasNext()) {
-      Entry current = (Entry) it.next();
-      String aliasString = (String) current.getKey();
-      String aliasCommand = (String) current.getValue();
+      Entry<String, String> current = it.next();
+      String aliasString = current.getKey();
+      String aliasCommand = current.getValue();
       aliasStream.println(aliasString.trim() + "\t" + aliasCommand.trim());
     }
 
@@ -83,11 +83,11 @@ public class Aliases {
 
     line = " " + line + " ";
 
-    Iterator it = Aliases.aliasSet.iterator();
+    Iterator<Entry<String, String>> it = Aliases.aliasSet.iterator();
     while (it.hasNext()) {
-      Entry current = (Entry) it.next();
-      String aliasString = (String) current.getKey();
-      String aliasCommand = (String) current.getValue();
+      Entry<String, String> current = it.next();
+      String aliasString = current.getKey();
+      String aliasCommand = current.getValue();
 
       // If the alias has a "%%" that means the person is using the old
       // aliasing scheme where only the first word can be considered a
@@ -125,12 +125,12 @@ public class Aliases {
 
   public static void print(final String filter) {
     StringBuffer buffer = new StringBuffer();
-    Iterator it = Aliases.aliasSet.iterator();
+    Iterator<Entry<String, String>> it = Aliases.aliasSet.iterator();
     boolean first = true;
     while (it.hasNext()) {
-      Entry current = (Entry) it.next();
-      String aliasString = (String) current.getKey();
-      String aliasCommand = (String) current.getValue();
+      Entry<String, String> current = it.next();
+      String aliasString = current.getKey();
+      String aliasCommand = current.getValue();
 
       boolean matches = filter.equals("");
 

@@ -1,6 +1,7 @@
 package net.sourceforge.kolmafia.persistence;
 
 import java.io.File;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
@@ -11,7 +12,6 @@ import net.sourceforge.kolmafia.preferences.Preferences;
 import net.sourceforge.kolmafia.svn.SVNManager;
 import net.sourceforge.kolmafia.utilities.ByteBufferUtilities;
 import net.sourceforge.kolmafia.utilities.FileUtilities;
-import net.sourceforge.kolmafia.utilities.StringUtilities;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -19,6 +19,8 @@ import org.tmatesoft.svn.core.SVNException;
 import org.tmatesoft.svn.core.SVNURL;
 
 public class ScriptManager {
+  private ScriptManager() {}
+
   private static class ScriptFactory {
     public static Script fromJSON(JSONObject jObj) throws JSONException {
       String name = jObj.getString("name");
@@ -82,8 +84,8 @@ public class ScriptManager {
   private static final LockableListModel<Script> installedScripts = new LockableListModel<Script>();
   private static final LockableListModel<Script> repoScripts = new LockableListModel<Script>();
   private static final String REPO_FILE_LOCATION =
-      "https://raw.githubusercontent.com/kolmafia/kolmafia/main/data/SVN/svnrepo.json"; // this will
-  // change.
+      // this will change
+      "https://raw.githubusercontent.com/kolmafia/kolmafia/main/data/SVN/svnrepo.json";
 
   static {
     ScriptManager.updateRepoScripts(false);
@@ -114,7 +116,7 @@ public class ScriptManager {
     }
 
     byte[] bytes = ByteBufferUtilities.read(repoFile);
-    String string = StringUtilities.getEncodedString(bytes, "UTF-8");
+    String string = new String(bytes, StandardCharsets.UTF_8);
 
     try {
       return new JSONArray(string);

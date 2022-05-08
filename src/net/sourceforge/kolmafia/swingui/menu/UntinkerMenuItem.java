@@ -21,7 +21,7 @@ public class UntinkerMenuItem extends ThreadedMenuItem {
   private static class UntinkerListener extends ThreadedListener {
     @Override
     protected void execute() {
-      SortedList<AdventureResult> untinkerItems = new SortedList<>();
+      SortedListModel<AdventureResult> untinkerItems = new SortedListModel<>();
 
       for (int i = 0; i < KoLConstants.inventory.size(); ++i) {
         AdventureResult currentItem = KoLConstants.inventory.get(i);

@@ -1,5 +1,6 @@
 package net.sourceforge.kolmafia.request;
 
+import java.util.Comparator;
 import net.sourceforge.kolmafia.AdventureResult;
 import net.sourceforge.kolmafia.KoLCharacter;
 import net.sourceforge.kolmafia.KoLConstants;
@@ -10,7 +11,9 @@ public abstract class PurchaseRequest extends GenericRequest
     implements Comparable<PurchaseRequest> {
   public static final int MAX_QUANTITY = 16777215;
 
-  protected static boolean usePriceComparison;
+  public static final Comparator<PurchaseRequest> nameComparator = new NameComparator();
+  public static final Comparator<PurchaseRequest> priceComparator = new PriceComparator();
+
   protected String hashField;
 
   protected String shopName;
@@ -188,6 +191,10 @@ public abstract class PurchaseRequest extends GenericRequest
     return true;
   }
 
+  public String accessible() {
+    return null;
+  }
+
   /**
    * Executes the purchase request. This calculates the number of items which will be purchased and
    * adds it to the list. Note that it marks whether or not it's already been run to avoid problems
@@ -210,7 +217,7 @@ public abstract class PurchaseRequest extends GenericRequest
 
     // Make sure we have enough Meat to buy what we want.
 
-    if (this.getAvailableMeat() < this.limit * this.getPrice()) {
+    if (this.getAvailableMeat() < (long) this.limit * this.getPrice()) {
       return;
     }
 
@@ -218,6 +225,16 @@ public abstract class PurchaseRequest extends GenericRequest
 
     if (!this.ensureProperAttire()) {
       return;
+    }
+
+    String shopName = getFormField("whichstore");
+
+    // If shop exists, and it's not an empty string
+    if (shopName != null && !shopName.isEmpty()) {
+      shopName = " from #" + shopName;
+    } else {
+      // Set to empty string just incase it is null
+      shopName = "";
     }
 
     // Now that we're ready, make the purchase!
@@ -229,7 +246,12 @@ public abstract class PurchaseRequest extends GenericRequest
             + KoLConstants.COMMA_FORMAT.format(this.limit)
             + " @ "
             + this.getPriceString()
-            + ")...");
+            + (this.limit > 1
+                ? " = " + KoLConstants.COMMA_FORMAT.format((long) this.limit * getPrice())
+                : "")
+            + ")"
+            + shopName
+            + "...");
 
     this.initialCount = this.getCurrentCount();
 
@@ -240,45 +262,71 @@ public abstract class PurchaseRequest extends GenericRequest
     return this.item.getCount(KoLConstants.inventory);
   }
 
-  public static final void setUsePriceComparison(final boolean usePriceComparison) {
-    PurchaseRequest.usePriceComparison = usePriceComparison;
+  public static class PriceComparator implements Comparator<PurchaseRequest> {
+    @Override
+    public int compare(PurchaseRequest o1, PurchaseRequest o2) {
+      if (o1 == null || o2 == null) {
+        throw new NullPointerException();
+      }
+
+      // Order first by price, low to high.
+      int thisPrice = o1.getPrice();
+      int thatPrice = o2.getPrice();
+      if (thisPrice != thatPrice) {
+        return thisPrice - thatPrice;
+      }
+
+      // limit is how many items you can actually buy
+      // Order next by limit, high to low
+      if (o1.limit != o2.limit) {
+        return o2.limit - o1.limit;
+      }
+
+      // If limits are equal but quantity is not, one or the other
+      // stores has an artificial limit. Reward those that don't do
+      // that by sorting low to high on quantity.
+      if (o1.quantity != o2.quantity) {
+        return o1.quantity - o2.quantity;
+      }
+
+      // All else being equal, order by shop name. *shrug*
+      return o1.shopName.compareToIgnoreCase(o2.shopName);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      return o instanceof PriceComparator;
+    }
   }
 
+  public static class NameComparator extends PriceComparator
+      implements Comparator<PurchaseRequest> {
+    @Override
+    public int compare(PurchaseRequest o1, PurchaseRequest o2) {
+      if (o1 == null || o2 == null) {
+        throw new NullPointerException();
+      }
+
+      // Order first by item name
+      int result = o1.item.getName().compareToIgnoreCase(o2.item.getName());
+
+      // Names being equal, order using price comparator
+      return (result != 0) ? result : super.compare(o1, o2);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      return o instanceof NameComparator;
+    }
+  }
+
+  @Override
   public int compareTo(final PurchaseRequest pr) {
     if (pr == null) {
       return -1;
     }
 
-    if (!PurchaseRequest.usePriceComparison) {
-      int nameComparison = this.item.getName().compareToIgnoreCase(pr.item.getName());
-      if (nameComparison != 0) {
-        return nameComparison;
-      }
-    }
-
-    // Sort first in order of price
-    int thisPrice = this.getPrice();
-    int thatPrice = pr.getPrice();
-    if (thisPrice != thatPrice) {
-      return thisPrice - thatPrice;
-    }
-
-    // limit is how many items you can actually buy
-    // sort high to low on limit
-
-    if (this.limit != pr.limit) {
-      return pr.limit - this.limit;
-    }
-
-    // If limits are equal but quantity is not, one or the other
-    // stores has an artificial limit. Reward those that don't do
-    // that by sorting low to high on quantity.
-
-    if (this.quantity != pr.quantity) {
-      return this.quantity - pr.quantity;
-    }
-
-    return this.shopName.compareToIgnoreCase(pr.shopName);
+    return PurchaseRequest.nameComparator.compare(this, pr);
   }
 
   public boolean ensureProperAttire() {
@@ -287,10 +335,9 @@ public abstract class PurchaseRequest extends GenericRequest
 
   @Override
   public boolean equals(final Object o) {
-    return !(o instanceof PurchaseRequest)
-        ? false
-        : this.shopName.equals(((PurchaseRequest) o).shopName)
-            && this.item.getItemId() == ((PurchaseRequest) o).item.getItemId();
+    return o instanceof PurchaseRequest
+        && this.shopName.equals(((PurchaseRequest) o).shopName)
+        && this.item.getItemId() == ((PurchaseRequest) o).item.getItemId();
   }
 
   @Override

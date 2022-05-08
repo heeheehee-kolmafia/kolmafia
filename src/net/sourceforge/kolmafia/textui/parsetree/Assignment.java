@@ -7,18 +7,17 @@ import net.sourceforge.kolmafia.textui.DataTypes;
 import net.sourceforge.kolmafia.textui.Parser;
 import net.sourceforge.kolmafia.textui.ScriptRuntime;
 
-public class Assignment extends Value {
+public class Assignment extends Evaluable {
   private final VariableReference lhs;
-  private final Value rhs;
+  private final Evaluable rhs;
   private final Operator oper;
 
-  public Assignment(final VariableReference lhs, final Value rhs) {
-    this.lhs = lhs;
-    this.rhs = rhs;
-    this.oper = null;
+  public Assignment(final VariableReference lhs, final Evaluable rhs) {
+    this(lhs, rhs, null);
   }
 
-  public Assignment(final VariableReference lhs, final Value rhs, final Operator oper) {
+  public Assignment(final VariableReference lhs, final Evaluable rhs, final Operator oper) {
+    super(Parser.mergeLocations(lhs, rhs));
     this.lhs = lhs;
     this.rhs = rhs;
     this.oper = oper;
@@ -28,10 +27,17 @@ public class Assignment extends Value {
     return this.lhs;
   }
 
-  public Value getRightHandSide() {
-    return this.rhs == null ? this.lhs.getType().initialValueExpression() : this.rhs;
+  Operator getOperator() {
+    return this.oper;
   }
 
+  public Evaluable getRightHandSide() {
+    return this.rhs == null
+        ? Value.locate(this.lhs.getLocation(), this.lhs.getType().initialValueExpression())
+        : this.rhs;
+  }
+
+  @Override
   public Type getType() {
     return this.lhs.getType();
   }

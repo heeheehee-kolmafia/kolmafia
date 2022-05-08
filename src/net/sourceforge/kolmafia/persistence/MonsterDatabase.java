@@ -1,6 +1,7 @@
 package net.sourceforge.kolmafia.persistence;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumSet;
@@ -21,7 +22,6 @@ import net.sourceforge.kolmafia.MonsterData;
 import net.sourceforge.kolmafia.RequestLogger;
 import net.sourceforge.kolmafia.StaticEntity;
 import net.sourceforge.kolmafia.combat.CombatActionManager;
-import net.sourceforge.kolmafia.objectpool.IntegerPool;
 import net.sourceforge.kolmafia.objectpool.ItemPool;
 import net.sourceforge.kolmafia.session.EncounterManager.EncounterType;
 import net.sourceforge.kolmafia.utilities.FileUtilities;
@@ -42,6 +42,8 @@ public class MonsterDatabase {
   // For handling duplicate monster and substring match of monster names
   private static final Map<String, MonsterData[]> MONSTER_ID_SET = new HashMap<>();
   private static String[] canonicalNames = new String[0];
+
+  private MonsterDatabase() {}
 
   public enum Element {
     NONE("none", "circle.gif", "black", "has no particular elemental alignment"),
@@ -82,6 +84,10 @@ public class MonsterDatabase {
       return this.name;
     }
 
+    public String toTitle() {
+      return name.substring(0, 1).toUpperCase() + name.substring(1);
+    }
+
     public String getImage() {
       return this.image;
     }
@@ -95,14 +101,11 @@ public class MonsterDatabase {
     }
 
     public static Element fromString(String text) {
-      if (text != null) {
-        for (Element elem : Element.values()) {
-          if (text.equals(elem.name)) {
-            return elem;
-          }
-        }
-      }
-      return Element.NONE;
+      if (text == null || text.isEmpty()) return Element.NONE;
+      return Arrays.stream(values())
+          .filter(e -> e.name.equalsIgnoreCase(text))
+          .findAny()
+          .orElse(Element.NONE);
     }
   }
 
@@ -167,8 +170,8 @@ public class MonsterDatabase {
 
     public static final Phylum find(final String name, final boolean checkPlurals) {
       for (Phylum phylum : Phylum.values()) {
-        if (name.replace("-", "").equals(phylum.toString().replace("-", ""))
-            || (checkPlurals && name.equals(phylum.getPlural()))) {
+        if (name.replace("-", "").equalsIgnoreCase(phylum.toString().replace("-", ""))
+            || (checkPlurals && name.equalsIgnoreCase(phylum.getPlural()))) {
           return phylum;
         }
       }
@@ -195,7 +198,7 @@ public class MonsterDatabase {
 
   public static final Element stringToElement(final String name) {
     for (Element elem : Element.values()) {
-      if (name.equals(elem.toString())) {
+      if (name.equalsIgnoreCase(elem.toString())) {
         return elem;
       }
     }
@@ -215,8 +218,9 @@ public class MonsterDatabase {
         return element2 == Element.HOT || element2 == Element.STENCH;
       case STENCH:
         return element2 == Element.SLEAZE || element2 == Element.COLD;
+      default:
+        return false;
     }
-    return false;
   }
 
   private static void addMapping(Map<MonsterData, MonsterData> map, String name1, String name2) {
@@ -249,7 +253,7 @@ public class MonsterDatabase {
     MonsterDatabase.addMapping(youRobotMap, "Dr. Awkward", "Tobias J. Saibot");
     MonsterDatabase.addMapping(youRobotMap, "Lord Spookyraven", "Lord Cyberraven");
     MonsterDatabase.addMapping(youRobotMap, "Protector Spectre", "Protector S. P. E. C. T. R. E.");
-    MonsterDatabase.addMapping(youRobotMap, "The Big Wisniewski", "Artificial Wisniewski");
+    MonsterDatabase.addMapping(youRobotMap, "The Big Wisniewski", "The Artificial Wisniewski");
     MonsterDatabase.addMapping(youRobotMap, "The Man", "The Android");
     MonsterDatabase.addMapping(youRobotMap, "Naughty Sorceress", "Nautomatic Sorceress");
     MonsterDatabase.MONSTER_PATH_MAP.put(Path.YOU_ROBOT.getName(), youRobotMap);
@@ -340,61 +344,55 @@ public class MonsterDatabase {
     MonsterDatabase.OLD_MONSTER_DATA.clear();
     MonsterDatabase.MONSTER_IMAGES.clear();
 
-    BufferedReader reader =
-        FileUtilities.getVersionedReader("monsters.txt", KoLConstants.MONSTERS_VERSION);
-    String[] data;
+    try (BufferedReader reader =
+        FileUtilities.getVersionedReader("monsters.txt", KoLConstants.MONSTERS_VERSION)) {
+      String[] data;
 
-    while ((data = FileUtilities.readData(reader)) != null) {
-      if (data.length < 1) {
-        continue;
-      }
-
-      String name = data[0];
-      String idString = data.length > 1 ? data[1] : "";
-      String imageString = data.length > 2 ? data[2] : "";
-      String attributes = data.length > 3 ? data[3] : "";
-
-      int id = StringUtilities.isNumeric(idString) ? StringUtilities.parseInt(idString) : 0;
-      String[] images = imageString.split("\\s*,\\s*");
-
-      MonsterData monster = MonsterDatabase.newMonster(name, id, images, attributes);
-      if (monster == null) {
-        continue;
-      }
-
-      boolean bogus = false;
-
-      for (int i = 4; i < data.length; ++i) {
-        String itemString = data[i];
-        AdventureResult item = MonsterDatabase.parseItem(itemString);
-        if (item == null || item.getItemId() == -1 || item.getName() == null) {
-          RequestLogger.printLine("Bad item for monster \"" + name + "\": " + itemString);
-          bogus = true;
+      while ((data = FileUtilities.readData(reader)) != null) {
+        if (data.length < 1) {
           continue;
         }
 
-        monster.addItem(item);
-      }
+        String name = data[0];
+        String idString = data.length > 1 ? data[1] : "";
+        String imageString = data.length > 2 ? data[2] : "";
+        String attributes = data.length > 3 ? data[3] : "";
 
-      if (!bogus) {
-        monster.doneWithItems();
+        int id = StringUtilities.isNumeric(idString) ? StringUtilities.parseInt(idString) : 0;
+        String[] images = imageString.split("\\s*,\\s*");
 
-        MonsterDatabase.saveMonster(name, monster);
-        for (String image : monster.getImages()) {
-          MonsterDatabase.MONSTER_IMAGES.put(image, monster);
+        MonsterData monster = MonsterDatabase.newMonster(name, id, images, attributes);
+        if (monster == null) {
+          continue;
         }
-        MonsterDatabase.registerMonsterId(id, name, monster);
 
-        MonsterDatabase.LEET_MONSTER_DATA.put(StringUtilities.leetify(name), monster);
+        boolean bogus = false;
+
+        for (int i = 4; i < data.length; ++i) {
+          String itemString = data[i];
+          AdventureResult item = MonsterDatabase.parseItem(itemString);
+          if (item == null || item.getItemId() == -1 || item.getName() == null) {
+            RequestLogger.printLine("Bad item for monster \"" + name + "\": " + itemString);
+            bogus = true;
+            continue;
+          }
+
+          monster.addItem(item);
+        }
+
+        if (!bogus) {
+          monster.doneWithItems();
+
+          MonsterDatabase.saveMonster(name, monster);
+          for (String image : monster.getImages()) {
+            MonsterDatabase.MONSTER_IMAGES.put(image, monster);
+          }
+          MonsterDatabase.registerMonsterId(id, name, monster);
+
+          MonsterDatabase.LEET_MONSTER_DATA.put(StringUtilities.leetify(name), monster);
+        }
       }
-    }
-
-    try {
-      reader.close();
-    } catch (Exception e) {
-      // This should not happen.  Therefore, print
-      // a stack trace for debug purposes.
-
+    } catch (IOException e) {
       StaticEntity.printStackTrace(e);
     }
 
@@ -460,6 +458,7 @@ public class MonsterDatabase {
 
     MonsterData cloned =
         new MonsterData(monster) {
+          @Override
           public String getName() {
             return alias;
           }
@@ -948,8 +947,8 @@ public class MonsterDatabase {
         } else if (option.equals("ULTRARARE")) {
           type.add(EncounterType.ULTRARARE);
           continue;
-        } else if (option.equals("SEMIRARE")) {
-          type.add(EncounterType.SEMIRARE);
+        } else if (option.equals("LUCKY")) {
+          type.add(EncounterType.LUCKY);
           continue;
         } else if (option.equals("SUPERLIKELY")) {
           type.add(EncounterType.SUPERLIKELY);
@@ -1031,14 +1030,14 @@ public class MonsterDatabase {
     }
     String value = tokens.nextToken();
     if (value.equals("?")) {
-      return IntegerPool.get(def);
+      return def;
     }
     return parseNumeric(tokens, value);
   }
 
   private static Object parseNumeric(StringTokenizer tokens, String value) {
     if (!value.startsWith("[")) {
-      return IntegerPool.get(StringUtilities.parseInt(value));
+      return StringUtilities.parseInt(value);
     }
     // Must paste the entire expression back together, since we're
     // splitting the tokens on spaces.
@@ -1089,6 +1088,6 @@ public class MonsterDatabase {
   }
 
   public static final boolean contains(final String name) {
-    return MonsterDatabase.findMonster(name) != null;
+    return MonsterDatabase.findMonster(name, false) != null;
   }
 }

@@ -13,9 +13,20 @@ import net.sourceforge.kolmafia.persistence.SkillDatabase;
 import net.sourceforge.kolmafia.textui.AshRuntime;
 import net.sourceforge.kolmafia.textui.DataTypes;
 import net.sourceforge.kolmafia.textui.Parser;
+import net.sourceforge.kolmafia.textui.parsetree.ParseTreeNode.TypedNode;
+import org.eclipse.lsp4j.Location;
 import org.json.JSONException;
 
-public class Value extends Command implements Comparable<Value> {
+/**
+ * A concrete value, either computed as a result of executing a {@link Command} or created
+ * artificially.
+ *
+ * <p>Is forbidden from interacting with {@link Parser} other than through {@link Constant}. See it
+ * as some sort of... hazmat suit..?
+ */
+public class Value implements TypedNode, Comparable<Value> {
+  public static final Value BAD_VALUE = new Value(new Type.BadType(null, null));
+
   public Type type;
 
   public long contentLong = 0;
@@ -106,10 +117,12 @@ public class Value extends Command implements Comparable<Value> {
     return DataTypes.makeBooleanValue(this.contentLong != 0);
   }
 
+  @Override
   public Type getType() {
     return this.type.getBaseType();
   }
 
+  @Override
   public Type getRawType() {
     return this.type;
   }
@@ -235,11 +248,13 @@ public class Value extends Command implements Comparable<Value> {
 
   public static final Comparator<Value> ignoreCaseComparator =
       new Comparator<Value>() {
+        @Override
         public int compare(Value v1, Value v2) {
           return v1.compareToIgnoreCase(v2);
         }
       };
 
+  @Override
   public int compareTo(final Value o) {
     return this.compareTo(o, false);
   }
@@ -263,7 +278,7 @@ public class Value extends Command implements Comparable<Value> {
         || this.getType().equals(DataTypes.SLOT_TYPE)
         || this.getType().equals(DataTypes.THRALL_TYPE)
         || this.getType().equals(DataTypes.SERVANT_TYPE)) {
-      return this.contentLong < o.contentLong ? -1 : this.contentLong == o.contentLong ? 0 : 1;
+      return Long.compare(this.contentLong, o.contentLong);
     }
 
     if (this.getType().equals(DataTypes.VYKEA_TYPE)) {
@@ -281,7 +296,7 @@ public class Value extends Command implements Comparable<Value> {
     if (this.getType().equals(DataTypes.MONSTER_TYPE)) {
       // If we know a monster ID, compare it
       if (this.contentLong != 0 || o.contentLong != 0) {
-        return this.contentLong < o.contentLong ? -1 : this.contentLong == o.contentLong ? 0 : 1;
+        return Long.compare(this.contentLong, o.contentLong);
       }
       // Otherwise, must compare names
     }
@@ -463,6 +478,64 @@ public class Value extends Command implements Comparable<Value> {
       return Double.valueOf(Double.longBitsToDouble(this.contentLong));
     } else {
       return this.toString();
+    }
+  }
+
+  /**
+   * Returns a {@link Constant} holding {@code value} and {@code location}.
+   *
+   * <p>If {@code value} is {@code null}, returns {@code null}.
+   */
+  public static final Evaluable locate(final Location location, final Value value) {
+    if (value == null) {
+      return null;
+    }
+
+    return new Constant(location, value);
+  }
+
+  /**
+   * A specific {@link Value} to which is assigned a {@link Location}, that can be carried across
+   * {@link Parser}.
+   *
+   * <p>{@link #value} is never {@code null}.
+   */
+  public static final class Constant extends Evaluable {
+    public final Value value;
+
+    private Constant(final Location location, final Value value) {
+      super(location);
+      this.value = value;
+    }
+
+    @Override
+    public Type getType() {
+      return this.value.getType();
+    }
+
+    @Override
+    public Type getRawType() {
+      return this.value.getRawType();
+    }
+
+    @Override
+    public String toString() {
+      return this.value.toString();
+    }
+
+    @Override
+    public String toQuotedString() {
+      return this.value.toQuotedString();
+    }
+
+    @Override
+    public Value execute(final AshRuntime interpreter) {
+      return this.value.execute(interpreter);
+    }
+
+    @Override
+    public void print(final PrintStream stream, final int indent) {
+      this.value.print(stream, indent);
     }
   }
 }

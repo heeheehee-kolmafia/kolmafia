@@ -13,7 +13,7 @@ public class Boost implements Comparable<Boost> {
   private final AdventureResult item;
   private AdventureResult effect;
   private FamiliarData fam, enthroned, bjorned;
-  private String edPiece, snowsuit, horse, retroCape, backupCamera;
+  private String edPiece, snowsuit, horse, retroCape, backupCamera, unbreakableUmbrella;
 
   public Boost(String cmd, String text, AdventureResult item, double boost) {
     this.cmd = cmd;
@@ -87,6 +87,7 @@ public class Boost implements Comparable<Boost> {
     return this.text;
   }
 
+  @Override
   public int compareTo(Boost o) {
     if (!(o instanceof Boost)) return -1;
     Boost other = o;
@@ -129,6 +130,9 @@ public class Boost implements Comparable<Boost> {
         }
         if (this.backupCamera != null) {
           spec.setBackupCamera(this.backupCamera);
+        }
+        if (this.unbreakableUmbrella != null) {
+          spec.setUnbreakableUmbrella(this.unbreakableUmbrella);
         }
         if (this.snowsuit != null) {
           spec.setSnowsuit(this.snowsuit);

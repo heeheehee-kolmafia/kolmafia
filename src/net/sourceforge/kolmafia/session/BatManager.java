@@ -134,6 +134,8 @@ public class BatManager {
   public static final BatUpgrade SNUGGLYBEAR_NIGHTLIGHT =
       BatManager.findOption(BAT_CAVERN_UPGRADES, "Snugglybear Nightlight");
 
+  private BatManager() {}
+
   private static BatUpgrade findOption(final BatUpgrade[] upgrades, final int option) {
     for (BatUpgrade upgrade : upgrades) {
       if (upgrade.option == option) {
@@ -802,6 +804,7 @@ public class BatManager {
       }
     }
 
+    @Override
     public String toString() {
       return this.stringform;
     }
@@ -818,10 +821,12 @@ public class BatManager {
       this.description = description;
     }
 
+    @Override
     public int compareTo(final BatUpgrade that) {
       return this.name.compareTo(that.name);
     }
 
+    @Override
     public String toString() {
       return this.name;
     }

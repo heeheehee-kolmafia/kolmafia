@@ -35,9 +35,9 @@ public class GuildRequest extends GenericRequest {
         return "The League of Chef-Magi";
       case MOXIE:
         return "The Department of Shadowy Arts and Crafts";
+      default:
+        return "None";
     }
-
-    return "None";
   }
 
   public static String getStoreName() {
@@ -48,9 +48,9 @@ public class GuildRequest extends GenericRequest {
         return "Gouda's Grimoire and Grocery";
       case MOXIE:
         return "The Shadowy Store";
+      default:
+        return "Nowhere";
     }
-
-    return "Nowhere";
   }
 
   public static String getImplementName() {
@@ -59,9 +59,9 @@ public class GuildRequest extends GenericRequest {
         return "The Malus of Forethought";
       case MOXIE:
         return "Nash Crosby's Still";
+      default:
+        return "Nothing";
     }
-
-    return "Nothing";
   }
 
   public static String getMasterName() {
@@ -72,9 +72,9 @@ public class GuildRequest extends GenericRequest {
         return "Gorgonzola, the Chief Chef";
       case MOXIE:
         return "Shifty, the Thief Chief";
+      default:
+        return "Nobody";
     }
-
-    return "Nobody";
   }
 
   public static String getTrainerName() {
@@ -85,9 +85,9 @@ public class GuildRequest extends GenericRequest {
         return "Brie, the Trainer";
       case MOXIE:
         return "Lefty, the Trainer";
+      default:
+        return "Nobody";
     }
-
-    return "Nobody";
   }
 
   public static String getPacoName() {
@@ -98,57 +98,47 @@ public class GuildRequest extends GenericRequest {
         return "Blaine";
       case MOXIE:
         return "Izzy the Lizard";
+      default:
+        return "Nobody";
     }
-
-    return "Nobody";
   }
 
   public static String getSCGName() {
-    String name = KoLCharacter.getClassType();
-    if (name.equals(KoLCharacter.SEAL_CLUBBER)) {
-      return "Grignr, the Seal Clubber";
+    switch (KoLCharacter.getAscensionClass()) {
+      case SEAL_CLUBBER:
+        return "Grignr, the Seal Clubber";
+      case TURTLE_TAMER:
+        return "Terry, the Turtle Tamer";
+      case PASTAMANCER:
+        return "Asiago, the Pastamancer";
+      case SAUCEROR:
+        return "Edam, the Sauceror";
+      case DISCO_BANDIT:
+        return "Duncan Drisorderly, the Disco Bandit";
+      case ACCORDION_THIEF:
+        return "Stradella, the Accordion Thief";
+      default:
+        return "Nobody";
     }
-    if (name.equals(KoLCharacter.TURTLE_TAMER)) {
-      return "Terry, the Turtle Tamer";
-    }
-    if (name.equals(KoLCharacter.PASTAMANCER)) {
-      return "Asiago, the Pastamancer";
-    }
-    if (name.equals(KoLCharacter.SAUCEROR)) {
-      return "Edam, the Sauceror";
-    }
-    if (name.equals(KoLCharacter.DISCO_BANDIT)) {
-      return "Duncan Drisorderly, the Disco Bandit";
-    }
-    if (name.equals(KoLCharacter.ACCORDION_THIEF)) {
-      return "Stradella, the Accordion Thief";
-    }
-
-    return "Nobody";
   }
 
   public static String getOCGName() {
-    String name = KoLCharacter.getClassType();
-    if (name.equals(KoLCharacter.SEAL_CLUBBER)) {
-      return "Terry, the Turtle Tamer";
+    switch (KoLCharacter.getAscensionClass()) {
+      case SEAL_CLUBBER:
+        return "Terry, the Turtle Tamer";
+      case TURTLE_TAMER:
+        return "Grignr, the Seal Clubber";
+      case PASTAMANCER:
+        return "Edam, the Sauceror";
+      case SAUCEROR:
+        return "Asiago, the Pastamancer";
+      case DISCO_BANDIT:
+        return "Stradella, the Accordion Thief";
+      case ACCORDION_THIEF:
+        return "Duncan Drisorderly, the Disco Bandit";
+      default:
+        return "Nobody";
     }
-    if (name.equals(KoLCharacter.TURTLE_TAMER)) {
-      return "Grignr, the Seal Clubber";
-    }
-    if (name.equals(KoLCharacter.PASTAMANCER)) {
-      return "Edam, the Sauceror";
-    }
-    if (name.equals(KoLCharacter.SAUCEROR)) {
-      return "Asiago, the Pastamancer";
-    }
-    if (name.equals(KoLCharacter.DISCO_BANDIT)) {
-      return "Stradella, the Accordion Thief";
-    }
-    if (name.equals(KoLCharacter.ACCORDION_THIEF)) {
-      return "Duncan Drisorderly, the Disco Bandit";
-    }
-
-    return "Nobody";
   }
 
   public static String getNPCName(final String place) {

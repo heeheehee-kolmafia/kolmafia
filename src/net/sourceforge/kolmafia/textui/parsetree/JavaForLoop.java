@@ -6,24 +6,26 @@ import net.sourceforge.kolmafia.KoLmafia;
 import net.sourceforge.kolmafia.textui.AshRuntime;
 import net.sourceforge.kolmafia.textui.DataTypes;
 import net.sourceforge.kolmafia.textui.ScriptRuntime;
+import org.eclipse.lsp4j.Location;
 
 public class JavaForLoop extends Loop {
   private final List<Assignment> initializers;
-  private final Value condition;
+  private final Evaluable condition;
   private final List<Command> incrementers;
 
   public JavaForLoop(
+      final Location location,
       final Scope scope,
       final List<Assignment> initializers,
-      final Value condition,
+      final Evaluable condition,
       final List<Command> incrementers) {
-    super(scope);
+    super(location, scope);
     this.initializers = initializers;
     this.condition = condition;
     this.incrementers = incrementers;
   }
 
-  public Value getCondition() {
+  public Evaluable getCondition() {
     return this.condition;
   }
 

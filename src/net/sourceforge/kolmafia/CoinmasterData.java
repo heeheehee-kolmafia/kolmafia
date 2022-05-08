@@ -9,7 +9,6 @@ import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import net.sourceforge.kolmafia.objectpool.Concoction;
-import net.sourceforge.kolmafia.objectpool.IntegerPool;
 import net.sourceforge.kolmafia.objectpool.ItemPool;
 import net.sourceforge.kolmafia.persistence.CoinmastersDatabase;
 import net.sourceforge.kolmafia.persistence.ItemDatabase;
@@ -112,6 +111,7 @@ public class CoinmasterData implements Comparable<CoinmasterData> {
   private AdventureResult makeTokenItem() {
     AdventureResult item =
         new AdventureResult(this.token, -1, 1, false) {
+          @Override
           public String getPluralName(final int count) {
             return count == 1 ? CoinmasterData.this.token : CoinmasterData.this.plural;
           }
@@ -288,7 +288,7 @@ public class CoinmasterData implements Comparable<CoinmasterData> {
     }
 
     Integer price = this.buyPrices.get(itemId);
-    return price != null ? price.intValue() : 0;
+    return price != null ? price : 0;
   }
 
   public AdventureResult itemBuyPrice(final int itemId) {
@@ -297,7 +297,7 @@ public class CoinmasterData implements Comparable<CoinmasterData> {
   }
 
   public Set<AdventureResult> currencies() {
-    Set<AdventureResult> currencies = new TreeSet<AdventureResult>();
+    Set<AdventureResult> currencies = new TreeSet<>();
     for (AdventureResult item : this.buyItems) {
       currencies.add(this.itemBuyPrice(item.getItemId()));
     }
@@ -326,7 +326,7 @@ public class CoinmasterData implements Comparable<CoinmasterData> {
   public final int getSellPrice(final int itemId) {
     if (this.sellPrices != null) {
       Integer price = this.sellPrices.get(itemId);
-      return price != null ? price.intValue() : 0;
+      return price != null ? price : 0;
     }
     return 0;
   }
@@ -352,7 +352,7 @@ public class CoinmasterData implements Comparable<CoinmasterData> {
 
   public final Integer getRow(int itemId) {
     if (this.itemRows == null) {
-      return IntegerPool.get(itemId);
+      return itemId;
     }
     Integer row = this.itemRows.get(itemId);
     return row;
@@ -390,6 +390,7 @@ public class CoinmasterData implements Comparable<CoinmasterData> {
     return this.master != null ? this.master.hashCode() : 0;
   }
 
+  @Override
   public int compareTo(final CoinmasterData cd) {
     return this.master.compareToIgnoreCase(cd.master);
   }

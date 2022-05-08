@@ -29,6 +29,8 @@ public class GoalManager {
   private static final LockableListModel<AdventureResult> goals =
       new LockableListModel<AdventureResult>();
 
+  private GoalManager() {}
+
   public static final LockableListModel<AdventureResult> getGoals() {
     return GoalManager.goals;
   }
@@ -145,7 +147,7 @@ public class GoalManager {
   }
 
   public static final void makeSideTrip(KoLAdventure location, AdventureResult goal) {
-    List previousGoals = new ArrayList(GoalManager.goals);
+    List<AdventureResult> previousGoals = new ArrayList<>(GoalManager.goals);
 
     GoalManager.clearGoals();
     GoalManager.addGoal(goal);

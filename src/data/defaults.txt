@@ -7,7 +7,6 @@ global	allowNegativeTally	true
 global	allowNonMoodBurning	true
 global	allowSummonBurning	true
 global	autoLogin
-global	allowSocketTimeout	false
 global	autoHighlightOnFocus	true
 global	broadcastEvents	true
 global	browserBookmarks
@@ -17,7 +16,6 @@ global	chatBeep	false
 global	chatFontSize
 global	chatLinksUseRelay	false
 global	chatStyle	0
-global	cloverProtectActive	true
 global	coinMasterIndex	1
 global	combatHotkey0
 global	combatHotkey1
@@ -31,7 +29,6 @@ global	combatHotkey8
 global	combatHotkey9
 global	commandLineNamespace
 global	compactChessboard	false
-global	connectViaAddress	false
 global	cookies.inventory
 global	copyAsHTML	false
 global	customizedTabs	false
@@ -121,6 +118,7 @@ global	relayAddsUseLinks	true
 global	relayAddsWikiLinks	false
 global	relayAllowRemoteAccess	false
 global	relayBrowserOnly	false
+global	relayDelayForSVN	5
 global	relayFormatsChatText	false
 global	relayHidesJunkMallItems	false
 global	relayMaintainsEffects	false
@@ -145,7 +143,6 @@ global	scriptButtonPosition	0
 global	scriptList	restore hp | restore mp
 global	sharePriceData	false
 global	showAllRequests	false
-global	showAnnouncements	true
 global	showExceptionalRequests	false
 global	statusDropdown	0
 global	stealthLogin	true
@@ -159,13 +156,11 @@ global	syncAfterSvnUpdate	false
 global	toolbarPosition	1
 global	useChatToolbar	true
 global	useContactsFrame	true
-global	useDecoratedTabs
 global	useDevProxyServer	false
 global	useDockIconBadge	false
 global	useHugglerChannel	false
 global	useImageCache	true
 global	useLastUserAgent	false
-global	useNaiveSecureLogin	false
 global	useShinyTabbedChat	true
 global	useSystemTrayIcon	false
 global	useTabbedChatFrame	true
@@ -174,12 +169,13 @@ global	useZoneComboBox	false
 global	userAgent
 global	verboseSpeakeasy	false
 global	verboseFloundry	false
+global	wrapLongLines	true
 global	_announcementShown	false
 global	_g9Effect	0
 global	_svnRepoFileFetched	false
 global	_svnUpdated	false
 
-user	addingScrolls	-1
+user	addingScrolls	1
 user	affirmationCookiesEaten	0
 user	afterAdventureScript
 user	aminoAcidsUsed	0
@@ -190,6 +186,7 @@ user	armoryUnlocked	false
 user	autoAbortThreshold	-0.05
 user	autoAntidote	0
 user	autoBuyPriceLimit	20000
+user	autoForbidIgnoringStores	true
 user	autoCraft	true
 user	autoQuest	true
 user	autoEntangle	false
@@ -228,7 +225,7 @@ user	awolDeferredPointsBeanslinger	0
 user	awolDeferredPointsCowpuncher	0
 user	awolDeferredPointsSnakeoiler	0
 user	awolVenom	0
-user	backupCameraMode
+user	backupCameraMode	meat
 user	backupCameraReverserEnabled	false
 user	badMoonEncounter01	false
 user	badMoonEncounter02	false
@@ -301,6 +298,9 @@ user	bearSwagger	0
 user	beeCounter	0
 user	beforePVPScript
 user	betweenBattleScript
+user	beGregariousCharges	0
+user	beGregariousMonster
+user	beGregariousFightsLeft	0
 user	bigBrotherRescued	false
 user	birdformCold	0
 user	birdformHot	0
@@ -367,6 +367,7 @@ user	breakfastAlways
 user	breakfastHardcore	Advanced Saucecrafting,Pastamastery,Advanced Cocktailcrafting
 user	breakfastSoftcore	Advanced Saucecrafting,Pastamastery,Advanced Cocktailcrafting
 user	breakfastCompleted	false
+user	breathitinCharges	0
 user	brodenBacteria	0
 user	brodenSprinkles	0
 user	buffBotCasting
@@ -417,6 +418,7 @@ user	cocktailSummons	0
 user	coldAirportAlways	false
 user	commaFamiliar
 user	commerceGhostItem
+user	commerceGhostCombats	 0
 user	considerShadowNoodles	false
 user	controlRoomUnlock	false
 user	counterScript
@@ -434,6 +436,7 @@ user	controlPanelOmega	0
 user	copperheadClubHazard	none
 user	cornucopiasOpened	0
 user	corralUnlocked	false
+user	cosmicBowlingBallReturnCombats	-1
 user	cozyCounter6332	0
 user	cozyCounter6333	0
 user	cozyCounter6334	0
@@ -455,8 +458,7 @@ user	crimbotChassis
 user	crimbotArm
 user	crimbotPropulsion	
 user	crudeMonster
-user	crystalBallLocation
-user	crystalBallMonster
+user	crystalBallPredictions
 user	csServicesPerformed	
 user	cubelingProgress	0
 user	currentEasyBountyItem	
@@ -471,7 +473,8 @@ user	currentMood	default
 user	currentNunneryMeat	0
 user	currentPVPSeason	none
 user	currentPvpVictories
-user	currentSpecialBountyItem	
+user	currentSpecialBountyItem
+user	cursedMagnifyingGlassCount	0
 user	customCombatScript	default
 user	cyrptAlcoveEvilness	0
 user	cyrptCrannyEvilness	0
@@ -559,8 +562,10 @@ user	electricKoolAidEaten	0
 user	encountersUntilDMTChoice	5
 user	encountersUntilNEPChoice	7
 user	enamorangMonster
+user	enamorangMonsterTurn
 user	ensorcelee
 user	ensorceleeLevel	0
+user	entauntaunedColdRes	0
 user	envyfishMonster
 user	essenceOfAnnoyanceAvailable	true
 user	essenceOfAnnoyanceCost	5000
@@ -574,7 +579,6 @@ user	falloutShelterChronoUsed	false
 user	falloutShelterCoolingTankUsed	false
 user	falloutShelterLevel	0
 user	familiarScript
-user	lastCopyableMonster
 user	fingernailsClipped	0
 user	fireExtinguisherBatHoleUsed	false
 user	fireExtinguisherChasmUsed	false
@@ -602,6 +606,7 @@ user	flickeringPixel6	false
 user	flickeringPixel7	false
 user	flickeringPixel8	false
 user	flyeredML	0
+user	forbiddenStores
 user	fossilB	0
 user	fossilD	0
 user	fossilN	0
@@ -658,10 +663,13 @@ user	gloverPoints	0
 user	gnasirProgress	0
 user	goldenMrAccessories	0
 user	gongPath	0
+user	gooseDronesRemaining	0
+user	gooseReprocessed	
 user	goreCollected	0
 user	gourdItemCount	5
 user	grabCloversHardcore	false
 user	grabCloversSoftcore	true
+user	greyYouPoints	0
 user	grimoire1Summons	0
 user	grimoire2Summons	0
 user	grimoire3Summons	0
@@ -715,6 +723,7 @@ user	hippiesDefeated	0
 user	holidayHalsBookAvailable	true
 user	holidayHalsBookCost	1000
 user	holidaySwagger	0
+user	homebodylCharges	0
 user	horseryAvailable	false
 user	hotAirportAlways	false
 user	hpAutoRecovery	-0.05
@@ -758,6 +767,7 @@ user	lastBangPotion827
 user	lastBangPotionReset	-1
 user	lastBarrelSmashed	0
 user	lastBattlefieldReset	-1
+user	lastBeardBuff	0
 user	lastBreakfast	-1
 user	lastCastleGroundUnlock	-1
 user	lastCastleTopUnlock	-1
@@ -767,6 +777,7 @@ user	lastChanceThreshold	100
 user	lastChessboard
 user	lastChasmReset	-1
 user	lastColosseumRoundWon	0
+user	lastCopyableMonster
 user	lastCouncilVisit	0
 user	lastCounterDay	-1
 user	lastDesertUnlock	-1
@@ -847,7 +858,6 @@ user	lastPorkoExpected
 user	lastQuartetAscension	-1
 user	lastQuartetRequest	0
 user	lastSecondFloorUnlock	-1
-user	lastSemirareReset	-1
 user	lastSkateParkReset	-1
 user	lastSlimeVial3885
 user	lastSlimeVial3886
@@ -875,6 +885,7 @@ user	lastWartDinseyDefeated	-1
 user	lastWuTangDefeated	-1
 user	lastYearbookCameraAscension	-1
 user	lastZapperWand	0
+user	lastZapperWandExplosionDay	-3
 user	latteModifier	
 user	latteUnlocks	cinnamon,pumpkin,vanilla
 user	lawOfAveragesAvailable	true
@@ -885,7 +896,9 @@ user	libramSkillsSoftcore	none
 user	libramSummons	0
 user	libraryCardUsed	false
 user	lightsOutAutomation	1
+user	locketPhylum	mer-kin
 user	lockPicked	false
+user	logBastilleBattalionBattles	false
 user	loginRecoveryHardcore	false
 user	loginRecoverySoftcore	true
 user	longConMonster	
@@ -947,6 +960,7 @@ user	merkinQuestPath	none
 user	merkinLockkeyMonster
 user	merkinVocabularyMastery	0
 user	middleChamberUnlock	false
+user	milkOfMagnesiumActive	false
 user	mineLayout1
 user	mineLayout2
 user	mineLayout3
@@ -966,7 +980,7 @@ user	munchiesPillsUsed	0
 user	mushroomGardenCropLevel	1
 user	neverendingPartyAlways	false
 user	nextAdventure
-user	nextParanormalActivity	0
+user	nextParanormalActivity	1
 user	nextSpookyravenElizabethRoom	The Haunted Storage Room
 user	nextSpookyravenStephenRoom	The Haunted Bedroom
 user	nextQuantumFamiliar	none
@@ -1037,6 +1051,8 @@ user	prayedForProtection	false
 user	prayedForVigor	false
 user	preAscensionScript
 user	preBlackbirdFamiliar
+user	primaryLabGooIntensity	10
+user	primaryLabCheerCoreGrabbed	false
 user	prismaticSummons	0
 user	procrastinatorLanguageFluency	0
 user	promptAboutCrafting	1
@@ -1196,14 +1212,13 @@ user	scriptMRUList
 user	seahorseName
 user	seaodesFound	0
 user	SeasoningSwagger	0
-user	semirareCounter	0
-user	semirareLocation
 user	serverAddsCustomCombat	false
 user	sexChanges	0
 user	SHAWARMAInitiativeUnlocked	false
 user	shenInitiationDay	0
 user	shenQuestItem
 user	shockingLickCharges	0
+user	showForbiddenStores	false
 user	showGainsPerUnit	false
 user	showIgnoringStorePrices	false
 user	showNoSummonOnly	false
@@ -1333,6 +1348,7 @@ user	statusWasteProcessing	0
 user	stenchAirportAlways	false
 user	stenchCursedMonster	
 user	stopForFixedWanderer	false
+user	stopForUltraRare	true
 user	streamCrossDefaultTarget	ProtonicBot
 user	styxPixieVisited	false
 user	sugarCounter4178	0
@@ -1345,7 +1361,6 @@ user	sugarCounter4191	0
 user	summonAnnoyanceCost	11
 user	superficiallyInterestedMonster
 user	suppressInappropriateNags	false
-user	suppressPotentialMalware	false
 user	suppressPowerPixellation	false
 user	sweetSynthesisBlacklist	chocolate cigar,fudge bunny,gummi ammonite,gummi belemnite,gummi trilobite,powdered candy sushi set,radio button candy,Ultra Mega Sour Ball,vitachoconutriment capsule
 user	tacoDanCocktailSauce	0
@@ -1364,7 +1379,7 @@ user	testudinalTeachings
 user	textColors	crappy:#999999|good:green|awesome:blue|epic:#8a2be2|junk:gray|memento:olive|notavailable:gray
 user	thanksMessage	Thank you for the donation!
 user	timeSpinnerMedals	0
-user	timesRested	99
+user	timesRested	0
 user	timeTowerAvailable	false
 user	tomeSkillsHardcore	Summon Snowcone
 user	tomeSkillsSoftcore	all
@@ -1375,6 +1390,7 @@ user	trackVoteMonster	false
 user	turtleBlessingTurns	0
 user	trapperOre
 user	twinPeakProgress	0
+user	umbrellaState	broken
 user	umdLastObtained	
 user	uneffectWithHotTub	true
 user	unicornHornInflation	0
@@ -1398,7 +1414,9 @@ user	valueOfInventory	1.8
 user	valueOfStill	0
 user	valueOfTome	0
 user	verboseMaximizer	false
+user	vintnerWineEffect
 user	vintnerWineLevel	0
+user	vintnerWineName
 user	vintnerWineType
 user	violetFogGoal	0
 user	violetFogLayout
@@ -1437,15 +1455,19 @@ user	youRobotBody	0
 user	youRobotBottom	0
 user	youRobotCPUUpgrades
 user	youRobotLeft	0
+user	youRobotPoints	0
 user	youRobotRight	0
+user	youRobotScavenged	false
 user	youRobotTop	0
 user	zeppelinProtestors	0
+user	zigguratLianas	0
 user	zombiePoints	0
 user	_absintheDrops	0
 user	_abstractionDropsCrown	0
 user	_affirmationCookieEaten	false
 user	_affirmationHateUsed	false
 user	_aguaDrops	0
+user	_airFryerUsed	false
 user	_akgyxothUsed	false
 user	_xenomorphCharge	0
 user	_alienAnimalMilkUsed	false
@@ -1470,7 +1492,20 @@ user	_ballInACupUsed	false
 user	_ballpit	false
 user	_banderRunaways	0
 user	_barrelPrayer	false
+user	_bastilleBoosts	
+user	_bastilleCheese	0
+user	_bastilleChoice1
+user	_bastilleChoice2
+user	_bastilleChoice3
+user	_bastilleCurrentStyles	
+user	_bastilleEnemyCastle	
+user	_bastilleEnemyName	
 user	_bastilleGames	0
+user	_bastilleGameTurn	0
+user	_bastilleLastBattleResults
+user	_bastilleLastBattleWon	false
+user	_bastilleLastCheese	0
+user	_bastilleStats	
 user	_beachCombing	false
 user	_beachHeadsUsed
 user	_beachLayout
@@ -1523,6 +1558,7 @@ user	_chocolatesUsed	0
 user	_chronerCrossUsed	false
 user	_chronerTriggerUsed	false
 user	_chronolithActivations	0
+user	_chronolithNextCost	10
 user	_chubbyAndPlumpUsed	false
 user	_circleDrumUsed	false
 user	_clanFortuneBuffUsed	false
@@ -1535,15 +1571,18 @@ user	_coalPaperweightUsed	false
 user	_cocoaDispenserUsed	false
 user	_cocktailShakerUsed	false
 user	_coldAirportToday	false
+user	_coldMedicineConsults	0
 user	_coldOne	false
 user	_communismUsed	false
 user	_companionshipCasts	0
 user	_confusingLEDClockUsed	false
 user	_controlPanelUsed	false
 user	_corruptedStardustUsed	false
+user	_cosmicBowlingSkillsUsed	0
 user	_cosmicSixPackConjured	false
 user	_crappyCameraUsed	false
 user	_creepyVoodooDollUsed	false
+user	_crimbo21ColdResistance	0
 user	_crimboTree	false
 user	_cursedKegUsed	false
 user	_cursedMicrowaveUsed	false
@@ -1590,6 +1629,7 @@ user	_eldritchTentacleFought	false
 user	_elronsCasts	0
 user	_enamorangs	0
 user	_energyCollected	0
+user	_entauntaunedToday	false
 user	_envyfishEggUsed	false
 user	_essentialTofuUsed	false
 user	_etchedHourglassUsed	false
@@ -1780,6 +1820,7 @@ user	_legendaryBeat	false
 user	_legionJackhammerCrafting	0
 user	_licenseToChillUsed	false
 user	_llamaCharge	0
+user	_locketMonstersFought
 user	_longConUsed	0
 user	_lookingGlass	false
 user	_loveChocolatesUsed	0
@@ -1802,6 +1843,8 @@ user	_mayflowerDrops	0
 user	_mayflySummons	0
 user	_mayoDeviceRented	false
 user	_mayoTankSoaked	false
+user	_meatballMachineUsed	false
+user	_meatifyMatterUsed	false
 user	_mediumSiphons	0
 user	_meteoriteAdesUsed	0
 user	_meteorShowerUses	0
@@ -1828,18 +1871,21 @@ user	_newYouQuestMonster
 user	_newYouQuestSharpensDone	0
 user	_newYouQuestSharpensToDo	0
 user	_newYouQuestSkill
+user	_nextColdMedicineConsult	0
 user	_nextQuantumAlignment	0
 user	_nightmareFuelCharges	0
 user	_noHatModifier
 user	_noobSkillCount	0
 user	_nuclearStockpileUsed	0
 user	_oilExtracted	0
+user	_olfactionsUsed	0
 user	_olympicSwimmingPool	false
 user	_olympicSwimmingPoolItemFound	false
 user	_optimisticCandleDropsCrown	0
 user	_oreDropsCrown	0
 user	_otoscopeUsed	0
 user	_overflowingGiftBasketUsed	false
+user	_oysterEggsFound	0
 user	_pantogramModifier
 user	_pantsgivingBanish	0
 user	_pantsgivingCount	0
@@ -1869,6 +1915,7 @@ user	_pocketProfessorLectures	0
 user	_poisonArrows	0
 user	_pokeGrowFertilizerDrops	0
 user	_poolGames	0
+user	_potatoAlarmClockUsed	false
 user	_pottedTeaTreeUsed	false
 user	_powderedGoldDrops	0
 user	_powderedMadnessUses	0
@@ -1898,8 +1945,10 @@ user	_resolutionRareSummons	0
 user	_rhinestonesAcquired	false
 user	_riftletAdv	0
 user	_roboDrinks
+user	_roboDrops	0
 user	_rogueProgramCharge	0
 user	_romanticFightsLeft	0
+user	_roninStoragePulls	
 user	_saberForceMonster
 user	_saberForceMonsterCount	0
 user	_saberForceUses	0
@@ -2022,7 +2071,7 @@ user	_twelveNightEnergyUsed	false
 user	_ultraMegaSourBallUsed	false
 user	_unaccompaniedMinerUsed	0
 user	_unconsciousCollectiveCharge	0
-user	_universalSeasoningUsed	false
+user	_universalSeasoningsUsed	0
 user	_universeCalculated	0
 user	_universeImploded	0
 user	_unknownEasyBountyItem	
@@ -2047,6 +2096,7 @@ user	_villainLairWebUsed	false
 user	_vitachocCapsulesUsed	0
 user	_vmaskAdv	0
 user	_vmaskBanisherUsed	false
+user	_voidFreeFights	0
 user	_volcanoItem1	0
 user	_volcanoItem2	0
 user	_volcanoItem3	0
@@ -2828,6 +2878,8 @@ user	choiceAdventure1399	2
 user	choiceAdventure1405	1
 user	choiceAdventure1411	0
 user	choiceAdventure1415	0
+user	choiceAdventure1460	8
+user	choiceAdventure1461	4
 
 user	lockedItem4637	true
 user	lockedItem4638	true

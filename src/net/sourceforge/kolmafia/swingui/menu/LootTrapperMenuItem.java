@@ -18,9 +18,7 @@ public class LootTrapperMenuItem extends ThreadedMenuItem {
     @Override
     protected void execute() {
       AdventureResult selectedValue =
-          (AdventureResult)
-              InputFieldUtilities.input(
-                  "I want skins!", new LockableListModel(TrapperRequest.buyItems));
+          InputFieldUtilities.input("I want skins!", TrapperRequest.buyItems);
 
       if (selectedValue == null) {
         return;

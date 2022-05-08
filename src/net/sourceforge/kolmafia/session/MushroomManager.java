@@ -12,7 +12,6 @@ import net.sourceforge.kolmafia.KoLConstants.MafiaState;
 import net.sourceforge.kolmafia.KoLmafia;
 import net.sourceforge.kolmafia.RequestThread;
 import net.sourceforge.kolmafia.StaticEntity;
-import net.sourceforge.kolmafia.objectpool.IntegerPool;
 import net.sourceforge.kolmafia.persistence.ItemDatabase;
 import net.sourceforge.kolmafia.preferences.Preferences;
 import net.sourceforge.kolmafia.request.MushroomRequest;
@@ -67,31 +66,31 @@ public abstract class MushroomManager {
     {KNOLL, 50, 3}
   };
 
-  // Assocations between the mushroom Ids
+  // Associations between the mushroom Ids
   // and the mushroom image.
 
   public static final Object[][] MUSHROOMS = {
     // Sprout and emptiness
-    {IntegerPool.get(EMPTY), "dirt1.gif", "__", "__", IntegerPool.get(0), "empty"},
-    {IntegerPool.get(SPROUT), "mushsprout.gif", "..", "..", IntegerPool.get(0), "unknown"},
+    {EMPTY, "dirt1.gif", "__", "__", 0, "empty"},
+    {SPROUT, "mushsprout.gif", "..", "..", 0, "unknown"},
 
     // First generation mushrooms
-    {IntegerPool.get(KNOB), "mushroom.gif", "kb", "KB", IntegerPool.get(1), "knob"},
-    {IntegerPool.get(KNOLL), "bmushroom.gif", "kn", "KN", IntegerPool.get(2), "knoll"},
-    {IntegerPool.get(SPOOKY), "spooshroom.gif", "sp", "SP", IntegerPool.get(3), "spooky"},
+    {KNOB, "mushroom.gif", "kb", "KB", 1, "knob"},
+    {KNOLL, "bmushroom.gif", "kn", "KN", 2, "knoll"},
+    {SPOOKY, "spooshroom.gif", "sp", "SP", 3, "spooky"},
 
     // Second generation mushrooms
-    {IntegerPool.get(WARM), "flatshroom.gif", "wa", "WA", IntegerPool.get(4), "warm"},
-    {IntegerPool.get(COOL), "plaidroom.gif", "co", "CO", IntegerPool.get(5), "cool"},
-    {IntegerPool.get(POINTY), "tallshroom.gif", "po", "PO", IntegerPool.get(6), "pointy"},
+    {WARM, "flatshroom.gif", "wa", "WA", 4, "warm"},
+    {COOL, "plaidroom.gif", "co", "CO", 5, "cool"},
+    {POINTY, "tallshroom.gif", "po", "PO", 6, "pointy"},
 
     // Third generation mushrooms
-    {IntegerPool.get(FLAMING), "fireshroom.gif", "fl", "FL", IntegerPool.get(7), "flaming"},
-    {IntegerPool.get(FROZEN), "iceshroom.gif", "fr", "FR", IntegerPool.get(8), "frozen"},
-    {IntegerPool.get(STINKY), "stinkshroo.gif", "st", "ST", IntegerPool.get(9), "stinky"},
+    {FLAMING, "fireshroom.gif", "fl", "FL", 7, "flaming"},
+    {FROZEN, "iceshroom.gif", "fr", "FR", 8, "frozen"},
+    {STINKY, "stinkshroo.gif", "st", "ST", 9, "stinky"},
 
     // Special mushrooms
-    {IntegerPool.get(GLOOMY), "blackshroo.gif", "gl", "GL", IntegerPool.get(10), "gloomy"},
+    {GLOOMY, "blackshroo.gif", "gl", "GL", 10, "gloomy"},
   };
 
   public static final int[][] BREEDING = {
@@ -552,10 +551,9 @@ public abstract class MushroomManager {
     // the text file which was generated automatically.
 
     int dayIndex = 0;
-    BufferedReader reader =
-        FileUtilities.getReader(new File(KoLConstants.PLOTS_LOCATION, filename + ".txt"));
 
-    try {
+    try (BufferedReader reader =
+        FileUtilities.getReader(new File(KoLConstants.PLOTS_LOCATION, filename + ".txt"))) {
       String line = "";
       String[][] arrayData = new String[4][4];
 
@@ -617,19 +615,9 @@ public abstract class MushroomManager {
       }
     } catch (Exception e) {
       StaticEntity.printStackTrace(e);
-      return Math.max(dayIndex, 2);
     }
 
-    // Make sure to close the reader after you're done reading
-    // all the data in the file.
-
-    try {
-      reader.close();
-      return Math.max(dayIndex, 2);
-    } catch (Exception e) {
-      StaticEntity.printStackTrace(e);
-      return Math.max(dayIndex, 2);
-    }
+    return Math.max(dayIndex, 2);
   }
 
   private static void copyMushroomImage(final String location) {
@@ -657,7 +645,7 @@ public abstract class MushroomManager {
     // Now that we know that data files can be written okay,
     // begin writing layout data.
 
-    ArrayList days = new ArrayList();
+    ArrayList<ArrayList<String>> days = new ArrayList<>();
     String image = null;
     boolean isTodayEmpty = false;
 
@@ -676,7 +664,7 @@ public abstract class MushroomManager {
       // planting script.
 
       isTodayEmpty = true;
-      ArrayList commands = new ArrayList();
+      ArrayList<String> commands = new ArrayList<>();
 
       StringBuffer pickText = new StringBuffer();
       StringBuffer pickHtml = new StringBuffer();
@@ -858,7 +846,7 @@ public abstract class MushroomManager {
       plotScript.println("    set_property( \"plantingDay\", index );");
 
       for (int i = 0; i < days.size(); ++i) {
-        ArrayList commands = (ArrayList) days.get(i);
+        ArrayList<String> commands = days.get(i);
 
         if (!commands.isEmpty()) {
           plotScript.println();

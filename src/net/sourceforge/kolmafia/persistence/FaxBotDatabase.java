@@ -41,6 +41,8 @@ public class FaxBotDatabase {
   // List of faxbots named in config files.
   public static final List<FaxBot> faxbots = new ArrayList<FaxBot>();
 
+  private FaxBotDatabase() {}
+
   public static final void reconfigure() {
     FaxBotDatabase.isInitialized = false;
     FaxBotDatabase.configure();
@@ -58,22 +60,16 @@ public class FaxBotDatabase {
   private static void readFaxbotConfig() {
     FaxBotDatabase.botData.clear();
 
-    BufferedReader reader =
-        FileUtilities.getVersionedReader("faxbots.txt", KoLConstants.FAXBOTS_VERSION);
-    String[] data;
+    try (BufferedReader reader =
+        FileUtilities.getVersionedReader("faxbots.txt", KoLConstants.FAXBOTS_VERSION)) {
+      String[] data;
 
-    while ((data = FileUtilities.readData(reader)) != null) {
-      if (data.length > 1) {
-        FaxBotDatabase.botData.add(new BotData(data[0].trim().toLowerCase(), data[1].trim()));
+      while ((data = FileUtilities.readData(reader)) != null) {
+        if (data.length > 1) {
+          FaxBotDatabase.botData.add(new BotData(data[0].trim().toLowerCase(), data[1].trim()));
+        }
       }
-    }
-
-    try {
-      reader.close();
-    } catch (Exception e) {
-      // This should not happen.  Therefore, print
-      // a stack trace for debug purposes.
-
+    } catch (IOException e) {
       StaticEntity.printStackTrace(e);
     }
   }
@@ -148,8 +144,8 @@ public class FaxBotDatabase {
     public final List<Monster> monsters = new SortedList<Monster>();
 
     // Lists derived from the list of monsters
-    private final List<String> categories = new ArrayList<String>();
-    private List<Monster>[] monstersByCategory = new ArrayList[0];
+    private final LockableListModel<String> categories = new LockableListModel<String>();
+    private List<LockableListModel<Monster>> monstersByCategory = new ArrayList<>(0);
 
     private final Map<String, Monster> monsterByActualName = new HashMap<String, Monster>();
     private final Map<String, Monster> monsterByCommand = new HashMap<String, Monster>();
@@ -176,7 +172,7 @@ public class FaxBotDatabase {
       return this.categories;
     }
 
-    public List<Monster>[] getMonstersByCategory() {
+    public List<LockableListModel<Monster>> getMonstersByCategory() {
       return this.monstersByCategory;
     }
 
@@ -243,11 +239,11 @@ public class FaxBotDatabase {
       this.categories.addAll(tempCategories);
 
       // Make one list for each category
-      this.monstersByCategory = new ArrayList[this.categories.size()];
+      this.monstersByCategory = new ArrayList<>(this.categories.size());
       for (int i = 0; i < this.categories.size(); ++i) {
         String category = categories.get(i);
-        List<Monster> list = new ArrayList<Monster>();
-        this.monstersByCategory[i] = list;
+        SortedListModel<Monster> model = new SortedListModel<Monster>();
+        this.monstersByCategory.add(model);
         for (Monster monster : monsters) {
           if (i == 0 || category.equals(monster.category)) {
             list.add(monster);
@@ -256,7 +252,7 @@ public class FaxBotDatabase {
       }
     }
 
-    public List findMatchingCommands(final String command) {
+    public List<String> findMatchingCommands(final String command) {
       String canonical = StringUtilities.getCanonicalName(command);
       return StringUtilities.getMatchingNames(this.canonicalCommands, canonical);
     }
@@ -276,6 +272,7 @@ public class FaxBotDatabase {
       return this.name != null ? this.name.hashCode() : 0;
     }
 
+    @Override
     public int compareTo(final FaxBot o) {
       if (!(o instanceof FaxBot)) {
         return -1;
@@ -344,6 +341,7 @@ public class FaxBotDatabase {
       return this.name != null ? this.name.hashCode() : 0;
     }
 
+    @Override
     public int compareTo(final Monster o) {
       if (!(o instanceof Monster)) {
         return -1;
@@ -360,6 +358,7 @@ public class FaxBotDatabase {
       this.data = data;
     }
 
+    @Override
     public void run() {
       // Start with a clean slate
       FaxBotDatabase.faxBotError = false;

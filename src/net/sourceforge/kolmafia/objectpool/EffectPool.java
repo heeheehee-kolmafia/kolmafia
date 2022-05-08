@@ -86,7 +86,6 @@ public class EffectPool {
   public static final int HYPHEMARIFFIC = 319;
   public static final int CANT_SMELL_NOTHING = 320;
   public static final int HYPEROFFENDED = 321;
-  public static final int ON_THE_TRAIL = 331;
   public static final int BESTIAL_SYMPATHY = 342;
   public static final int RED_DOOR_SYNDROME = 354;
   public static final int ABSINTHE = 357;
@@ -254,6 +253,7 @@ public class EffectPool {
   public static final int BLOOD_SUGAR_SAUCE_MAGIC = 1458;
   public static final int SOULERSKATES = 1465;
   public static final int REASSURED = 1492;
+  public static final int HARE_BRAINED = 1515;
   public static final int UNMUFFLED = 1545;
   public static final int MUFFLED = 1546;
   public static final int BORED_WITH_EXPLOSIONS = 1557;
@@ -314,6 +314,9 @@ public class EffectPool {
   public static final int SILENT_HUNTING = 2336;
   public static final int NEARLY_SILENT_HUNTING = 2337;
   public static final int TAINTED_LOVE_POTION = 2374;
+  public static final int SHARK_TOOTH_GRIN = 2413;
+  public static final int BOILING_DETERMINATION = 2414;
+  public static final int ENHANCED_INTERROGATION = 2415;
   public static final int BOXING_DAY_BREAKFAST = 2429;
   public static final int WOLF_FORM = 2449;
   public static final int MIST_FORM = 2450;
@@ -321,10 +324,12 @@ public class EffectPool {
   public static final int BLESSING_OF_THE_BIRD = 2551;
   public static final int BLESSING_OF_YOUR_FAVORITE_BIRD = 2552;
   public static final int FIZZY_FIZZY = 2561;
+  public static final int ENTAUNTAUNED = 2578;
   public static final int JOKE_MAD = 2582;
   public static final int CARTOGRAPHICALLY_CHARGED = 2600;
   public static final int CARTOGRAPHICALLY_AWARE = 2601;
   public static final int CARTOGRAPHICALLY_ROOTED = 2602;
+  public static final int FEELING_LOST = 2630;
   public static final int EW_THE_HUMANITY = 2647;
   public static final int A_BEASTLY_ODOR = 2648;
   public static final int WINE_FORTIFIED = 2659;
@@ -334,10 +339,14 @@ public class EffectPool {
   public static final int WINE_DARK = 2663;
   public static final int WINE_BEFOULED = 2664;
   public static final int WINE_FRIENDLY = 2665;
+  public static final int LUCKY = 2693;
+  public static final int ON_THE_TRAIL = 2694;
 
   public static final AdventureResult CURSE1_EFFECT = EffectPool.get(EffectPool.ONCE_CURSED);
   public static final AdventureResult CURSE2_EFFECT = EffectPool.get(EffectPool.TWICE_CURSED);
   public static final AdventureResult CURSE3_EFFECT = EffectPool.get(EffectPool.THRICE_CURSED);
+
+  private EffectPool() {}
 
   public static final AdventureResult get(final int effectId) {
     return new AdventureResult(effectId, 1, true);

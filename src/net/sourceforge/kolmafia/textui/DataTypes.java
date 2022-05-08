@@ -2,6 +2,7 @@ package net.sourceforge.kolmafia.textui;
 
 import java.util.List;
 import net.sourceforge.kolmafia.AdventureResult;
+import net.sourceforge.kolmafia.AscensionClass;
 import net.sourceforge.kolmafia.CoinmasterData;
 import net.sourceforge.kolmafia.CoinmasterRegistry;
 import net.sourceforge.kolmafia.EdServantData;
@@ -64,35 +65,6 @@ public class DataTypes {
   public static final int TYPE_RECORD = 1002;
   public static final int TYPE_TYPEDEF = 1003;
 
-  public static final String[] CLASSES = {
-    "",
-    KoLCharacter.SEAL_CLUBBER,
-    KoLCharacter.TURTLE_TAMER,
-    KoLCharacter.PASTAMANCER,
-    KoLCharacter.SAUCEROR,
-    KoLCharacter.DISCO_BANDIT,
-    KoLCharacter.ACCORDION_THIEF,
-    "",
-    "",
-    "",
-    "",
-    KoLCharacter.AVATAR_OF_BORIS,
-    KoLCharacter.ZOMBIE_MASTER,
-    "",
-    KoLCharacter.AVATAR_OF_JARLSBERG,
-    KoLCharacter.AVATAR_OF_SNEAKY_PETE,
-    "",
-    KoLCharacter.ED,
-    KoLCharacter.COWPUNCHER,
-    KoLCharacter.BEANSLINGER,
-    KoLCharacter.SNAKE_OILER,
-    "",
-    "",
-    KoLCharacter.GELATINOUS_NOOB,
-    KoLCharacter.VAMPYRE,
-    KoLCharacter.PLUMBER,
-  };
-
   public static final Type ANY_TYPE = new Type(null, DataTypes.TYPE_ANY);
   public static final Type VOID_TYPE = new Type("void", DataTypes.TYPE_VOID);
   public static final Type BOOLEAN_TYPE = new Type("boolean", DataTypes.TYPE_BOOLEAN);
@@ -126,6 +98,10 @@ public class DataTypes {
   // Map from ITEM -> INT
   public static final AggregateType ITEM_TO_INT_TYPE =
       new AggregateType(DataTypes.INT_TYPE, DataTypes.ITEM_TYPE);
+
+  // Map from INT -> ITEM
+  public static final AggregateType INT_TO_ITEM_TYPE =
+      new AggregateType(DataTypes.ITEM_TYPE, DataTypes.INT_TYPE);
 
   // Map from STRING -> BOOLEAN
   public static final AggregateType STRING_TO_BOOLEAN_TYPE =
@@ -191,7 +167,7 @@ public class DataTypes {
 
   public static final Value ITEM_INIT = new Value(DataTypes.ITEM_TYPE, -1, "none");
   public static final Value LOCATION_INIT = new Value(DataTypes.LOCATION_TYPE, "none", null);
-  public static final Value CLASS_INIT = new Value(DataTypes.CLASS_TYPE, -1, "none");
+  public static final Value CLASS_INIT = new Value(DataTypes.CLASS_TYPE, -1, "none", null);
   public static final Value STAT_INIT = new Value(DataTypes.STAT_TYPE, -1, "none");
   public static final Value SKILL_INIT = new Value(DataTypes.SKILL_TYPE, -1, "none");
   public static final Value EFFECT_INIT = new Value(DataTypes.EFFECT_TYPE, -1, "none");
@@ -241,6 +217,8 @@ public class DataTypes {
       simpleTypes.add(type);
     }
   }
+
+  private DataTypes() {}
 
   // For each simple data type X, we supply:
   // public static final ScriptValue parseXValue( String name );
@@ -360,15 +338,6 @@ public class DataTypes {
     return new Value(DataTypes.LOCATION_TYPE, adventure.getAdventureName(), adventure);
   }
 
-  public static final int classToInt(final String name) {
-    for (int i = 0; i < DataTypes.CLASSES.length; ++i) {
-      if (name.equalsIgnoreCase(DataTypes.CLASSES[i])) {
-        return i;
-      }
-    }
-    return -1;
-  }
-
   public static final Value parseClassValue(final String name, final boolean returnDefault) {
     if (name == null || name.equals("")) {
       return returnDefault ? DataTypes.CLASS_INIT : null;
@@ -378,12 +347,14 @@ public class DataTypes {
       return DataTypes.CLASS_INIT;
     }
 
-    int num = DataTypes.classToInt(name);
-    if (num < 0) {
+    AscensionClass ascensionClass = AscensionClass.find(name);
+
+    if (ascensionClass == null || ascensionClass.getId() < 0) {
       return returnDefault ? DataTypes.CLASS_INIT : null;
     }
 
-    return new Value(DataTypes.CLASS_TYPE, num, DataTypes.CLASSES[num]);
+    return new Value(
+        DataTypes.CLASS_TYPE, ascensionClass.getId(), ascensionClass.getName(), ascensionClass);
   }
 
   public static final Value parseStatValue(final String name, final boolean returnDefault) {
@@ -615,7 +586,7 @@ public class DataTypes {
       return DataTypes.THRALL_INIT;
     }
 
-    Object[] data = PastaThrallData.typeToData(name);
+    var data = PastaThrallData.typeToData(name);
     if (data == null) {
       return returnDefault ? DataTypes.THRALL_INIT : null;
     }
@@ -789,8 +760,18 @@ public class DataTypes {
     return DataTypes.makeNormalizedItem(num, name);
   }
 
-  public static final Value makeClassValue(final String name) {
-    return new Value(DataTypes.CLASS_TYPE, DataTypes.classToInt(name), name);
+  public static final Value makeClassValue(
+      final AscensionClass ascensionClass, boolean returnDefault) {
+    if (ascensionClass == null) {
+      return returnDefault ? DataTypes.CLASS_INIT : null;
+    }
+
+    return new Value(
+        DataTypes.CLASS_TYPE, ascensionClass.getId(), ascensionClass.getName(), ascensionClass);
+  }
+
+  public static final Value makeClassValue(final int id, boolean returnDefault) {
+    return makeClassValue(AscensionClass.find(id), returnDefault);
   }
 
   private static Value makeNormalizedSkill(final int num, String name) {
@@ -879,7 +860,7 @@ public class DataTypes {
   }
 
   public static final Value makeThrallValue(final int num, final boolean returnDefault) {
-    Object[] data = PastaThrallData.idToData(num);
+    var data = PastaThrallData.idToData(num);
     if (data == null) {
       return returnDefault ? DataTypes.THRALL_INIT : null;
     }
@@ -952,14 +933,15 @@ public class DataTypes {
 
       case TYPE_SKILL:
         {
-          List<UseSkillRequest> inputs = SkillDatabase.getSkillsByType(SkillDatabase.CASTABLE);
+          UseSkillRequest[] inputs =
+              SkillDatabase.getSkillsByType(SkillDatabase.CASTABLE).toArray(new UseSkillRequest[0]);
           UseSkillRequest value = InputFieldUtilities.input(message, inputs);
           return value == null ? null : value.getSkillName();
         }
 
       case TYPE_FAMILIAR:
         {
-          List<FamiliarData> inputs = KoLCharacter.getFamiliarList();
+          FamiliarData[] inputs = KoLCharacter.getFamiliarList().toArray(new FamiliarData[0]);
           FamiliarData initial = KoLCharacter.getFamiliar();
           FamiliarData value = InputFieldUtilities.input(message, inputs, initial);
           return value == null ? null : value.getRace();
@@ -987,7 +969,7 @@ public class DataTypes {
         return InputFieldUtilities.input(message, VYKEACompanionData.VYKEA);
 
       case TYPE_CLASS:
-        return InputFieldUtilities.input(message, DataTypes.CLASSES);
+        return InputFieldUtilities.input(message, AscensionClass.values()).toString();
 
       case TYPE_STAT:
         return InputFieldUtilities.input(message, DataTypes.STAT_ARRAY);

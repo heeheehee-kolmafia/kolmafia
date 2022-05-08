@@ -7,6 +7,7 @@ import java.util.Iterator;
 import java.util.List;
 import net.sourceforge.kolmafia.RequestLogger;
 import net.sourceforge.kolmafia.textui.AshRuntime;
+import org.eclipse.lsp4j.Location;
 
 public abstract class Function extends Symbol {
   protected Type type;
@@ -14,14 +15,17 @@ public abstract class Function extends Symbol {
   private String signature;
 
   public Function(
-      final String name, final Type type, final List<VariableReference> variableReferences) {
-    super(name);
+      final String name,
+      final Type type,
+      final List<VariableReference> variableReferences,
+      final Location location) {
+    super(name, location);
     this.type = type;
     this.variableReferences = variableReferences;
   }
 
   public Function(final String name, final Type type) {
-    this(name, type, new ArrayList<VariableReference>());
+    this(name, type, new ArrayList<>(), null);
   }
 
   public Type getType() {
@@ -68,16 +72,15 @@ public abstract class Function extends Symbol {
     COERCE
   }
 
-  public boolean paramsMatch(final Function that) {
-    // The types of the other function's parameters must exactly
-    // match the types of this function's parameters
-
+  public boolean paramsMatch(final Function that, final boolean base) {
     Iterator<VariableReference> it1 = this.variableReferences.iterator();
     Iterator<VariableReference> it2 = that.variableReferences.iterator();
 
     while (it1.hasNext() && it2.hasNext()) {
-      Type paramType1 = it1.next().getRawType();
-      Type paramType2 = it2.next().getRawType();
+      VariableReference val1 = it1.next();
+      VariableReference val2 = it2.next();
+      Type paramType1 = base ? val1.getType() : val1.getRawType();
+      Type paramType2 = base ? val2.getType() : val2.getRawType();
       if (!paramType1.equals(paramType2)) {
         return false;
       }
@@ -149,15 +152,16 @@ public abstract class Function extends Symbol {
     return false;
   }
 
-  public boolean paramsMatch(final List<Value> params, MatchType match, boolean vararg) {
+  public boolean paramsMatch(
+      final List<? extends TypedNode> params, MatchType match, boolean vararg) {
     return (vararg)
         ? this.paramsMatchVararg(params, match)
         : this.paramsMatchNoVararg(params, match);
   }
 
-  private boolean paramsMatchNoVararg(final List<Value> params, MatchType match) {
+  private boolean paramsMatchNoVararg(final List<? extends TypedNode> params, MatchType match) {
     Iterator<VariableReference> refIterator = this.getVariableReferences().iterator();
-    Iterator<Value> valIterator = params.iterator();
+    Iterator<? extends TypedNode> valIterator = params.iterator();
     boolean matched = true;
 
     while (matched && refIterator.hasNext() && valIterator.hasNext()) {
@@ -169,7 +173,7 @@ public abstract class Function extends Symbol {
         break;
       }
 
-      Value currentValue = valIterator.next();
+      TypedNode currentValue = valIterator.next();
       Type valueType = currentValue.getType();
 
       switch (match) {
@@ -199,9 +203,9 @@ public abstract class Function extends Symbol {
     return false;
   }
 
-  private boolean paramsMatchVararg(final List<Value> params, MatchType match) {
+  private boolean paramsMatchVararg(final List<? extends TypedNode> params, MatchType match) {
     Iterator<VariableReference> refIterator = this.getVariableReferences().iterator();
-    Iterator<Value> valIterator = params.iterator();
+    Iterator<? extends TypedNode> valIterator = params.iterator();
     boolean matched = true;
     VariableReference vararg = null;
     VarArgType varargType = null;
@@ -210,7 +214,7 @@ public abstract class Function extends Symbol {
       // A VarArg parameter will consume all remaining values
       VariableReference currentParam = (vararg != null) ? vararg : refIterator.next();
       Type paramType = currentParam.getType();
-      Value currentValue = valIterator.next();
+      TypedNode currentValue = valIterator.next();
       Type valueType = currentValue.getType();
 
       // If have found the vararg, remember it.
@@ -367,6 +371,12 @@ public abstract class Function extends Symbol {
 
     for (VariableReference current : this.variableReferences) {
       current.print(stream, indent + 1);
+    }
+  }
+
+  public static class BadFunction extends UserDefinedFunction implements BadNode {
+    public BadFunction(final String name) {
+      super(name, new Type.BadType(null, null), new ArrayList<>(), null);
     }
   }
 }

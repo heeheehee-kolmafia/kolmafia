@@ -40,7 +40,6 @@ import net.sourceforge.kolmafia.session.EquipmentManager;
 import net.sourceforge.kolmafia.session.GoalManager;
 import net.sourceforge.kolmafia.session.InventoryManager;
 import net.sourceforge.kolmafia.session.Limitmode;
-import net.sourceforge.kolmafia.session.ResultProcessor;
 import net.sourceforge.kolmafia.swingui.GenericFrame;
 import net.sourceforge.kolmafia.utilities.InputFieldUtilities;
 import net.sourceforge.kolmafia.utilities.StringUtilities;
@@ -82,7 +81,7 @@ public class KoLAdventure implements Comparable<KoLAdventure>, Runnable {
 
   private static final Pattern ADVENTURE_AGAIN =
       Pattern.compile("<a href=\"([^\"]*)\">Adventure Again \\((.*?)\\)</a>");
-  private static final HashSet<String> unknownAdventures = new HashSet<String>();
+  private static final HashSet<String> unknownAdventures = new HashSet<>();
 
   /**
    * Constructs a new <code>KoLAdventure</code> with the given specifications.
@@ -117,16 +116,22 @@ public class KoLAdventure implements Comparable<KoLAdventure>, Runnable {
     this.hasWanderers =
         AdventureDatabase.hasWanderers(adventureName, formSource.equals("adventure.php"));
 
-    if (formSource.equals("dwarffactory.php")) {
-      this.request = new DwarfFactoryRequest("ware");
-    } else if (formSource.equals("clan_gym.php")) {
-      this.request = new ClanRumpusRequest(ClanRumpusRequest.RequestType.fromString(adventureId));
-    } else if (formSource.equals("clan_hobopolis.php")) {
-      this.request = new RichardRequest(StringUtilities.parseInt(adventureId));
-    } else if (formSource.equals("basement.php")) {
-      this.request = new BasementRequest(adventureName);
-    } else {
-      this.request = new AdventureRequest(adventureName, formSource, adventureId);
+    switch (formSource) {
+      case "dwarffactory.php":
+        this.request = new DwarfFactoryRequest("ware");
+        break;
+      case "clan_gym.php":
+        this.request = new ClanRumpusRequest(ClanRumpusRequest.RequestType.fromString(adventureId));
+        break;
+      case "clan_hobopolis.php":
+        this.request = new RichardRequest(StringUtilities.parseInt(adventureId));
+        break;
+      case "basement.php":
+        this.request = new BasementRequest(adventureName);
+        break;
+      default:
+        this.request = new AdventureRequest(adventureName, formSource, adventureId);
+        break;
     }
 
     this.areaSummary = AdventureDatabase.getAreaCombatData(adventureName);
@@ -271,7 +276,7 @@ public class KoLAdventure implements Comparable<KoLAdventure>, Runnable {
 
     String romanticTarget = Preferences.getString("romanticTarget");
 
-    if (romanticTarget != null && !romanticTarget.equals("")) {
+    if (romanticTarget != null && !romanticTarget.isEmpty()) {
       return true;
     }
 
@@ -1134,6 +1139,7 @@ public class KoLAdventure implements Comparable<KoLAdventure>, Runnable {
    * Executes the appropriate <code>GenericRequest</code> for the adventure encapsulated by this
    * <code>KoLAdventure</code>.
    */
+  @Override
   public void run() {
     if (RecoveryManager.isRecoveryPossible() && !RecoveryManager.runThresholdChecks()) {
       return;
@@ -1217,11 +1223,6 @@ public class KoLAdventure implements Comparable<KoLAdventure>, Runnable {
       }
     }
 
-    if (AdventureDatabase.isPotentialCloverAdventure(adventureName)
-        && ResultProcessor.shouldDisassembleClovers(this.request.getURLString())) {
-      KoLmafia.protectClovers();
-    }
-
     // Let the betweenBattleScript do anything it wishes
     KoLAdventure.setNextAdventure(this);
     if (RecoveryManager.isRecoveryPossible()) {
@@ -1267,7 +1268,7 @@ public class KoLAdventure implements Comparable<KoLAdventure>, Runnable {
         adventureId = matcher.find() ? matcher.group(1) : "0";
         adventureURL = adventurePage + "?mine=" + adventureId;
       } else if (adventurePage.equals("adventure.php")) {
-        if (adventureId.equals("")) {
+        if (adventureId.isEmpty()) {
           Matcher matcher = KoLAdventure.ADVENTUREID_PATTERN.matcher(adventureURL);
           adventureId = matcher.find() ? matcher.group(1) : "0";
         }
@@ -2169,14 +2170,31 @@ public class KoLAdventure implements Comparable<KoLAdventure>, Runnable {
 
     // Elemental Airport airplanes
     {
-      "You don't know where that is\\.", "You can't get there from here.",
+      "You don't know where that is", "You can't get there from here.",
     },
 
     // That isn't a place you can go.
     {
-      "That isn't a place you can go\\.", "You can't get there from here.",
+      "That isn't a place you can go", "You can't get there from here.",
+    },
+
+    // Site Alpha Dormitory
+    //
+    // It's getting colder! Better bundle up.
+    // The extreme cold makes it impossible for you to continue...
+    {
+      "Better bundle up", "You need more cold resistance.",
+    },
+    {
+      "extreme cold makes it impossible", "You need more cold resistance.",
+    },
+    {
+      "This zone is too old to visit on this path.", "That zone is out of Standard.",
     },
   };
+
+  private static Pattern CRIMBO21_COLD_RES =
+      Pattern.compile("<b>\\[(\\d+) Cold Resistance Required\\]</b>");
 
   public static final int findAdventureFailure(String responseText) {
     // KoL is known to sometimes simply return a blank page as a
@@ -2192,6 +2210,13 @@ public class KoLAdventure implements Comparable<KoLAdventure>, Runnable {
       Preferences.setInteger("fratboysDefeated", 1000);
     } else if (responseText.contains("Drippy Juice supply")) {
       Preferences.setInteger("drippyJuice", 0);
+    } else if (responseText.contains("Better bundle up")
+        || responseText.contains("extreme cold makes it impossible")) {
+      Matcher matcher = CRIMBO21_COLD_RES.matcher(responseText);
+      if (matcher.find()) {
+        int required = Integer.parseInt(matcher.group(1));
+        Preferences.setInteger("_crimbo21ColdResistance", required);
+      }
     }
 
     for (int i = 1; i < ADVENTURE_FAILURES.length; ++i) {
@@ -2321,7 +2346,7 @@ public class KoLAdventure implements Comparable<KoLAdventure>, Runnable {
       encounter = BasementRequest.getBasementLevelSummary();
     }
 
-    if (!encounter.equals("")) {
+    if (!encounter.isEmpty()) {
       RequestLogger.printLine(encounter);
       RequestLogger.updateSessionLog(encounter);
     }
@@ -2349,6 +2374,7 @@ public class KoLAdventure implements Comparable<KoLAdventure>, Runnable {
         : KoLCharacter.getCurrentRun() + 1;
   }
 
+  @Override
   public int compareTo(final KoLAdventure o) {
     if (!(o instanceof KoLAdventure)) {
       return 1;

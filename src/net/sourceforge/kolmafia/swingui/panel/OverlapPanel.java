@@ -4,23 +4,24 @@ import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import net.java.dev.spellcast.utilities.LockableListModel;
 import net.java.dev.spellcast.utilities.SortedListModel;
+import net.sourceforge.kolmafia.AdventureResult;
 import net.sourceforge.kolmafia.KoLConstants;
 import net.sourceforge.kolmafia.swingui.widget.AutoFilterTextField;
 import net.sourceforge.kolmafia.swingui.widget.ListCellRendererFactory;
 
-public class OverlapPanel extends ItemListManagePanel {
+public class OverlapPanel extends ItemListManagePanel<AdventureResult> {
   private final boolean isOverlap;
-  private final LockableListModel overlapModel;
+  private final LockableListModel<AdventureResult> overlapModel;
 
   public OverlapPanel(
       final String confirmText,
       final String cancelText,
-      final LockableListModel overlapModel,
+      final LockableListModel<AdventureResult> overlapModel,
       final boolean isOverlap) {
     super(
         confirmText,
         cancelText,
-        isOverlap ? overlapModel : (SortedListModel) KoLConstants.inventory,
+        isOverlap ? overlapModel : (SortedListModel<AdventureResult>) KoLConstants.inventory,
         true,
         false);
     this.overlapModel = overlapModel;
@@ -35,7 +36,7 @@ public class OverlapPanel extends ItemListManagePanel {
   }
 
   @Override
-  public AutoFilterTextField getWordFilter() {
+  public AutoFilterTextField<AdventureResult> getWordFilter() {
     return new OverlapFilterField();
   }
 
@@ -60,7 +61,8 @@ public class OverlapPanel extends ItemListManagePanel {
         return;
       }
 
-      Object[] items = OverlapPanel.this.getSelectedValues();
+      AdventureResult[] items =
+          OverlapPanel.this.getSelectedValues().toArray(new AdventureResult[0]);
       OverlapPanel.this.getElementList().clearSelection();
 
       for (int i = 0; i < items.length; ++i) {

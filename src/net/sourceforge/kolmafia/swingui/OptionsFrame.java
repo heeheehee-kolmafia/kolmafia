@@ -83,7 +83,6 @@ import net.sourceforge.kolmafia.utilities.InputFieldUtilities;
 import net.sourceforge.kolmafia.utilities.StringUtilities;
 import net.sourceforge.kolmafia.webui.RelayServer;
 import org.jdesktop.swingx.JXPanel;
-import tab.CloseTabPaneEnhancedUI;
 
 public class OptionsFrame extends GenericFrame {
   public OptionsFrame() {
@@ -94,7 +93,6 @@ public class OptionsFrame extends GenericFrame {
     selectorPanel.addPanel("General", new GeneralOptionsPanel(), true);
     selectorPanel.addPanel(" - Item Acquisition", new ItemOptionsPanel(), true);
     selectorPanel.addPanel(" - Maximizer", new MaximizerOptionsPanel(), true);
-    selectorPanel.addPanel(" - IotM Tracking", new IotMTrackingPanel(), true);
     selectorPanel.addPanel(" - Session Logs", new SessionLogOptionsPanel(), true);
     selectorPanel.addPanel(" - Extra Debugging", new DebugOptionsPanel(), true);
 
@@ -279,6 +277,10 @@ public class OptionsFrame extends GenericFrame {
         {"saveSettingsOnSet", "Save options to disk whenever they change"},
         {},
         {"removeMalignantEffects", "Auto-remove malignant status effects"},
+        {
+          "suppressNegativeStatusPopup",
+          "Suppress popup dialog for items which cause harmful effects"
+        },
         {"switchEquipmentForBuffs", "Allow equipment changing when casting buffs"},
         {"allowNonMoodBurning", "Cast buffs not defined in moods during buff balancing"},
         {"allowSummonBurning", "Cast summoning skills during buff balancing"},
@@ -295,6 +297,7 @@ public class OptionsFrame extends GenericFrame {
           "stopForFixedWanderer",
           "Stop automation, or show relay warning, when Wandering monsters with fixed turn are due"
         },
+        {"stopForUltraRare", "Stop automation when encountering an Ultra-Rare monster"},
       };
 
       this.setOptions(options);
@@ -312,7 +315,6 @@ public class OptionsFrame extends GenericFrame {
       String[][] options = {
         {"allowNegativeTally", "Allow item counts in session results to go negative"},
         {},
-        {"cloverProtectActive", "Protect against accidental ten-leaf clover usage"},
         {"mementoListActive", "Prevent accidental destruction of 'memento' items"},
 
         // The following cannot be right, but it will
@@ -365,43 +367,15 @@ public class OptionsFrame extends GenericFrame {
     }
   }
 
-  private class IotMTrackingPanel extends OptionsPanel {
-    /** Constructs a new <code>IotMTrackingPanel</code> */
-    public IotMTrackingPanel() {
-      super(new Dimension(20, 16), new Dimension(370, 16));
+  private abstract class ShiftableOrderPanel extends ScrollablePanel<JList<String>>
+      implements ListDataListener {
+    public final LockableListModel<String> list;
+    public final JList<String> elementList;
 
-      String helpText =
-          "Some Items Of The Month have daily passes, and so KoLMafia cannot tell if you have them from seeing the zone. You can mark them here instead.";
+    public ShiftableOrderPanel(final String title, final LockableListModel<String> list) {
+      super(title, "move up", "move down", new JList<>(list));
 
-      String[][] options = {
-        {helpText},
-        {},
-        {"sleazeAirportAlways", "Have Spring Break Beach"},
-        {"spookyAirportAlways", "Have Conspiracy Island"},
-        {"stenchAirportAlways", "Have Dinseylandfill"},
-        {"hotAirportAlways", "Have That 70s Volcano"},
-        {"coldAirportAlways", "Have The Glaciest"},
-        {"gingerbreadCityAvailable", "Have Gingerbread City"},
-        {"spacegateAlways", "Have Spacegate"},
-        {"frAlways", "<html>Have FantasyRealm&trade;</html>"},
-        {"prAlways", "<html>Have PirateRealm&trade;</tml>"},
-        {"neverendingPartyAlways", "Have Neverending Party"},
-        {"voteAlways", "Have Voter Registration"},
-        {"daycareOpen", "Have Boxing Daycare"},
-      };
-
-      this.setOptions(options);
-    }
-  }
-
-  private abstract class ShiftableOrderPanel extends ScrollablePanel implements ListDataListener {
-    public LockableListModel list;
-    public JList elementList;
-
-    public ShiftableOrderPanel(final String title, final LockableListModel list) {
-      super(title, "move up", "move down", new JList(list));
-
-      this.elementList = (JList) this.scrollComponent;
+      this.elementList = this.scrollComponent;
       this.elementList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
       this.list = list;
@@ -421,7 +395,7 @@ public class OptionsFrame extends GenericFrame {
         return;
       }
 
-      Object value = this.list.remove(index);
+      String value = this.list.remove(index);
       this.list.add(index - 1, value);
       this.elementList.setSelectedIndex(index - 1);
     }
@@ -433,19 +407,22 @@ public class OptionsFrame extends GenericFrame {
         return;
       }
 
-      Object value = this.list.remove(index);
+      String value = this.list.remove(index);
       this.list.add(index + 1, value);
       this.elementList.setSelectedIndex(index + 1);
     }
 
+    @Override
     public void intervalAdded(final ListDataEvent e) {
       this.saveSettings();
     }
 
+    @Override
     public void intervalRemoved(final ListDataEvent e) {
       this.saveSettings();
     }
 
+    @Override
     public void contentsChanged(final ListDataEvent e) {
       this.saveSettings();
     }
@@ -455,7 +432,7 @@ public class OptionsFrame extends GenericFrame {
 
   private class ScriptButtonPanel extends ShiftableOrderPanel {
     public ScriptButtonPanel() {
-      super("gCLI Toolbar Buttons", new LockableListModel());
+      super("gCLI Toolbar Buttons", new LockableListModel<>());
       String[] scriptList = Preferences.getString("scriptList").split(" +\\| +");
 
       this.list.addAll(Arrays.asList(scriptList));
@@ -478,6 +455,7 @@ public class OptionsFrame extends GenericFrame {
     }
 
     private class AddScriptListener implements ActionListener {
+      @Override
       public void actionPerformed(final ActionEvent e) {
         File input = InputFieldUtilities.chooseInputFile(KoLConstants.SCRIPT_LOCATION, null);
         if (input == null) {
@@ -499,6 +477,7 @@ public class OptionsFrame extends GenericFrame {
     }
 
     private class AddCommandListener implements ActionListener {
+      @Override
       public void actionPerformed(final ActionEvent e) {
         String currentValue = InputFieldUtilities.input("Enter the desired CLI Command");
         if (currentValue == null || currentValue.length() == 0) {
@@ -511,6 +490,7 @@ public class OptionsFrame extends GenericFrame {
     }
 
     private class DeleteListingListener implements ActionListener {
+      @Override
       public void actionPerformed(final ActionEvent e) {
         int index = ScriptButtonPanel.this.elementList.getSelectedIndex();
         if (index == -1) {
@@ -526,12 +506,12 @@ public class OptionsFrame extends GenericFrame {
     public void saveSettings() {
       StringBuilder settingString = new StringBuilder();
       if (this.list.size() != 0) {
-        settingString.append((String) this.list.getElementAt(0));
+        settingString.append(this.list.getElementAt(0));
       }
 
       for (int i = 1; i < this.list.getSize(); ++i) {
         settingString.append(" | ");
-        settingString.append((String) this.list.getElementAt(i));
+        settingString.append(this.list.getElementAt(i));
       }
 
       Preferences.setString("scriptList", settingString.toString());
@@ -540,7 +520,7 @@ public class OptionsFrame extends GenericFrame {
 
   private class MaximizerStringsPanel extends ShiftableOrderPanel {
     public MaximizerStringsPanel() {
-      super("Modifier Maximizer Strings", new LockableListModel());
+      super("Modifier Maximizer Strings", new LockableListModel<>());
       String[] scriptList = Preferences.getString("maximizerList").split(" +\\| +");
 
       this.list.addAll(Arrays.asList(scriptList));
@@ -553,6 +533,7 @@ public class OptionsFrame extends GenericFrame {
     }
 
     private class AddMaximizerRunnable implements Runnable {
+      @Override
       public void run() {
         String currentValue = InputFieldUtilities.input("Enter the desired maximizer string");
         if (currentValue != null && currentValue.length() != 0) {
@@ -564,6 +545,7 @@ public class OptionsFrame extends GenericFrame {
     }
 
     private class DeleteListingRunnable implements Runnable {
+      @Override
       public void run() {
         int index = MaximizerStringsPanel.this.elementList.getSelectedIndex();
         if (index == -1) {
@@ -579,12 +561,12 @@ public class OptionsFrame extends GenericFrame {
     public void saveSettings() {
       StringBuilder settingString = new StringBuilder();
       if (this.list.size() != 0) {
-        settingString.append((String) this.list.getElementAt(0));
+        settingString.append(this.list.getElementAt(0));
       }
 
       for (int i = 1; i < this.list.getSize(); ++i) {
         settingString.append(" | ");
-        settingString.append((String) this.list.getElementAt(i));
+        settingString.append(this.list.getElementAt(i));
       }
 
       Preferences.setString("maximizerList", settingString.toString());
@@ -761,10 +743,12 @@ public class OptionsFrame extends GenericFrame {
       this.singleFilterBox.setSelected(Preferences.getBoolean("maximizerSingleFilter"));
     }
 
+    @Override
     public void focusLost(final FocusEvent e) {
       MaximizerOptionsPanel.this.actionConfirmed();
     }
 
+    @Override
     public void focusGained(final FocusEvent e) {}
   }
 
@@ -865,8 +849,10 @@ public class OptionsFrame extends GenericFrame {
     public void actionCancelled() {
       super.actionCancelled();
 
-      this.innerGradient.setBackground(tab.CloseTabPaneEnhancedUI.notifiedA);
-      this.outerGradient.setBackground(tab.CloseTabPaneEnhancedUI.notifiedB);
+      this.innerGradient.setBackground(
+          DataUtilities.toColor(Preferences.getString("innerChatColor")));
+      this.outerGradient.setBackground(
+          DataUtilities.toColor(Preferences.getString("outerChatColor")));
 
       String fontSize = Preferences.getString("chatFontSize");
       this.fontSizes[fontSize.equals("large") ? 2 : fontSize.equals("medium") ? 1 : 0].setSelected(
@@ -881,9 +867,13 @@ public class OptionsFrame extends GenericFrame {
       @Override
       public void applyChanges() {
         if (this.property.equals("innerChatColor")) {
-          CloseTabPaneEnhancedUI.notifiedA = ChatOptionsPanel.this.innerGradient.getBackground();
+          Preferences.setString(
+              "innerChatColor",
+              DataUtilities.toHexString(ChatOptionsPanel.this.innerGradient.getBackground()));
         } else {
-          CloseTabPaneEnhancedUI.notifiedB = ChatOptionsPanel.this.outerGradient.getBackground();
+          Preferences.setString(
+              "outerChatColor",
+              DataUtilities.toHexString(ChatOptionsPanel.this.outerGradient.getBackground()));
         }
       }
     }
@@ -892,7 +882,7 @@ public class OptionsFrame extends GenericFrame {
   /** A special panel which generates a list of bookmarks which can subsequently be managed. */
   private class BookmarkManagePanel extends ShiftableOrderPanel {
     public BookmarkManagePanel() {
-      super("Configure Bookmarks", (LockableListModel) KoLConstants.bookmarks);
+      super("Configure Bookmarks", (LockableListModel<String>) KoLConstants.bookmarks);
 
       JPanel extraButtons = new JPanel(new BorderLayout(2, 2));
       extraButtons.add(new ThreadedButton("add", new AddBookmarkRunnable()), BorderLayout.NORTH);
@@ -909,6 +899,7 @@ public class OptionsFrame extends GenericFrame {
     }
 
     private class AddBookmarkRunnable implements Runnable {
+      @Override
       public void run() {
         String newName = InputFieldUtilities.input("Add a bookmark!", "http://www.google.com/");
 
@@ -927,13 +918,14 @@ public class OptionsFrame extends GenericFrame {
     }
 
     private class RenameBookmarkRunnable implements Runnable {
+      @Override
       public void run() {
         int index = BookmarkManagePanel.this.elementList.getSelectedIndex();
         if (index == -1) {
           return;
         }
 
-        String currentItem = (String) BookmarkManagePanel.this.elementList.getSelectedValue();
+        String currentItem = BookmarkManagePanel.this.elementList.getSelectedValue();
         if (currentItem == null) {
           return;
         }
@@ -956,6 +948,7 @@ public class OptionsFrame extends GenericFrame {
     }
 
     private class DeleteBookmarkRunnable implements Runnable {
+      @Override
       public void run() {
         int index = BookmarkManagePanel.this.elementList.getSelectedIndex();
         if (index == -1) {
@@ -970,9 +963,9 @@ public class OptionsFrame extends GenericFrame {
   protected class StartupFramesPanel extends GenericPanel implements ListDataListener {
     private boolean isRefreshing = false;
 
-    private final LockableListModel completeList = new LockableListModel();
-    private final LockableListModel startupList = new LockableListModel();
-    private final LockableListModel desktopList = new LockableListModel();
+    private final LockableListModel<String> completeList = new LockableListModel<>();
+    private final LockableListModel<String> startupList = new LockableListModel<>();
+    private final LockableListModel<String> desktopList = new LockableListModel<>();
 
     public StartupFramesPanel() {
       super();
@@ -983,9 +976,9 @@ public class OptionsFrame extends GenericFrame {
       }
 
       JPanel optionPanel = new JPanel(new GridLayout(1, 3));
-      optionPanel.add(new ScrollablePanel("Complete List", new JDnDList(this.completeList)));
-      optionPanel.add(new ScrollablePanel("Startup as Window", new JDnDList(this.startupList)));
-      optionPanel.add(new ScrollablePanel("Startup in Tabs", new JDnDList(this.desktopList)));
+      optionPanel.add(new ScrollablePanel<>("Complete List", new JDnDList(this.completeList)));
+      optionPanel.add(new ScrollablePanel<>("Startup as Window", new JDnDList(this.startupList)));
+      optionPanel.add(new ScrollablePanel<>("Startup in Tabs", new JDnDList(this.desktopList)));
 
       JTextArea message =
           new JTextArea(
@@ -1026,7 +1019,8 @@ public class OptionsFrame extends GenericFrame {
     public void actionCancelled() {
       this.isRefreshing = true;
 
-      String username = (String) ((SortedListModel) KoLConstants.saveStateNames).getSelectedItem();
+      String username =
+          (String) ((SortedListModel<String>) KoLConstants.saveStateNames).getSelectedItem();
       if (username == null) {
         username = "";
       }
@@ -1070,6 +1064,7 @@ public class OptionsFrame extends GenericFrame {
     @Override
     public void setEnabled(final boolean isEnabled) {}
 
+    @Override
     public void intervalAdded(final ListDataEvent e) {
       Object src = e.getSource();
       if (src == this.startupList) {
@@ -1077,7 +1072,7 @@ public class OptionsFrame extends GenericFrame {
       } else if (src == this.desktopList) {
         this.startupList.removeAll(this.desktopList);
       } else if (src == this.completeList) {
-        Object item = this.completeList.get(e.getIndex0());
+        String item = this.completeList.get(e.getIndex0());
         this.desktopList.remove(item);
         this.startupList.remove(item);
       }
@@ -1085,10 +1080,12 @@ public class OptionsFrame extends GenericFrame {
       this.saveLayoutSettings();
     }
 
+    @Override
     public void intervalRemoved(final ListDataEvent e) {
       this.saveLayoutSettings();
     }
 
+    @Override
     public void contentsChanged(final ListDataEvent e) {}
 
     public void saveLayoutSettings() {
@@ -1126,8 +1123,8 @@ public class OptionsFrame extends GenericFrame {
     }
   }
 
-  private class DeedsButtonPanel extends ScrollablePanel implements ListDataListener {
-    public DeedsButtonPanel(final String title, final LockableListModel builtIns) {
+  private class DeedsButtonPanel extends ScrollablePanel<JDnDList> implements ListDataListener {
+    public DeedsButtonPanel(final String title, final LockableListModel<String> builtIns) {
       super(title, "add custom", "reset deeds", new JDnDList(builtIns));
 
       this.buttonPanel.add(new ThreadedButton("help", new HelpRunnable()), BorderLayout.CENTER);
@@ -1152,14 +1149,17 @@ public class OptionsFrame extends GenericFrame {
       }
     }
 
+    @Override
     public void intervalAdded(final ListDataEvent e) {
       this.saveSettings();
     }
 
+    @Override
     public void intervalRemoved(final ListDataEvent e) {
       this.saveSettings();
     }
 
+    @Override
     public void contentsChanged(final ListDataEvent e) {
       this.saveSettings();
     }
@@ -1252,6 +1252,7 @@ public class OptionsFrame extends GenericFrame {
         this.pane = new JOptionPane(scrollPane, JOptionPane.PLAIN_MESSAGE);
       }
 
+      @Override
       public void run() {
         JDialog dialog = this.pane.createDialog(null, "Daily Deeds Help");
         dialog.setModal(false);
@@ -1426,6 +1427,7 @@ public class OptionsFrame extends GenericFrame {
       update();
     }
 
+    @Override
     public void update() {
       this.box.setSelected(Preferences.getBoolean(this.pref));
     }
@@ -1440,8 +1442,8 @@ public class OptionsFrame extends GenericFrame {
       implements ListDataListener, Listener {
     private boolean isRefreshing = false;
 
-    private final LockableListModel builtInsList = new LockableListModel();
-    private final LockableListModel deedsList = new LockableListModel();
+    private final LockableListModel<String> builtInsList = new LockableListModel<>();
+    private final LockableListModel<String> deedsList = new LockableListModel<>();
 
     public CustomizeDailyDeedsPanel() {
       super(new Dimension(2, 2), new Dimension(2, 2));
@@ -1455,7 +1457,7 @@ public class OptionsFrame extends GenericFrame {
       }
 
       centerPanel.add(new DeedsButtonPanel("Built-In Deeds", this.builtInsList));
-      botPanel.add(new ScrollablePanel("Current Deeds", new JDnDList(this.deedsList)));
+      botPanel.add(new ScrollablePanel<>("Current Deeds", new JDnDList(this.deedsList)));
 
       this.container.add(centerPanel, BorderLayout.PAGE_START);
       this.container.add(botPanel, BorderLayout.PAGE_END);
@@ -1539,11 +1541,12 @@ public class OptionsFrame extends GenericFrame {
     @Override
     public void setEnabled(final boolean isEnabled) {}
 
+    @Override
     public void intervalAdded(final ListDataEvent e) {
       Object src = e.getSource();
 
       if (src == this.builtInsList) {
-        Object item = this.builtInsList.get(e.getIndex0());
+        String item = this.builtInsList.get(e.getIndex0());
 
         this.deedsList.remove(item);
       }
@@ -1551,10 +1554,12 @@ public class OptionsFrame extends GenericFrame {
       this.saveLayoutSettings();
     }
 
+    @Override
     public void intervalRemoved(final ListDataEvent e) {
       this.saveLayoutSettings();
     }
 
+    @Override
     public void contentsChanged(final ListDataEvent e) {}
 
     public void saveLayoutSettings() {
@@ -1584,6 +1589,7 @@ public class OptionsFrame extends GenericFrame {
       Preferences.setString("dailyDeedsOptions", String.join(",", frameStrings));
     }
 
+    @Override
     public void update() {
       this.actionCancelled();
     }
@@ -1628,19 +1634,19 @@ public class OptionsFrame extends GenericFrame {
                   {"allowCloseableDesktopTabs", "Allow tabs on main window to be closed"},
                 };
 
-    private final JComboBox looks, toolbars, toolIcons, scripts;
+    private final JComboBox<String> looks, toolbars, toolIcons, scripts;
 
     public UserInterfacePanel() {
       super(new Dimension(80, 22), new Dimension(280, 22));
       PreferenceListenerRegistry.registerPreferenceListener("swingLookAndFeel", this);
 
       UIManager.LookAndFeelInfo[] installed = UIManager.getInstalledLookAndFeels();
-      Object[] installedLooks = new Object[installed.length + 1];
+      String[] installedLooks = new String[installed.length + 1];
       String CurrentLook = getLookAndFeel().getClass().getName();
 
       installedLooks[0] = "Always use OS default look and feel";
 
-      this.looks = new JComboBox();
+      this.looks = new JComboBox<>();
       this.looks.addItem(installedLooks[0]);
 
       for (int i = 0; i < installed.length; ++i) {
@@ -1652,20 +1658,20 @@ public class OptionsFrame extends GenericFrame {
         }
       }
 
-      this.toolbars = new JComboBox();
+      this.toolbars = new JComboBox<>();
       this.toolbars.addItem("Show global menus only");
       this.toolbars.addItem("Put toolbar along top of panel");
       this.toolbars.addItem("Put toolbar along bottom of panel");
       this.toolbars.addItem("Put toolbar along left of panel");
 
-      this.toolIcons = new JComboBox();
+      this.toolIcons = new JComboBox<>();
       this.toolIcons.addItem("Use classic toolbar icons");
       this.toolIcons.addItem("Use dark toolbar icons");
       // add additional toolbar icon sets here...
       // this.toolIcons.addItem( "Use modern toolbar icons" );
       // this.toolIcons.addItem( "Use light toolbar icons" );
 
-      this.scripts = new JComboBox();
+      this.scripts = new JComboBox<>();
       this.scripts.addItem("Do not show script bar on main interface");
       this.scripts.addItem("Show script bar along right of panel");
 
@@ -1816,8 +1822,10 @@ public class OptionsFrame extends GenericFrame {
           optionBox.setSelected(Preferences.getBoolean(option[0]));
         }
 
-        this.innerGradient.setBackground(tab.CloseTabPaneEnhancedUI.selectedA);
-        this.outerGradient.setBackground(tab.CloseTabPaneEnhancedUI.selectedB);
+        this.innerGradient.setBackground(
+            DataUtilities.toColor(Preferences.getString("innerTabColor")));
+        this.outerGradient.setBackground(
+            DataUtilities.toColor(Preferences.getString("outerTabColor")));
       }
 
       @Override
@@ -1831,11 +1839,15 @@ public class OptionsFrame extends GenericFrame {
         @Override
         public void applyChanges() {
           if (this.property.equals("innerTabColor")) {
-            CloseTabPaneEnhancedUI.selectedA =
-                InterfaceCheckboxPanel.this.innerGradient.getBackground();
+            Preferences.setString(
+                "innerTabColor",
+                DataUtilities.toHexString(
+                    InterfaceCheckboxPanel.this.innerGradient.getBackground()));
           } else {
-            CloseTabPaneEnhancedUI.selectedB =
-                InterfaceCheckboxPanel.this.outerGradient.getBackground();
+            Preferences.setString(
+                "outerTabColor",
+                DataUtilities.toHexString(
+                    InterfaceCheckboxPanel.this.outerGradient.getBackground()));
           }
         }
       }
@@ -2087,6 +2099,7 @@ public class OptionsFrame extends GenericFrame {
       this.actionCancelled();
     }
 
+    @Override
     public void actionPerformed(final ActionEvent e) {
       this.actionConfirmed();
     }
@@ -2253,6 +2266,7 @@ public class OptionsFrame extends GenericFrame {
       this.actionCancelled();
     }
 
+    @Override
     public void actionPerformed(final ActionEvent e) {
       this.actionConfirmed();
     }
@@ -2320,7 +2334,7 @@ public class OptionsFrame extends GenericFrame {
     public void setEnabled(final boolean isEnabled) {}
   }
 
-  private class SkillMenu extends JComboBox {
+  private class SkillMenu extends JComboBox<String> {
     final String preference;
 
     public SkillMenu(final String name, final String[] skills, final String preference) {
@@ -2362,14 +2376,14 @@ public class OptionsFrame extends GenericFrame {
           skill = "all";
           break;
         default:
-          skill = (String) this.getItemAt(index);
+          skill = this.getItemAt(index);
           break;
       }
       Preferences.setString(this.preference, skill);
     }
   }
 
-  private class CropMenu extends JComboBox {
+  private class CropMenu extends JComboBox<String> {
     final String preference;
 
     public CropMenu(final String preference) {
@@ -2413,7 +2427,7 @@ public class OptionsFrame extends GenericFrame {
           crop = "any";
           break;
         default:
-          crop = (String) this.getItemAt(index);
+          crop = this.getItemAt(index);
           break;
       }
       Preferences.setString(this.preference, crop);
@@ -2633,6 +2647,7 @@ public class OptionsFrame extends GenericFrame {
         this.addMouseListener(this);
       }
 
+      @Override
       public void mousePressed(final MouseEvent e) {
         Color c = JColorChooser.showDialog(null, "Choose a color:", this.getBackground());
         if (c == null) {
@@ -2668,12 +2683,16 @@ public class OptionsFrame extends GenericFrame {
         Preferences.setString("textColors", newPref);
       }
 
+      @Override
       public void mouseReleased(final MouseEvent e) {}
 
+      @Override
       public void mouseClicked(final MouseEvent e) {}
 
+      @Override
       public void mouseEntered(final MouseEvent e) {}
 
+      @Override
       public void mouseExited(final MouseEvent e) {}
     }
   }

@@ -97,12 +97,8 @@ public class MoodTrigger implements Comparable<MoodTrigger> {
     }
 
     if (type.equals("lose_effect") && effect != null) {
-      Set<String> existingActions = MoodTrigger.knownSources.get(effect.getName());
-
-      if (existingActions == null) {
-        existingActions = new LinkedHashSet<String>();
-        MoodTrigger.knownSources.put(effect.getName(), existingActions);
-      }
+      Set<String> existingActions =
+          MoodTrigger.knownSources.computeIfAbsent(effect.getName(), k -> new LinkedHashSet<>());
 
       existingActions.add(this.action);
 
@@ -129,7 +125,7 @@ public class MoodTrigger implements Comparable<MoodTrigger> {
   }
 
   public static String getKnownSources(String name) {
-    Set existingActions = MoodTrigger.knownSources.get(name);
+    Set<String> existingActions = MoodTrigger.knownSources.get(name);
 
     if (existingActions == null) {
       return "";
@@ -137,14 +133,14 @@ public class MoodTrigger implements Comparable<MoodTrigger> {
 
     StringBuilder buffer = new StringBuilder();
 
-    Iterator actionIterator = existingActions.iterator();
+    Iterator<String> actionIterator = existingActions.iterator();
 
     while (actionIterator.hasNext()) {
       if (buffer.length() > 0) {
         buffer.append("|");
       }
 
-      String action = (String) actionIterator.next();
+      String action = actionIterator.next();
       buffer.append(action);
     }
 
@@ -341,6 +337,7 @@ public class MoodTrigger implements Comparable<MoodTrigger> {
     return this.isThiefTrigger;
   }
 
+  @Override
   public int compareTo(final MoodTrigger o) {
     if (!(o instanceof MoodTrigger)) {
       return -1;

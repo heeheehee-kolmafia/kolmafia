@@ -139,6 +139,7 @@ public class TurnCounter implements Comparable<TurnCounter> {
     return hash;
   }
 
+  @Override
   public int compareTo(final TurnCounter o) {
     if (!(o instanceof TurnCounter)) {
       return -1;
@@ -301,14 +302,7 @@ public class TurnCounter implements Comparable<TurnCounter> {
 
   public static final void stopCounting(final String label) {
     synchronized (TurnCounter.relayCounters) {
-      Iterator<TurnCounter> it = TurnCounter.relayCounters.iterator();
-
-      while (it.hasNext()) {
-        TurnCounter current = it.next();
-        if (current.parsedLabel.equals(label)) {
-          it.remove();
-        }
-      }
+      TurnCounter.relayCounters.removeIf(current -> current.parsedLabel.equals(label));
 
       TurnCounter.saveCounters();
     }
@@ -517,13 +511,8 @@ public class TurnCounter implements Comparable<TurnCounter> {
 
   public static final void deleteByHash(final int hash) {
     synchronized (TurnCounter.relayCounters) {
-      Iterator<TurnCounter> it = TurnCounter.relayCounters.iterator();
-
-      while (it.hasNext()) {
-        if (System.identityHashCode(it.next()) == hash) {
-          it.remove();
-        }
-      }
+      TurnCounter.relayCounters.removeIf(
+          turnCounter -> System.identityHashCode(turnCounter) == hash);
 
       TurnCounter.saveCounters();
     }

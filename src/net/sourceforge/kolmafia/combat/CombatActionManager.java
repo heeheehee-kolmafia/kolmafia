@@ -10,6 +10,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import net.java.dev.spellcast.utilities.DataUtilities;
 import net.java.dev.spellcast.utilities.LockableListModel;
+import net.sourceforge.kolmafia.AscensionClass;
 import net.sourceforge.kolmafia.KoLCharacter;
 import net.sourceforge.kolmafia.KoLConstants;
 import net.sourceforge.kolmafia.KoLConstants.MafiaState;
@@ -96,16 +97,9 @@ public abstract class CombatActionManager {
       ostream.close();
     }
 
-    try {
-      BufferedReader reader = FileUtilities.getReader(file);
-
+    try (BufferedReader reader = FileUtilities.getReader(file)) {
       CombatActionManager.strategyLookup.load(reader);
-
-      reader.close();
     } catch (IOException e1) {
-      // This should not happen.  Therefore, print
-      // a stack trace for debug purposes.
-
       StaticEntity.printStackTrace(e1);
     }
 
@@ -253,7 +247,7 @@ public abstract class CombatActionManager {
     String encounterKey = CombatActionManager.getBestEncounterKey(encounter);
 
     CustomCombatStrategy strategy = CombatActionManager.strategyLookup.getStrategy(encounterKey);
-    int actionCount = strategy.getActionCount(strategyLookup, new HashSet());
+    int actionCount = strategy.getActionCount(strategyLookup, new HashSet<>());
 
     if (roundIndex + 1 >= actionCount) {
       CombatActionManager.atEndOfStrategy = true;
@@ -278,7 +272,8 @@ public abstract class CombatActionManager {
   }
 
   private static String getStun() {
-    String classStun = KoLCharacter.getClassStun();
+    AscensionClass ascensionClass = KoLCharacter.getAscensionClass();
+    String classStun = ascensionClass == null ? "none" : ascensionClass.getStun();
     // Sometimes classStun isn't available or doesn't stun, don't return it in those cases
     if ((classStun.equals("Club Foot") && KoLCharacter.getFury() == 0)
         || (classStun.equals("Shell Up")
@@ -625,11 +620,11 @@ public abstract class CombatActionManager {
       return -1;
     }
 
-    List matchingNames = ItemDatabase.getMatchingNames(action);
+    List<String> matchingNames = ItemDatabase.getMatchingNames(action);
     int count = matchingNames.size();
 
     for (int i = 0; i < count; ++i) {
-      String name = (String) matchingNames.get(i);
+      String name = matchingNames.get(i);
       int id = ItemDatabase.getItemId(name);
       if (ItemDatabase.getAttribute(
           id, ItemDatabase.ATTR_COMBAT | ItemDatabase.ATTR_COMBAT_REUSABLE)) {

@@ -4,6 +4,7 @@ import com.sun.java.forums.TableSorter;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.event.ActionListener;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Vector;
 import javax.swing.BoxLayout;
@@ -139,7 +140,7 @@ public class ClanManageFrame extends GenericFrame {
    */
   private class ClanBuffPanel extends LabeledPanel {
     private final boolean isBuffing;
-    private final JComboBox buffField;
+    private final JComboBox<ClanBuffRequest> buffField;
     private final AutoHighlightTextField countField;
 
     public ClanBuffPanel() {
@@ -151,7 +152,7 @@ public class ClanManageFrame extends GenericFrame {
           new Dimension(240, 20));
       this.isBuffing = false;
 
-      this.buffField = new JComboBox(new LockableListModel<>(ClanBuffRequest.getRequestList()));
+      this.buffField = new JComboBox<>(ClanBuffRequest.getRequestList());
       this.countField = new AutoHighlightTextField();
 
       VerifiableElement[] elements = new VerifiableElement[2];
@@ -182,14 +183,14 @@ public class ClanManageFrame extends GenericFrame {
    */
   private class AttackPanel extends LabeledPanel {
     private final JLabel nextAttack;
-    private final AutoFilterComboBox enemyList;
+    private final AutoFilterComboBox<ClanWarRequest> enemyList;
 
     public AttackPanel() {
       super(
           "Loot Another Clan", "attack", "refresh", new Dimension(80, 20), new Dimension(240, 20));
 
       this.nextAttack = new JLabel(ClanWarRequest.getNextAttack());
-      this.enemyList = new AutoFilterComboBox(ClanWarRequest.getEnemyClans(), false);
+      this.enemyList = new AutoFilterComboBox<>(ClanWarRequest.getEnemyClans());
 
       VerifiableElement[] elements = new VerifiableElement[2];
       elements[0] = new VerifiableElement("Victim: ", this.enemyList);
@@ -296,9 +297,9 @@ public class ClanManageFrame extends GenericFrame {
     }
   }
 
-  private class StoragePanel extends ItemListManagePanel {
+  private class StoragePanel extends ItemListManagePanel<AdventureResult> {
     public StoragePanel() {
-      super((SortedListModel) KoLConstants.inventory);
+      super((SortedListModel<AdventureResult>) KoLConstants.inventory);
       this.setButtons(
           new ActionListener[] {
             new StorageListener(),
@@ -325,7 +326,7 @@ public class ClanManageFrame extends GenericFrame {
   }
 
   /** Internal class used to handle everything related to placing items into the stash. */
-  private class WithdrawPanel extends ItemListManagePanel {
+  private class WithdrawPanel extends ItemListManagePanel<AdventureResult> {
     public WithdrawPanel() {
       super(ClanManager.getStash());
 
@@ -354,11 +355,11 @@ public class ClanManageFrame extends GenericFrame {
         AdventureResult[] items;
 
         if (this.moveType == ClanManageFrame.MOVE_ALL_BUT) {
-          items = (AdventureResult[]) WithdrawPanel.this.getSelectedValues();
+          items = WithdrawPanel.this.getSelectedValues().toArray(new AdventureResult[0]);
           if (items.length == 0) {
             AdventureResult[] itemsArray =
                 new AdventureResult[WithdrawPanel.this.elementModel.size()];
-            items = (AdventureResult[]) WithdrawPanel.this.elementModel.toArray(itemsArray);
+            items = WithdrawPanel.this.elementModel.toArray(itemsArray);
           }
 
           if (items.length == 0) {
@@ -397,19 +398,19 @@ public class ClanManageFrame extends GenericFrame {
   }
 
   private class MemberSearchPanel extends GenericPanel {
-    private final JComboBox parameterSelect;
-    private final JComboBox matchSelect;
+    private final JComboBox<String> parameterSelect;
+    private final JComboBox<String> matchSelect;
     private final AutoHighlightTextField valueField;
 
     public MemberSearchPanel() {
       super("search clan", "apply changes", new Dimension(80, 20), new Dimension(240, 20));
 
-      this.parameterSelect = new JComboBox();
+      this.parameterSelect = new JComboBox<>();
       for (int i = 0; i < ProfileSnapshot.FILTER_NAMES.length; ++i) {
         this.parameterSelect.addItem(ProfileSnapshot.FILTER_NAMES[i]);
       }
 
-      this.matchSelect = new JComboBox();
+      this.matchSelect = new JComboBox<>();
       this.matchSelect.addItem("Less than...");
       this.matchSelect.addItem("Equal to...");
       this.matchSelect.addItem("Greater than...");
@@ -441,27 +442,30 @@ public class ClanManageFrame extends GenericFrame {
 
       KoLmafia.updateDisplay("Determining changes...");
 
-      ArrayList titleChange = new ArrayList();
-      ArrayList newTitles = new ArrayList();
-      ArrayList boots = new ArrayList();
+      ArrayList<String> titleChange = new ArrayList<>();
+      ArrayList<String> newTitles = new ArrayList<>();
+      ArrayList<String> boots = new ArrayList<>();
 
       for (int i = 0; i < ClanManageFrame.this.members.getRowCount(); ++i) {
         if (((Boolean) ClanManageFrame.this.members.getValueAt(i, 4)).booleanValue()) {
-          boots.add(ClanManageFrame.this.members.getValueAt(i, 1));
+          boots.add((String) ClanManageFrame.this.members.getValueAt(i, 1));
         }
 
-        titleChange.add(ClanManageFrame.this.members.getValueAt(i, 1));
-        newTitles.add(ClanManageFrame.this.members.getValueAt(i, 2));
+        titleChange.add((String) ClanManageFrame.this.members.getValueAt(i, 1));
+        newTitles.add((String) ClanManageFrame.this.members.getValueAt(i, 2));
       }
 
       KoLmafia.updateDisplay("Applying changes...");
       RequestThread.postRequest(
-          new ClanMembersRequest(titleChange.toArray(), newTitles.toArray(), boots.toArray()));
+          new ClanMembersRequest(
+              titleChange.toArray(new String[0]),
+              newTitles.toArray(new String[0]),
+              boots.toArray(new String[0])));
       KoLmafia.updateDisplay("Changes have been applied.");
     }
   }
 
-  private class MemberTableModel extends ListWrapperTableModel {
+  private class MemberTableModel extends ListWrapperTableModel<ProfileRequest> {
     public MemberTableModel() {
       super(
           new String[] {" ", "Name", "Clan Title", "Total Karma", "Boot"},
@@ -471,10 +475,8 @@ public class ClanManageFrame extends GenericFrame {
     }
 
     @Override
-    public Vector constructVector(final Object o) {
-      ProfileRequest p = (ProfileRequest) o;
-
-      Vector value = new Vector();
+    public Vector<Serializable> constructVector(final ProfileRequest p) {
+      Vector<Serializable> value = new Vector<>();
 
       JButton profileButton = new JButton(JComponentUtilities.getImage("icon_warning_sml.gif"));
       profileButton.addMouseListener(new ShowProfileListener(p));

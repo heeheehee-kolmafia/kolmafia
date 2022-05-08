@@ -37,7 +37,6 @@ import net.sourceforge.kolmafia.listener.Listener;
 import net.sourceforge.kolmafia.listener.NamedListenerRegistry;
 import net.sourceforge.kolmafia.listener.PreferenceListenerRegistry;
 import net.sourceforge.kolmafia.objectpool.EffectPool;
-import net.sourceforge.kolmafia.objectpool.IntegerPool;
 import net.sourceforge.kolmafia.persistence.CandyDatabase;
 import net.sourceforge.kolmafia.persistence.CandyDatabase.Candy;
 import net.sourceforge.kolmafia.persistence.EffectDatabase;
@@ -181,6 +180,7 @@ public class SynthesizePanel extends JPanel implements ActionListener, Listener 
   }
 
   // Called when checkbox changes
+  @Override
   public void actionPerformed(final ActionEvent e) {
     this.availableChecked = this.filters[0].isSelected();
     this.chocolateChecked = this.filters[1].isSelected();
@@ -207,6 +207,7 @@ public class SynthesizePanel extends JPanel implements ActionListener, Listener 
 
   // called when (candy) fires
   // called when "sweetSynthesisBlacklist" fires
+  @Override
   public void update() {
     CandyDatabase.loadBlacklist();
 
@@ -222,6 +223,7 @@ public class SynthesizePanel extends JPanel implements ActionListener, Listener 
     try {
       SwingUtilities.invokeAndWait(
           new Runnable() {
+            @Override
             public void run() {
               SynthesizePanel.this.filterItems();
 
@@ -274,6 +276,7 @@ public class SynthesizePanel extends JPanel implements ActionListener, Listener 
       return this.selected == null ? -1 : this.selected.effectId;
     }
 
+    @Override
     public void setEnabled(final boolean isEnabled) {
       this.update();
     }
@@ -346,6 +349,7 @@ public class SynthesizePanel extends JPanel implements ActionListener, Listener 
         this.setForeground(Color.WHITE);
       }
 
+      @Override
       public void actionPerformed(final ActionEvent e) {
         EffectButton current = EffectPanel.this.selected;
         if (current != null) {
@@ -397,9 +401,9 @@ public class SynthesizePanel extends JPanel implements ActionListener, Listener 
         case NAME:
           return candy.getName();
         case COUNT:
-          return IntegerPool.get(candy.getCount());
+          return candy.getCount();
         case COST:
-          return IntegerPool.get(candy.getCost());
+          return candy.getCost();
         default:
           throw new IllegalArgumentException("Invalid column index");
       }
@@ -464,6 +468,7 @@ public class SynthesizePanel extends JPanel implements ActionListener, Listener 
         return this.table.getSelectedValue();
       }
 
+      @Override
       public abstract void valueChanged(ListSelectionEvent e);
 
       public void loadCandy(Set<Integer> itemIds) {
@@ -544,6 +549,7 @@ public class SynthesizePanel extends JPanel implements ActionListener, Listener 
         }
       }
 
+      @Override
       public boolean isVisible(final Object o) {
         if (o instanceof Candy) {
           if (SynthesizePanel.this.availableChecked && ((Candy) o).getCount() == 0) {
@@ -599,6 +605,7 @@ public class SynthesizePanel extends JPanel implements ActionListener, Listener 
         super("Candy A");
       }
 
+      @Override
       public void valueChanged(ListSelectionEvent e) {
         // The selection is cleared at the beginning of a sort.
         // We will restore it when we are done.
@@ -672,6 +679,7 @@ public class SynthesizePanel extends JPanel implements ActionListener, Listener 
         super("Candy B");
       }
 
+      @Override
       public void valueChanged(ListSelectionEvent e) {
         // The selection is cleared at the beginning of a sort.
         // We will restore it when we are done.
@@ -696,6 +704,7 @@ public class SynthesizePanel extends JPanel implements ActionListener, Listener 
         }
       }
 
+      @Override
       public boolean isVisible(final Object o) {
         if (o instanceof Candy) {
           Candy candy = (Candy) o;
@@ -879,6 +888,7 @@ public class SynthesizePanel extends JPanel implements ActionListener, Listener 
   }
 
   private class AutomaticListener implements ActionListener {
+    @Override
     public void actionPerformed(final ActionEvent e) {
       int effectId = SynthesizePanel.this.effectId();
       if (effectId == -1) {
@@ -914,24 +924,6 @@ public class SynthesizePanel extends JPanel implements ActionListener, Listener 
   private class PriceCheckListener extends ThreadedListener {
     @Override
     protected void execute() {
-      // As of 2019-07-21, there are 140 "potions", 23 "foods", and 55 "other" candies
-      //
-      // There are 105 pages of "potions", which is fewer than 140 potions updated individually
-      // There are 70 pages of "foods", which is more than 23 foods updated individually
-      // There is  no category that contains non-potion, non-food candies.
-      //
-      // Therefore, by bulk updating all potions, it will take
-      //    105 + 23 + 55 = 183 pages hits
-      // to update the mall prices for all
-      //    140 + 23 + 55 = 218 candies.
-      //
-      // If there were a "candies" category, all candies could be done in
-      // 22 server hits. Instead, it takes 183 server hits.  I submitted a
-      // Feature Request to KoL for that, but no joy so far
-      //
-      // On the other hand, if we update all candies individually, it will
-      // take more server hits, but cached prices will not require a hit.
-
       CandyDatabase.updatePrices();
       SynthesizePanel.this.update();
 

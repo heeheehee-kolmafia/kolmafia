@@ -22,6 +22,8 @@ import net.sourceforge.kolmafia.swingui.LoginFrame;
 public class LogoutManager {
   private static boolean isRunning = false;
 
+  private LogoutManager() {}
+
   public static void prepare() {
     // If there's no user to worry about, we're done now.
 
@@ -46,6 +48,7 @@ public class LogoutManager {
   }
 
   private static class ResetGUIRunnable implements Runnable {
+    @Override
     public void run() {
       LogoutManager.resetGUI();
     }

@@ -16,7 +16,6 @@ import net.sourceforge.kolmafia.RequestLogger;
 import net.sourceforge.kolmafia.objectpool.ItemPool;
 import net.sourceforge.kolmafia.persistence.HolidayDatabase;
 import net.sourceforge.kolmafia.persistence.SkillDatabase;
-import net.sourceforge.kolmafia.request.EatItemRequest;
 import net.sourceforge.kolmafia.request.EquipmentRequest;
 import net.sourceforge.kolmafia.request.GenericRequest;
 import net.sourceforge.kolmafia.request.UneffectRequest;
@@ -133,7 +132,7 @@ public class ShowDataCommand extends AbstractCommand {
 
     if (desiredData.equals("status")) {
       desiredStream.println("Name: " + KoLCharacter.getUserName());
-      desiredStream.println("Class: " + KoLCharacter.getClassType());
+      desiredStream.println("Class: " + KoLCharacter.getAscensionClassName());
       desiredStream.println();
 
       desiredStream.println("Lv: " + KoLCharacter.getLevel());
@@ -301,9 +300,6 @@ public class ShowDataCommand extends AbstractCommand {
     }
 
     if (desiredData.equals("counters")) {
-      desiredStream.println(EatItemRequest.lastSemirareMessage());
-      desiredStream.println();
-
       String counters = TurnCounter.getUnexpiredCounters();
       if (counters.equals("")) {
         desiredStream.println("No active counters.");
@@ -315,7 +311,7 @@ public class ShowDataCommand extends AbstractCommand {
       return;
     }
 
-    List mainList =
+    List<?> mainList =
         desiredData.equals("closet")
             ? KoLConstants.closet
             : desiredData.equals("summary")
@@ -351,80 +347,58 @@ public class ShowDataCommand extends AbstractCommand {
     }
 
     if (desiredData.startsWith("skills")) {
-      mainList = KoLConstants.availableSkills;
+      List<UseSkillRequest> skillsList = new ArrayList<>(KoLConstants.availableSkills);
       filter = filter.toLowerCase();
 
       if (filter.startsWith("cast")) {
-        mainList = new ArrayList();
-        mainList.addAll(KoLConstants.availableSkills);
-
-        List intersect = SkillDatabase.getSkillsByType(SkillDatabase.CASTABLE);
-        mainList.retainAll(intersect);
+        List<UseSkillRequest> intersect = SkillDatabase.getSkillsByType(SkillDatabase.CASTABLE);
+        skillsList.retainAll(intersect);
         filter = "";
       }
 
       if (filter.startsWith("pass")) {
-        mainList = new ArrayList();
-        mainList.addAll(KoLConstants.availableSkills);
-
-        List intersect = SkillDatabase.getSkillsByType(SkillDatabase.PASSIVE);
-        mainList.retainAll(intersect);
+        List<UseSkillRequest> intersect = SkillDatabase.getSkillsByType(SkillDatabase.PASSIVE);
+        skillsList.retainAll(intersect);
         filter = "";
       }
 
       if (filter.startsWith("self")) {
-        mainList = new ArrayList();
-        mainList.addAll(KoLConstants.availableSkills);
-
-        List intersect = SkillDatabase.getSkillsByType(SkillDatabase.SELF_ONLY);
-        mainList.retainAll(intersect);
+        List<UseSkillRequest> intersect = SkillDatabase.getSkillsByType(SkillDatabase.SELF_ONLY);
+        skillsList.retainAll(intersect);
         filter = "";
       }
 
       if (filter.startsWith("buff")) {
-        mainList = new ArrayList();
-        mainList.addAll(KoLConstants.availableSkills);
-
-        List intersect = SkillDatabase.getSkillsByType(SkillDatabase.BUFF);
-        mainList.retainAll(intersect);
+        List<UseSkillRequest> intersect = SkillDatabase.getSkillsByType(SkillDatabase.BUFF);
+        skillsList.retainAll(intersect);
         filter = "";
       }
 
       if (filter.startsWith("combat")) {
-        mainList = new ArrayList();
-        mainList.addAll(KoLConstants.availableSkills);
-
-        List intersect = SkillDatabase.getSkillsByType(SkillDatabase.COMBAT);
-        mainList.retainAll(intersect);
+        List<UseSkillRequest> intersect = SkillDatabase.getSkillsByType(SkillDatabase.COMBAT);
+        skillsList.retainAll(intersect);
         filter = "";
       }
 
       if (filter.startsWith("song")) {
-        mainList = new ArrayList();
-        mainList.addAll(KoLConstants.availableSkills);
-
-        List intersect = SkillDatabase.getSkillsByType(SkillDatabase.SONG);
-        mainList.retainAll(intersect);
+        List<UseSkillRequest> intersect = SkillDatabase.getSkillsByType(SkillDatabase.SONG);
+        skillsList.retainAll(intersect);
         filter = "";
       }
 
       if (filter.startsWith("expression")) {
-        mainList = new ArrayList();
-        mainList.addAll(KoLConstants.availableSkills);
-
-        List intersect = SkillDatabase.getSkillsByType(SkillDatabase.EXPRESSION);
-        mainList.retainAll(intersect);
+        List<UseSkillRequest> intersect = SkillDatabase.getSkillsByType(SkillDatabase.EXPRESSION);
+        skillsList.retainAll(intersect);
         filter = "";
       }
 
       if (filter.startsWith("walk")) {
-        mainList = new ArrayList();
-        mainList.addAll(KoLConstants.availableSkills);
-
-        List intersect = SkillDatabase.getSkillsByType(SkillDatabase.WALK);
-        mainList.retainAll(intersect);
+        List<UseSkillRequest> intersect = SkillDatabase.getSkillsByType(SkillDatabase.WALK);
+        skillsList.retainAll(intersect);
         filter = "";
       }
+
+      mainList = skillsList;
     }
 
     if (filter.equals("")) {
@@ -433,7 +407,7 @@ public class ShowDataCommand extends AbstractCommand {
     }
 
     String currentItem;
-    List resultList = new ArrayList();
+    List<Object> resultList = new ArrayList<>();
 
     Object[] items = new Object[mainList.size()];
     mainList.toArray(items);

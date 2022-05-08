@@ -37,11 +37,11 @@ public class RequestFrame extends GenericFrame {
   private static final Pattern BOOKSHELF_PATTERN =
       Pattern.compile("onClick=\"location.href='(.*?)';\"", Pattern.DOTALL);
 
-  private static final ArrayList sideBarFrames = new ArrayList();
+  private static final ArrayList<RequestFrame> sideBarFrames = new ArrayList<>();
 
   private int locationIndex = 0;
-  private final ArrayList history = new ArrayList();
-  private final ArrayList shownHTML = new ArrayList();
+  private final ArrayList<String> history = new ArrayList<>();
+  private final ArrayList<String> shownHTML = new ArrayList<>();
 
   private String currentLocation;
 
@@ -355,6 +355,7 @@ public class RequestFrame extends GenericFrame {
       this.request = request;
     }
 
+    @Override
     public void run() {
       // New prevention mechanism: tell the requests that there
       // will be no synchronization.
@@ -411,7 +412,7 @@ public class RequestFrame extends GenericFrame {
         RequestFrame.getDisplayHTML("charpane.php", CharPaneRequest.getLastResponse(), false);
 
     for (int i = 0; i < RequestFrame.sideBarFrames.size(); ++i) {
-      RequestFrame current = (RequestFrame) RequestFrame.sideBarFrames.get(i);
+      RequestFrame current = RequestFrame.sideBarFrames.get(i);
 
       if (current.sideDisplay == null) {
         continue;
@@ -445,36 +446,40 @@ public class RequestFrame extends GenericFrame {
   }
 
   private class HomeRunnable implements Runnable {
+    @Override
     public void run() {
       RequestFrame.this.refresh(new GenericRequest("main.php"));
     }
   }
 
   private class BackRunnable implements Runnable {
+    @Override
     public void run() {
       if (RequestFrame.this.locationIndex > 0) {
         --RequestFrame.this.locationIndex;
         RequestFrame.this.mainDisplay.setText(
-            (String) RequestFrame.this.shownHTML.get(RequestFrame.this.locationIndex));
+            RequestFrame.this.shownHTML.get(RequestFrame.this.locationIndex));
         RequestFrame.this.locationField.setText(
-            (String) RequestFrame.this.history.get(RequestFrame.this.locationIndex));
+            RequestFrame.this.history.get(RequestFrame.this.locationIndex));
       }
     }
   }
 
   private class ForwardRunnable implements Runnable {
+    @Override
     public void run() {
       if (RequestFrame.this.locationIndex + 1 < RequestFrame.this.shownHTML.size()) {
         ++RequestFrame.this.locationIndex;
         RequestFrame.this.mainDisplay.setText(
-            (String) RequestFrame.this.shownHTML.get(RequestFrame.this.locationIndex));
+            RequestFrame.this.shownHTML.get(RequestFrame.this.locationIndex));
         RequestFrame.this.locationField.setText(
-            (String) RequestFrame.this.history.get(RequestFrame.this.locationIndex));
+            RequestFrame.this.history.get(RequestFrame.this.locationIndex));
       }
     }
   }
 
   private class ReloadRunnable implements Runnable {
+    @Override
     public void run() {
       if (RequestFrame.this.currentLocation == null) {
         return;
@@ -485,6 +490,7 @@ public class RequestFrame extends GenericFrame {
   }
 
   private class GoRunnable implements Runnable {
+    @Override
     public void run() {
       KoLAdventure adventure =
           AdventureDatabase.getAdventure(RequestFrame.this.locationField.getText());
